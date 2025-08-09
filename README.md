@@ -2,7 +2,8 @@
 
 **GameCubby Web** is the frontend for the GameCubby project — a self-hosted game cataloging system.
 
-This web interface connects to the GameCubby API and provides a user-friendly way to browse, search, and manage your game collection.
+This web interface connects to the GameCubby API and provides a user-friendly way to browse, search, and manage your
+game collection.
 
 ## Features
 

@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "@/lib/env";
+import {API_BASE_URL} from "@/lib/env";
 
 /**
  * Fetch the list of games from the API.
@@ -8,7 +8,7 @@ import { API_BASE_URL } from "@/lib/env";
 export async function fetchGames() {
     const url = `${API_BASE_URL}/games/`;
 
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url, {cache: "no-store"});
     if (!res.ok) {
         // Surface a readable error — we’ll improve this later
         throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
