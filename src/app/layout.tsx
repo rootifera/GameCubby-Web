@@ -1,4 +1,5 @@
 import Link from "next/link";
+import NavBar from "@/components/NavBar";
 import ApiStatus from "@/components/ApiStatus";
 
 export const metadata = {
@@ -52,25 +53,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     GameCubby
                 </Link>
 
-                <div style={{ display: "flex", gap: 12, marginLeft: 12 }}>
-                    <Link href="/" style={linkStyle}>
-                        Home
-                    </Link>
-                    <Link href="/games" style={linkStyle}>
-                        Games
-                    </Link>
-                    <Link href="/search" style={linkStyle}>
-                        Search
-                    </Link>
-                    <Link href="/admin" style={linkStyle}>
-                        Admin
-                    </Link>
-                </div>
+                {/* Interactive nav items */}
+                <NavBar />
 
-                {/* Right side: API status */}
-                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
-                    <ApiStatus />
-                </div>
+                {/* spacer */}
+                <div style={{ flex: 1 }} />
+
+                {/* API status dot on the right (kept as-is) */}
+                <ApiStatus />
             </nav>
         </header>
 
@@ -79,7 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
         </main>
 
-        {/* Footer (placeholder) */}
+        {/* Footer */}
         <footer
             style={{
                 marginTop: "auto",
@@ -97,11 +87,3 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </html>
     );
 }
-
-const linkStyle: React.CSSProperties = {
-    color: "#d8d8d8",
-    textDecoration: "none",
-    padding: "6px 10px",
-    borderRadius: 8,
-    border: "1px solid transparent"
-};

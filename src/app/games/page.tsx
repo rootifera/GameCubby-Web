@@ -1,5 +1,5 @@
 import Link from "next/link";
-import {API_BASE_URL} from "@/lib/env";
+import { API_BASE_URL } from "@/lib/env";
 
 /** Minimal types for what we need on this page */
 type GamePreview = {
@@ -25,7 +25,7 @@ type SortKey =
 /** Get previews (fast list) */
 async function fetchGames(): Promise<GamePreview[]> {
     const url = `${API_BASE_URL}/games/`;
-    const res = await fetch(url, {cache: "no-store"});
+    const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
     const data = await res.json();
     return Array.isArray(data) ? data : [];
@@ -38,7 +38,7 @@ async function fetchRatings(ids: number[]): Promise<Record<number, number | null
     await Promise.all(
         ids.map(async (id) => {
             try {
-                const res = await fetch(`${API_BASE_URL}/games/${id}`, {cache: "no-store"});
+                const res = await fetch(`${API_BASE_URL}/games/${id}`, { cache: "no-store" });
                 if (!res.ok) throw new Error();
                 const g = (await res.json()) as GameDetails;
                 results[id] = g?.rating ?? null;
@@ -50,7 +50,8 @@ async function fetchRatings(ids: number[]): Promise<Record<number, number | null
     return results;
 }
 
-/** Tries to derive a human year from various numeric formats */
+/** ---- helpers: year + cover fallback ---- */
+
 function toYearNumber(n?: number | null): number | null {
     if (n == null) return null;
     if (n >= 1000 && n <= 3000) return n; // already a year
@@ -62,6 +63,77 @@ function toYearNumber(n?: number | null): number | null {
 function toYearLabel(n?: number | null): string {
     const y = toYearNumber(n);
     return y == null ? "—" : String(y);
+}
+
+/** Quick, cheap URL validation to avoid broken <img> when users type random text */
+function isLikelyHttpUrl(s?: string | null): s is string {
+    if (!s) return false;
+    try {
+        const u = new URL(s);
+        return u.protocol === "http:" || u.protocol === "https:";
+    } catch {
+        return false;
+    }
+}
+
+function getInitials(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+}
+
+/** Small JSX helper for covers with graceful fallback */
+function CoverThumb({
+                        name,
+                        coverUrl,
+                        size = 56
+                    }: {
+    name: string;
+    coverUrl?: string | null;
+    size?: number;
+}) {
+    const frame: React.CSSProperties = {
+        width: size,
+        height: size,
+        borderRadius: 8,
+        border: "1px solid #2b2b2b",
+        overflow: "hidden",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#141414",
+        flexShrink: 0
+    };
+
+    if (isLikelyHttpUrl(coverUrl)) {
+        // eslint-disable-next-line @next/next/no-img-element
+        return (
+            <img
+                src={coverUrl}
+                alt={name}
+                width={size}
+                height={size}
+                style={{ ...frame, objectFit: "cover" }}
+            />
+        );
+    }
+
+    // Placeholder tile when no/invalid URL
+    return (
+        <div aria-label={`${name} (no cover)`} style={{ ...frame, background: "linear-gradient(135deg, #1e293b 0%, #0b1220 100%)" }}>
+      <span
+          style={{
+              fontSize: Math.max(16, Math.floor(size * 0.36)),
+              fontWeight: 800,
+              letterSpacing: 0.5,
+              color: "#dbeafe",
+              textShadow: "0 1px 0 rgba(0,0,0,0.5), 0 0 8px rgba(59,130,246,0.35)"
+          }}
+      >
+        {getInitials(name)}
+      </span>
+        </div>
+    );
 }
 
 function sortGames(
@@ -76,7 +148,7 @@ function sortGames(
     }));
 
     const byString = (a?: string | null, b?: string | null) =>
-        (a ?? "").localeCompare(b ?? "", undefined, {sensitivity: "base"});
+        (a ?? "").localeCompare(b ?? "", undefined, { sensitivity: "base" });
 
     const byNumberDesc = (a?: number | null, b?: number | null) =>
         (b ?? -Infinity) - (a ?? -Infinity);
@@ -166,7 +238,7 @@ export default async function GamesPage({
                     marginBottom: 12
                 }}
             >
-                <h1 style={{fontSize: 24, margin: 0}}>Games</h1>
+                <h1 style={{ fontSize: 24, margin: 0 }}>Games</h1>
             </div>
 
             {/* Sort bar */}
@@ -179,13 +251,13 @@ export default async function GamesPage({
                     marginBottom: 12
                 }}
             >
-                <span style={{opacity: 0.8, fontSize: 13}}>Sort by:</span>
-                <SortLink label="Name A–Z" value="name_asc" active={sortParam === "name_asc"}/>
-                <SortLink label="Name Z–A" value="name_desc" active={sortParam === "name_desc"}/>
-                <SortLink label="Year ↓" value="year_desc" active={sortParam === "year_desc"}/>
-                <SortLink label="Year ↑" value="year_asc" active={sortParam === "year_asc"}/>
-                <SortLink label="Rating ↓" value="rating_desc" active={sortParam === "rating_desc"}/>
-                <SortLink label="Rating ↑" value="rating_asc" active={sortParam === "rating_asc"}/>
+                <span style={{ opacity: 0.8, fontSize: 13 }}>Sort by:</span>
+                <SortLink label="Name A–Z" value="name_asc" active={sortParam === "name_asc"} />
+                <SortLink label="Name Z–A" value="name_desc" active={sortParam === "name_desc"} />
+                <SortLink label="Year ↓" value="year_desc" active={sortParam === "year_desc"} />
+                <SortLink label="Year ↑" value="year_asc" active={sortParam === "year_asc"} />
+                <SortLink label="Rating ↓" value="rating_desc" active={sortParam === "rating_desc"} />
+                <SortLink label="Rating ↑" value="rating_asc" active={sortParam === "rating_asc"} />
             </div>
 
             {error ? (
@@ -199,8 +271,8 @@ export default async function GamesPage({
                         marginBottom: 16
                     }}
                 >
-                    Failed to load games.<br/>
-                    <span style={{fontSize: 12, opacity: 0.9}}>{error}</span>
+                    Failed to load games.<br />
+                    <span style={{ fontSize: 12, opacity: 0.9 }}>{error}</span>
                 </div>
             ) : null}
 
@@ -209,7 +281,7 @@ export default async function GamesPage({
             ) : null}
 
             {!error && sorted?.length ? (
-                <ul style={{listStyle: "none", padding: 0, margin: 0}}>
+                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                     {sorted.map((g) => {
                         const year = toYearLabel(g.release_date);
                         const platformNames = g.platforms?.map((p) => p.name).join(", ") || "—";
@@ -226,53 +298,27 @@ export default async function GamesPage({
                                     alignItems: "center"
                                 }}
                             >
-                                {/* Cover */}
-                                <Link href={`/games/${g.id}`} style={{display: "inline-block", flexShrink: 0}}>
-                                    {g.cover_url ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img
-                                            src={g.cover_url}
-                                            alt={g.name}
-                                            width={56}
-                                            height={56}
-                                            style={{
-                                                width: 56,
-                                                height: 56,
-                                                objectFit: "cover",
-                                                borderRadius: 8,
-                                                border: "1px solid #2b2b2b",
-                                                background: "#141414"
-                                            }}
-                                        />
-                                    ) : (
-                                        <div
-                                            style={{
-                                                width: 56,
-                                                height: 56,
-                                                borderRadius: 8,
-                                                border: "1px solid #2b2b2b",
-                                                background: "#1b1b1b"
-                                            }}
-                                        />
-                                    )}
+                                {/* Cover (with validation + fallback) */}
+                                <Link href={`/games/${g.id}`} style={{ display: "inline-block", flexShrink: 0 }}>
+                                    <CoverThumb name={g.name} coverUrl={g.cover_url} size={56} />
                                 </Link>
 
                                 {/* Text block */}
-                                <div style={{display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%"}}>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%" }}>
                                     <div>
                                         <Link
                                             href={`/games/${g.id}`}
-                                            style={{color: "#fff", textDecoration: "none", fontWeight: 600}}
+                                            style={{ color: "#fff", textDecoration: "none", fontWeight: 600 }}
                                         >
                                             {g.name}
                                         </Link>
-                                        <div style={{fontSize: 12, opacity: 0.8}}>
+                                        <div style={{ fontSize: 12, opacity: 0.8 }}>
                                             Platforms: {platformNames}
                                         </div>
                                     </div>
 
                                     {/* Right aligned meta */}
-                                    <div style={{textAlign: "right", fontSize: 12, opacity: 0.9}}>
+                                    <div style={{ textAlign: "right", fontSize: 12, opacity: 0.9 }}>
                                         <div>Year: {year}</div>
                                         <div>Rating: {rating ?? "—"}</div>
                                     </div>
