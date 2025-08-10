@@ -1,5 +1,5 @@
 import Link from "next/link";
-import {API_BASE_URL} from "@/lib/env";
+import { API_BASE_URL } from "@/lib/env";
 
 type LocationNode = { id: string; name: string };
 
@@ -35,7 +35,7 @@ type Game = {
 
 async function fetchGame(id: string): Promise<Game> {
     const url = `${API_BASE_URL}/games/${id}`;
-    const res = await fetch(url, {cache: "no-store"});
+    const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
     return (await res.json()) as Game;
 }
@@ -48,7 +48,13 @@ function toYear(n?: number | null): string {
     return String(n);
 }
 
-export default async function GameDetailsPage({params}: { params: { id: string } }) {
+// We don't have the IGDB slug, so link to a site search by name (reliable).
+function igdbSearchUrl(name: string) {
+    // IGDB site search works with ?q=...; using web search is also fine.
+    return `https://www.igdb.com/search?q=${encodeURIComponent(name)}`;
+}
+
+export default async function GameDetailsPage({ params }: { params: { id: string } }) {
     let game: Game | null = null;
     let error: string | null = null;
 
@@ -59,9 +65,9 @@ export default async function GameDetailsPage({params}: { params: { id: string }
     }
 
     return (
-        <div style={{padding: 16}}>
-            <div style={{marginBottom: 16}}>
-                <Link href="/games" style={{color: "#a0c4ff", textDecoration: "none"}}>
+        <div style={{ padding: 16 }}>
+            <div style={{ marginBottom: 16 }}>
+                <Link href="/games" style={{ color: "#a0c4ff", textDecoration: "none" }}>
                     ← Back to Games
                 </Link>
             </div>
@@ -78,7 +84,7 @@ export default async function GameDetailsPage({params}: { params: { id: string }
                     }}
                 >
                     Failed to load game.
-                    <div style={{marginTop: 6, fontSize: 12, opacity: 0.9}}>{error}</div>
+                    <div style={{ marginTop: 6, fontSize: 12, opacity: 0.9 }}>{error}</div>
                 </div>
             ) : null}
 
@@ -128,9 +134,9 @@ export default async function GameDetailsPage({params}: { params: { id: string }
 
                     {/* Info */}
                     <div>
-                        <h1 style={{fontSize: 26, margin: "0 0 10px 0", letterSpacing: 0.2}}>{game.name}</h1>
+                        <h1 style={{ fontSize: 26, margin: "0 0 10px 0", letterSpacing: 0.2 }}>{game.name}</h1>
 
-                        {/* Quick facts (cleaner) */}
+                        {/* Quick facts */}
                         <div
                             style={{
                                 display: "flex",
@@ -141,10 +147,28 @@ export default async function GameDetailsPage({params}: { params: { id: string }
                                 marginBottom: 12
                             }}
                         >
-                            <Pill label={`Year: ${toYear(game.release_date)}`}/>
-                            <Pill label={`Rating: ${typeof game.rating === "number" ? game.rating : "—"}`}/>
-                            <Pill label={`Condition: ${game.condition ?? "—"}`}/>
-                            <Pill label={`IGDB: ${game.igdb_id}`}/>
+                            <Pill label={`Year: ${toYear(game.release_date)}`} />
+                            <Pill label={`Rating: ${typeof game.rating === "number" ? game.rating : "—"}`} />
+                            <Pill label={`Condition: ${game.condition ?? "—"}`} />
+
+                            {/* IGDB pill becomes a link; keeps the ID visible */}
+                            <a
+                                href={igdbSearchUrl(game.name)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                    textDecoration: "none",
+                                    background: "#1d1d1d",
+                                    border: "1px solid #2b2b2b",
+                                    borderRadius: 999,
+                                    padding: "4px 10px",
+                                    lineHeight: 1.2,
+                                    color: "#eaeaea"
+                                }}
+                                title="Open on IGDB (search by name)"
+                            >
+                                IGDB: {game.igdb_id}
+                            </a>
                         </div>
 
                         {/* Location (with Order) */}
@@ -157,12 +181,12 @@ export default async function GameDetailsPage({params}: { params: { id: string }
                                 borderRadius: 10
                             }}
                         >
-                            <div style={{fontWeight: 600, marginBottom: 6}}>Location:</div>
-                            <div style={{display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center"}}>
+                            <div style={{ fontWeight: 600, marginBottom: 6 }}>Location:</div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
                                 {game.location_path && game.location_path.length ? (
                                     <>
                                         {game.location_path.map((node, idx) => (
-                                            <span key={node.id} style={{display: "flex", alignItems: "center", gap: 6}}>
+                                            <span key={node.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span
                             style={{
                                 background: "#1e1e1e",
@@ -174,19 +198,18 @@ export default async function GameDetailsPage({params}: { params: { id: string }
                         >
                           {node.name}
                         </span>
-                                                {idx < game.location_path!.length - 1 ?
-                                                    <span style={{opacity: 0.6}}>›</span> : null}
+                                                {idx < game.location_path!.length - 1 ? <span style={{ opacity: 0.6 }}>›</span> : null}
                       </span>
                                         ))}
                                     </>
                                 ) : (
-                                    <span style={{opacity: 0.7}}>Not set</span>
+                                    <span style={{ opacity: 0.7 }}>Not set</span>
                                 )}
 
                                 {/* Order appended at the end */}
                                 {typeof game.order === "number" ? (
                                     <>
-                                        <span style={{opacity: 0.6}}>·</span>
+                                        <span style={{ opacity: 0.6 }}>·</span>
                                         <span
                                             style={{
                                                 background: "#1e1e1e",
@@ -205,19 +228,19 @@ export default async function GameDetailsPage({params}: { params: { id: string }
 
                         {/* Summary */}
                         {game.summary ? (
-                            <p style={{lineHeight: 1.55, opacity: 0.95, marginBottom: 14}}>{game.summary}</p>
+                            <p style={{ lineHeight: 1.55, opacity: 0.95, marginBottom: 14 }}>{game.summary}</p>
                         ) : (
-                            <p style={{opacity: 0.6}}>No summary.</p>
+                            <p style={{ opacity: 0.6 }}>No summary.</p>
                         )}
 
                         {/* Structured metadata sections */}
-                        <MetaRow label="Platforms" items={game.platforms?.map((x) => x.name)}/>
-                        <MetaRow label="Collection" items={game.collection ? [game.collection.name] : []}/>
-                        <MetaRow label="Genres" items={game.genres?.map((x) => x.name)}/>
-                        <MetaRow label="Modes" items={game.modes?.map((x) => x.name)}/>
-                        <MetaRow label="Perspectives" items={game.playerperspectives?.map((x) => x.name)}/>
-                        <MetaRow label="Tags" items={game.tags?.map((x) => x.name)}/>
-                        <MetaRow label="IGDB Tags" items={game.igdb_tags?.map((x) => x.name)}/>
+                        <MetaRow label="Platforms" items={game.platforms?.map((x) => x.name)} />
+                        <MetaRow label="Collection" items={game.collection ? [game.collection.name] : []} />
+                        <MetaRow label="Genres" items={game.genres?.map((x) => x.name)} />
+                        <MetaRow label="Modes" items={game.modes?.map((x) => x.name)} />
+                        <MetaRow label="Perspectives" items={game.playerperspectives?.map((x) => x.name)} />
+                        <MetaRow label="Tags" items={game.tags?.map((x) => x.name)} />
+                        <MetaRow label="IGDB Tags" items={game.igdb_tags?.map((x) => x.name)} />
                         {game.companies && game.companies.length ? (
                             <MetaRow
                                 label="Companies"
@@ -241,7 +264,7 @@ export default async function GameDetailsPage({params}: { params: { id: string }
     );
 }
 
-function Pill({label}: { label: string }) {
+function Pill({ label }: { label: string }) {
     return (
         <span
             style={{
@@ -257,12 +280,12 @@ function Pill({label}: { label: string }) {
     );
 }
 
-function MetaRow({label, items}: { label: string; items?: string[] }) {
+function MetaRow({ label, items }: { label: string; items?: string[] }) {
     if (!items || items.length === 0) return null;
     return (
-        <div style={{margin: "10px 0"}}>
-            <div style={{opacity: 0.8, marginBottom: 4, fontWeight: 600}}>{label}</div>
-            <div style={{display: "flex", flexWrap: "wrap", gap: 6}}>
+        <div style={{ margin: "10px 0" }}>
+            <div style={{ opacity: 0.8, marginBottom: 4, fontWeight: 600 }}>{label}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {items.map((txt, i) => (
                     <span
                         key={`${label}-${i}-${txt}`}
