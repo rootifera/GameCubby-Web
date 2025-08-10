@@ -1,11 +1,12 @@
 import Link from "next/link";
+import ApiStatus from "@/components/ApiStatus";
 
 export const metadata = {
     title: "GameCubby",
     description: "Game collection manager"
 };
 
-export default function RootLayout({children}: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
         <html lang="en">
         <body
@@ -51,7 +52,7 @@ export default function RootLayout({children}: { children: React.ReactNode }) {
                     GameCubby
                 </Link>
 
-                <div style={{display: "flex", gap: 12, marginLeft: 12}}>
+                <div style={{ display: "flex", gap: 12, marginLeft: 12 }}>
                     <Link href="/" style={linkStyle}>
                         Home
                     </Link>
@@ -65,11 +66,16 @@ export default function RootLayout({children}: { children: React.ReactNode }) {
                         Admin
                     </Link>
                 </div>
+
+                {/* Right side: API status */}
+                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
+                    <ApiStatus />
+                </div>
             </nav>
         </header>
 
         {/* Page content */}
-        <main style={{maxWidth: 1100, margin: "24px auto", padding: "0 16px", width: "100%"}}>
+        <main style={{ maxWidth: 1100, margin: "24px auto", padding: "0 16px", width: "100%" }}>
             {children}
         </main>
 
@@ -83,7 +89,7 @@ export default function RootLayout({children}: { children: React.ReactNode }) {
                 color: "#9a9a9a"
             }}
         >
-            <div style={{maxWidth: 1100, margin: "0 auto"}}>
+            <div style={{ maxWidth: 1100, margin: "0 auto" }}>
                 GameCubby Web UI — early scaffold
             </div>
         </footer>
