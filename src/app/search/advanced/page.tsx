@@ -154,9 +154,9 @@ async function fetchPlatforms(): Promise<Option[]> {
 async function fetchGenres(): Promise<Option[]> {
     const res = await fetch(`${API_BASE_URL}/genres/`, { cache: "no-store" });
     if (!res.ok) throw new Error(`GET /genres/ -> ${res.status}`);
-    const arr = (await res.json()) as Array<Record<string, any>>;
+    const arr = (await res.json()) as Array<Named | Record<string, any>>;
     return arr
-        .map((g) => ({ id: Number(g.id), name: String(g.name || "") }))
+        .map((g: any) => ({ id: Number(g.id), name: String(g.name || "") }))
         .filter((g) => Number.isFinite(g.id) && g.name)
         .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -269,103 +269,142 @@ export default async function AdvancedSearchPage({
 
             <h1 style={{ fontSize: 24, margin: "0 0 12px 0" }}>Advanced Search</h1>
 
-            <form method="GET" action="/search/advanced" style={{ display: "grid", gap: 12, marginBottom: 16 }}>
-                {/* Row 1 — Name + Year fields (compact) */}
-                <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 100px 200px" }}>
-                    <LabeledInput label="Name" name="name" defaultValue={get(sp, "name")} placeholder="partial name…" />
-                    <LabeledInput label="Year (exact)" name="year" type="number" defaultValue={get(sp, "year")} placeholder="1998" short />
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                        <LabeledInput label="Year from" name="year_min" type="number" defaultValue={get(sp, "year_min")} placeholder="1990" short />
-                        <LabeledInput label="Year to" name="year_max" type="number" defaultValue={get(sp, "year_max")} placeholder="2005" short />
+            <details open={!hasAnyParam} style={detailsWrap}>
+                <summary style={summaryBar}>
+                    <span>Filters</span>
+                    <span style={{ opacity: 0.8, fontSize: 12 }}>
+                        {hasAnyParam ? "Click to show filters" : "Click to hide filters"}
+                    </span>
+                </summary>
+
+                <form method="GET" action="/search/advanced" style={{ display: "grid", gap: 12, marginBottom: 16 }}>
+                    {/* Row 1 — Name | Year (exact) */}
+                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 200px" }}>
+                        <LabeledInput
+                            label="Name"
+                            name="name"
+                            defaultValue={get(sp, "name")}
+                            placeholder="partial name…"
+                        />
+                        <LabeledInput
+                            label="Year (exact)"
+                            name="year"
+                            type="number"
+                            defaultValue={get(sp, "year")}
+                            placeholder="1998"
+                            short
+                        />
                     </div>
-                </div>
 
-                {/* Row 2 — Platform + Genre */}
-                <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr" }}>
-                    <MultiSelectDropdown
-                        label="Platform"
-                        name="platform_ids"
-                        options={platformOptions}
-                        defaultSelectedIds={platformDefaultIds}
-                        multiple
-                        placeholder="Select platforms…"
-                    />
-                    <MultiSelectDropdown
-                        label="Genre"
-                        name="genre_ids"
-                        options={genreOptions}
-                        defaultSelectedIds={genreDefaultIds}
-                        multiple
-                        placeholder="Select genres…"
-                    />
-                </div>
+                    {/* Row 2 — Year from | Year to */}
+                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "200px 200px" }}>
+                        <LabeledInput
+                            label="Year from"
+                            name="year_min"
+                            type="number"
+                            defaultValue={get(sp, "year_min")}
+                            placeholder="1990"
+                            short
+                        />
+                        <LabeledInput
+                            label="Year to"
+                            name="year_max"
+                            type="number"
+                            defaultValue={get(sp, "year_max")}
+                            placeholder="2005"
+                            short
+                        />
+                    </div>
 
-                {/* Row 3 — Player Perspective + Modes */}
-                <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr" }}>
-                    <MultiSelectDropdown
-                        label="Player Perspective"
-                        name="perspective_ids"
-                        options={perspectiveOptions}
-                        defaultSelectedIds={perspectiveDefaultIds}
-                        multiple
-                        placeholder="Select perspectives…"
-                    />
-                    <MultiSelectDropdown
-                        label="Mode"
-                        name="mode_ids"
-                        options={modeOptions}
-                        defaultSelectedIds={modeDefaultIds}
-                        multiple
-                        placeholder="Select modes…"
-                    />
-                </div>
+                    {/* Row 3 — Platform | Genre */}
+                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr" }}>
+                        <MultiSelectDropdown
+                            label="Platform"
+                            name="platform_ids"
+                            options={platformDefaultIds.length ? platformOptions : platformOptions}
+                            defaultSelectedIds={platformDefaultIds}
+                            multiple
+                            placeholder="Select platforms…"
+                        />
+                        <MultiSelectDropdown
+                            label="Genre"
+                            name="genre_ids"
+                            options={genreDefaultIds.length ? genreOptions : genreOptions}
+                            defaultSelectedIds={genreDefaultIds}
+                            multiple
+                            placeholder="Select genres…"
+                        />
+                    </div>
 
-                {/* Row 4 — Tags + IGDB Tags (chips with autocomplete) */}
-                <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr" }}>
-                    <TagChipsAutocomplete
-                        label="Tags"
-                        name="tag_ids"
-                        suggestKind="tags"
-                        defaultSelectedIds={tagDefaultIds}
-                    />
-                    <TagChipsAutocomplete
-                        label="IGDB Tags"
-                        name="igdb_tag_ids"
-                        suggestKind="igdb_tags"
-                        defaultSelectedIds={igdbTagDefaultIds}
-                    />
-                </div>
+                    {/* Row 4 — Player Perspective | Mode */}
+                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr" }}>
+                        <MultiSelectDropdown
+                            label="Player Perspective"
+                            name="perspective_ids"
+                            options={perspectiveOptions}
+                            defaultSelectedIds={perspectiveDefaultIds}
+                            multiple
+                            placeholder="Select perspectives…"
+                        />
+                        <MultiSelectDropdown
+                            label="Mode"
+                            name="mode_ids"
+                            options={modeOptions}
+                            defaultSelectedIds={modeDefaultIds}
+                            multiple
+                            placeholder="Select modes…"
+                        />
+                    </div>
 
-                {/* Row 5 — Collection (single) + Company (single) + Location (picker) */}
-                <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr" }}>
-                    <MultiSelectDropdown
-                        label="Collection"
-                        name="collection_id"
-                        options={collectionOptions}
-                        defaultSelectedIds={collectionDefaultId ? [collectionDefaultId] : []}
-                        multiple={false}
-                        placeholder="Select a collection…"
-                        compact
-                    />
-                    <MultiSelectDropdown
-                        label="Company"
-                        name="company_id"
-                        options={companyOptions}
-                        defaultSelectedIds={companyDefaultId ? [companyDefaultId] : []}
-                        multiple={false}
-                        placeholder="Select a company…"
-                        compact
-                    />
-                    <LocationPicker
-                        label="Location"
-                        name="location_id"
-                        defaultSelectedId={locationDefaultId ? Number(locationDefaultId) : undefined}
-                    />
-                </div>
+                    {/* Row 5 — Collection | Company */}
+                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr" }}>
+                        <MultiSelectDropdown
+                            label="Collection"
+                            name="collection_id"
+                            options={collectionOptions}
+                            defaultSelectedIds={collectionDefaultId ? [collectionDefaultId] : []}
+                            multiple={false}
+                            placeholder="Select a collection…"
+                            compact
+                        />
+                        <MultiSelectDropdown
+                            label="Company"
+                            name="company_id"
+                            options={companyOptions}
+                            defaultSelectedIds={companyDefaultId ? [companyDefaultId] : []}
+                            multiple={false}
+                            placeholder="Select a company…"
+                            compact
+                        />
+                    </div>
 
-                {/* Row 6 — Include Custom Games + Limit + Offset */}
-                <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr" }}>
-                    <div style={{ display: "grid", gap: 6 }}>
+                    {/* Row 6 — Tags | IGDB Tags */}
+                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr" }}>
+                        <TagChipsAutocomplete
+                            label="Tags"
+                            name="tag_ids"
+                            suggestKind="tags"
+                            defaultSelectedIds={tagDefaultIds}
+                        />
+                        <TagChipsAutocomplete
+                            label="IGDB Tags"
+                            name="igdb_tag_ids"
+                            suggestKind="igdb_tags"
+                            defaultSelectedIds={igdbTagDefaultIds}
+                        />
+                    </div>
+
+                    {/* Row 7 — Location */}
+                    <div>
+                        <LocationPicker
+                            label="Location"
+                            name="location_id"
+                            defaultSelectedId={locationDefaultId ? Number(locationDefaultId) : undefined}
+                        />
+                    </div>
+
+                    {/* Row 8 — Include Custom Games */}
+                    <div style={{ display: "grid", gap: 6, maxWidth: 360 }}>
                         <label style={{ opacity: 0.85 }}>Include Custom Games</label>
                         <select name="include_manual" defaultValue={get(sp, "include_manual")} style={selectStyle}>
                             <option value="">Default (Yes)</option>
@@ -374,47 +413,43 @@ export default async function AdvancedSearchPage({
                         </select>
                     </div>
 
-                    <LabeledInput label="Limit" name="limit" type="number" defaultValue={get(sp, "limit", "50")} placeholder="50" short />
-                    <LabeledInput
-                        label="Offset"
-                        name="offset"
-                        type="number"
-                        defaultValue={get(sp, "offset", "0")}
-                        placeholder="0"
-                        title="Number of results to skip (pagination)"
-                        short
-                    />
-                </div>
+                    {/* Row 9 — Limit | Offset */}
+                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "200px 200px" }}>
+                        <LabeledInput label="Limit" name="limit" type="number" defaultValue={get(sp, "limit", "50")} placeholder="50" short />
+                        <LabeledInput label="Offset" name="offset" type="number" defaultValue={get(sp, "offset", "0")} placeholder="0" short />
+                    </div>
 
-                <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                        type="submit"
-                        style={{
-                            background: "#1e293b",
-                            color: "#fff",
-                            border: "1px solid #3b82f6",
-                            borderRadius: 8,
-                            padding: "10px 14px",
-                            fontWeight: 600,
-                            cursor: "pointer"
-                        }}
-                    >
-                        Search
-                    </button>
-                    <Link
-                        href="/search/advanced"
-                        style={{
-                            color: "#d8d8d8",
-                            border: "1px solid #2b2b2b",
-                            borderRadius: 8,
-                            padding: "10px 14px",
-                            textDecoration: "none"
-                        }}
-                    >
-                        Reset
-                    </Link>
-                </div>
-            </form>
+                    {/* Buttons */}
+                    <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                            type="submit"
+                            style={{
+                                background: "#1e293b",
+                                color: "#fff",
+                                border: "1px solid #3b82f6",
+                                borderRadius: 8,
+                                padding: "10px 14px",
+                                fontWeight: 600,
+                                cursor: "pointer"
+                            }}
+                        >
+                            Search
+                        </button>
+                        <Link
+                            href="/search/advanced"
+                            style={{
+                                color: "#d8d8d8",
+                                border: "1px solid #2b2b2b",
+                                borderRadius: 8,
+                                padding: "10px 14px",
+                                textDecoration: "none"
+                            }}
+                        >
+                            Reset
+                        </Link>
+                    </div>
+                </form>
+            </details>
 
             {usedFallback ? (
                 <div
@@ -538,7 +573,7 @@ function LabeledInput(
                     borderRadius: 8,
                     padding: "10px 12px",
                     outline: "none",
-                    ...(short ? { maxWidth: 100 } : null),
+                    ...(short ? { maxWidth: 200 } : null),
                     ...style
                 }}
             />
@@ -553,4 +588,24 @@ const selectStyle: React.CSSProperties = {
     borderRadius: 8,
     padding: "10px 12px",
     outline: "none"
+};
+
+/* Collapsible styles */
+const detailsWrap: React.CSSProperties = {
+    border: "1px solid #222",
+    borderRadius: 10,
+    background: "#121212",
+    marginBottom: 16
+};
+const summaryBar: React.CSSProperties = {
+    listStyle: "none",
+    cursor: "pointer",
+    userSelect: "none" as const,
+    padding: "10px 12px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderBottom: "1px solid #222",
+    color: "#eaeaea",
+    fontWeight: 600
 };
