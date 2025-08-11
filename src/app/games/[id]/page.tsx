@@ -40,6 +40,7 @@ async function fetchGame(id: string): Promise<Game> {
     return (await res.json()) as Game;
 }
 
+/* helpers */
 function toYear(n?: number | null): string {
     if (n == null) return "—";
     if (n >= 1000 && n <= 3000) return String(n);
@@ -48,9 +49,20 @@ function toYear(n?: number | null): string {
     return String(n);
 }
 
+function isValidHttpUrl(s?: string | null): s is string {
+    if (!s) return false;
+    const t = s.trim();
+    if (!t) return false;
+    try {
+        const u = new URL(t);
+        return u.protocol === "http:" || u.protocol === "https:";
+    } catch {
+        return false;
+    }
+}
+
 // We don't have the IGDB slug, so link to a site search by name (reliable).
 function igdbSearchUrl(name: string) {
-    // IGDB site search works with ?q=...; using web search is also fine.
     return `https://www.igdb.com/search?q=${encodeURIComponent(name)}`;
 }
 
@@ -103,10 +115,10 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                 >
                     {/* Cover */}
                     <div>
-                        {game.cover_url ? (
+                        {isValidHttpUrl(game.cover_url) ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
-                                src={game.cover_url}
+                                src={game.cover_url!.trim()}
                                 alt={game.name}
                                 width={180}
                                 height={228}
@@ -187,19 +199,21 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                                     <>
                                         {game.location_path.map((node, idx) => (
                                             <span key={node.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span
-                            style={{
-                                background: "#1e1e1e",
-                                border: "1px solid #2b2b2b",
-                                borderRadius: 999,
-                                padding: "4px 10px",
-                                fontSize: 12
-                            }}
-                        >
-                          {node.name}
-                        </span>
-                                                {idx < game.location_path!.length - 1 ? <span style={{ opacity: 0.6 }}>›</span> : null}
-                      </span>
+                                                <span
+                                                    style={{
+                                                        background: "#1e1e1e",
+                                                        border: "1px solid #2b2b2b",
+                                                        borderRadius: 999,
+                                                        padding: "4px 10px",
+                                                        fontSize: 12
+                                                    }}
+                                                >
+                                                    {node.name}
+                                                </span>
+                                                {idx < game.location_path!.length - 1 ? (
+                                                    <span style={{ opacity: 0.6 }}>›</span>
+                                                ) : null}
+                                            </span>
                                         ))}
                                     </>
                                 ) : (
@@ -219,8 +233,8 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                                                 fontSize: 12
                                             }}
                                         >
-                      Order: {game.order}
-                    </span>
+                                            Order: {game.order}
+                                        </span>
                                     </>
                                 ) : null}
                             </div>
@@ -275,8 +289,8 @@ function Pill({ label }: { label: string }) {
                 lineHeight: 1.2
             }}
         >
-      {label}
-    </span>
+            {label}
+        </span>
     );
 }
 
@@ -297,8 +311,8 @@ function MetaRow({ label, items }: { label: string; items?: string[] }) {
                             fontSize: 13
                         }}
                     >
-            {txt}
-          </span>
+                        {txt}
+                    </span>
                 ))}
             </div>
         </div>

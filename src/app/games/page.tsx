@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
+import GameHoverCard from "@/components/GameHoverCard";
+import CoverThumb from "@/components/CoverThumb";
 
 /** Minimal types for what we need on this page */
 type GamePreview = {
@@ -31,8 +33,7 @@ async function fetchGames(): Promise<GamePreview[]> {
     return Array.isArray(data) ? data : [];
 }
 
-/** For rating (not present in preview), fetch minimal details for each game.
- *  NOTE: This is fine for small lists right now. We can optimize later. */
+/** For rating (not present in preview), fetch minimal details for each game. */
 async function fetchRatings(ids: number[]): Promise<Record<number, number | null>> {
     const results: Record<number, number | null> = {};
     await Promise.all(
@@ -50,8 +51,7 @@ async function fetchRatings(ids: number[]): Promise<Record<number, number | null
     return results;
 }
 
-/** ---- helpers: year + cover fallback ---- */
-
+/** ---- helpers for year + sorting ---- */
 function toYearNumber(n?: number | null): number | null {
     if (n == null) return null;
     if (n >= 1000 && n <= 3000) return n; // already a year
@@ -63,77 +63,6 @@ function toYearNumber(n?: number | null): number | null {
 function toYearLabel(n?: number | null): string {
     const y = toYearNumber(n);
     return y == null ? "—" : String(y);
-}
-
-/** Quick, cheap URL validation to avoid broken <img> when users type random text */
-function isLikelyHttpUrl(s?: string | null): s is string {
-    if (!s) return false;
-    try {
-        const u = new URL(s);
-        return u.protocol === "http:" || u.protocol === "https:";
-    } catch {
-        return false;
-    }
-}
-
-function getInitials(name: string): string {
-    const parts = name.trim().split(/\s+/).filter(Boolean);
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-    return name.slice(0, 2).toUpperCase();
-}
-
-/** Small JSX helper for covers with graceful fallback */
-function CoverThumb({
-                        name,
-                        coverUrl,
-                        size = 56
-                    }: {
-    name: string;
-    coverUrl?: string | null;
-    size?: number;
-}) {
-    const frame: React.CSSProperties = {
-        width: size,
-        height: size,
-        borderRadius: 8,
-        border: "1px solid #2b2b2b",
-        overflow: "hidden",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#141414",
-        flexShrink: 0
-    };
-
-    if (isLikelyHttpUrl(coverUrl)) {
-        // eslint-disable-next-line @next/next/no-img-element
-        return (
-            <img
-                src={coverUrl}
-                alt={name}
-                width={size}
-                height={size}
-                style={{ ...frame, objectFit: "cover" }}
-            />
-        );
-    }
-
-    // Placeholder tile when no/invalid URL
-    return (
-        <div aria-label={`${name} (no cover)`} style={{ ...frame, background: "linear-gradient(135deg, #1e293b 0%, #0b1220 100%)" }}>
-      <span
-          style={{
-              fontSize: Math.max(16, Math.floor(size * 0.36)),
-              fontWeight: 800,
-              letterSpacing: 0.5,
-              color: "#dbeafe",
-              textShadow: "0 1px 0 rgba(0,0,0,0.5), 0 0 8px rgba(59,130,246,0.35)"
-          }}
-      >
-        {getInitials(name)}
-      </span>
-        </div>
-    );
 }
 
 function sortGames(
@@ -179,6 +108,7 @@ function sortGames(
     return withMeta;
 }
 
+/** ---- sort link ---- */
 function SortLink({
                       label,
                       value,
@@ -298,10 +228,12 @@ export default async function GamesPage({
                                     alignItems: "center"
                                 }}
                             >
-                                {/* Cover (with validation + fallback) */}
-                                <Link href={`/games/${g.id}`} style={{ display: "inline-block", flexShrink: 0 }}>
-                                    <CoverThumb name={g.name} coverUrl={g.cover_url} size={56} />
-                                </Link>
+                                {/* Cover with hover card */}
+                                <GameHoverCard gameId={g.id}>
+                                    <Link href={`/games/${g.id}`} style={{ display: "inline-block", flexShrink: 0 }}>
+                                        <CoverThumb name={g.name} coverUrl={g.cover_url} size={56} />
+                                    </Link>
+                                </GameHoverCard>
 
                                 {/* Text block */}
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%" }}>
