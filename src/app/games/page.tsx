@@ -108,18 +108,23 @@ function sortGames(
     return withMeta;
 }
 
+/** Small link pill for sort controls that preserves page/size */
 function SortLink({
                       label,
                       value,
                       active,
+                      page,
+                      size,
                   }: {
     label: string;
     value: SortKey;
     active: boolean;
+    page: number;
+    size: number;
 }) {
     return (
         <Link
-            href={`/games?sort=${value}`}
+            href={`/games?sort=${value}&page=${page}&size=${size}`}
             style={{
                 textDecoration: "none",
                 color: active ? "#fff" : "#d8d8d8",
@@ -135,15 +140,101 @@ function SortLink({
     );
 }
 
+/** Pagination bar */
+function PaginationBar({
+                           total,
+                           page,
+                           size,
+                           sort,
+                       }: {
+    total: number;
+    page: number;
+    size: number;
+    sort: SortKey;
+}) {
+    const lastPage = Math.max(1, Math.ceil(total / size));
+    const start = total === 0 ? 0 : (page - 1) * size + 1;
+    const end = Math.min(total, page * size);
+    const link = (p: number) => `/games?sort=${sort}&page=${p}&size=${size}`;
+
+    return (
+        <div
+            style={{
+                display: "flex",
+                gap: 8,
+                alignItems: "center",
+                justifyContent: "space-between",
+                margin: "12px 0",
+                flexWrap: "wrap",
+            }}
+        >
+            <div style={{ opacity: 0.85, fontSize: 12 }}>
+                Showing {start}–{end} of {total}
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+                <Link href={link(1)} aria-disabled={page <= 1} style={page <= 1 ? btnDisabled : btn}>
+                    « First
+                </Link>
+                <Link href={link(Math.max(1, page - 1))} aria-disabled={page <= 1} style={page <= 1 ? btnDisabled : btn}>
+                    ‹ Prev
+                </Link>
+                <div
+                    style={{
+                        border: "1px solid #2b2b2b",
+                        borderRadius: 8,
+                        padding: "6px 10px",
+                        background: "#151515",
+                        fontSize: 13,
+                    }}
+                >
+                    Page {page} / {lastPage}
+                </div>
+                <Link
+                    href={link(Math.min(lastPage, page + 1))}
+                    aria-disabled={page >= lastPage}
+                    style={page >= lastPage ? btnDisabled : btn}
+                >
+                    Next ›
+                </Link>
+                <Link href={link(lastPage)} aria-disabled={page >= lastPage} style={page >= lastPage ? btnDisabled : btn}>
+                    Last »
+                </Link>
+            </div>
+        </div>
+    );
+}
+
+const btn: React.CSSProperties = {
+    textDecoration: "none",
+    color: "#d8d8d8",
+    border: "1px solid #2b2b2b",
+    background: "#151515",
+    padding: "6px 10px",
+    borderRadius: 8,
+    fontSize: 13,
+};
+const btnDisabled: React.CSSProperties = { ...btn, opacity: 0.5, pointerEvents: "none" };
+
+/** Safe parse */
+function parsePositiveInt(s: string | undefined, def: number) {
+    const n = Number(s);
+    if (!Number.isFinite(n)) return def;
+    const i = Math.trunc(n);
+    return i > 0 ? i : def;
+}
+
 export default async function GamesPage({
                                             searchParams,
                                         }: {
-    searchParams?: { sort?: string };
+    searchParams?: { sort?: string; page?: string; size?: string };
 }) {
     let games: GamePreview[] = [];
     let error: string | null = null;
 
     const sortParam = (searchParams?.sort as SortKey) || "name_asc";
+    const page = parsePositiveInt(searchParams?.page, 1);
+    const size = Math.min(100, Math.max(5, parsePositiveInt(searchParams?.size, 20))); // 5..100
 
     try {
         games = await fetchGames();
@@ -151,21 +242,38 @@ export default async function GamesPage({
         error = e instanceof Error ? e.message : "Unknown error";
     }
 
-    const ratings =
-        !error && games.length ? await fetchRatings(games.map((g) => g.id)) : {};
+    const total = error ? 0 : games.length;
 
-    const sorted = !error ? sortGames(games, ratings, sortParam) : [];
+    // Ratings:
+    // - If sorting by rating, fetch ratings for ALL games (so sort is correct).
+    // - Otherwise, fetch ratings only for current page slice.
+    let ratingsAll: Record<number, number | null> = {};
+    if (!error && total) {
+        const needAll = sortParam === "rating_desc" || sortParam === "rating_asc";
+        ratingsAll = needAll ? await fetchRatings(games.map((g) => g.id)) : {};
+    }
+
+    // Sort
+    const sorted = !error ? sortGames(games, ratingsAll, sortParam) : [];
+
+    // Page slice
+    const start = (page - 1) * size;
+    const end = Math.min(start + size, sorted.length);
+    const pageItems = sorted.slice(start, end);
+
+    // Page ratings (if not already fetched for all)
+    let pageRatings: Record<number, number | null> = {};
+    if (!error && pageItems.length) {
+        if (Object.keys(ratingsAll).length) {
+            pageRatings = Object.fromEntries(pageItems.map((g) => [g.id, ratingsAll[g.id] ?? null]));
+        } else {
+            pageRatings = await fetchRatings(pageItems.map((g) => g.id));
+        }
+    }
 
     return (
         <div>
-            <div
-                style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    marginBottom: 12,
-                }}
-            >
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
                 <h1 style={{ fontSize: 24, margin: 0 }}>Games</h1>
             </div>
 
@@ -180,13 +288,16 @@ export default async function GamesPage({
                 }}
             >
                 <span style={{ opacity: 0.8, fontSize: 13 }}>Sort by:</span>
-                <SortLink label="Name A–Z" value="name_asc" active={sortParam === "name_asc"} />
-                <SortLink label="Name Z–A" value="name_desc" active={sortParam === "name_desc"} />
-                <SortLink label="Year ↓" value="year_desc" active={sortParam === "year_desc"} />
-                <SortLink label="Year ↑" value="year_asc" active={sortParam === "year_asc"} />
-                <SortLink label="Rating ↓" value="rating_desc" active={sortParam === "rating_desc"} />
-                <SortLink label="Rating ↑" value="rating_asc" active={sortParam === "rating_asc"} />
+                <SortLink label="Name A–Z" value="name_asc" active={sortParam === "name_asc"} page={page} size={size} />
+                <SortLink label="Name Z–A" value="name_desc" active={sortParam === "name_desc"} page={page} size={size} />
+                <SortLink label="Year ↓" value="year_desc" active={sortParam === "year_desc"} page={page} size={size} />
+                <SortLink label="Year ↑" value="year_asc" active={sortParam === "year_asc"} page={page} size={size} />
+                <SortLink label="Rating ↓" value="rating_desc" active={sortParam === "rating_desc"} page={page} size={size} />
+                <SortLink label="Rating ↑" value="rating_asc" active={sortParam === "rating_asc"} page={page} size={size} />
             </div>
+
+            {/* Top pagination */}
+            {!error && total > 0 ? <PaginationBar total={total} page={page} size={size} sort={sortParam} /> : null}
 
             {error ? (
                 <div
@@ -199,21 +310,20 @@ export default async function GamesPage({
                         marginBottom: 16,
                     }}
                 >
-                    Failed to load games.<br />
+                    Failed to load games.
+                    <br />
                     <span style={{ fontSize: 12, opacity: 0.9 }}>{error}</span>
                 </div>
             ) : null}
 
-            {!error && (!sorted || sorted.length === 0) ? (
-                <p>No games found.</p>
-            ) : null}
+            {!error && (!pageItems || pageItems.length === 0) ? <p>No games found.</p> : null}
 
-            {!error && sorted?.length ? (
+            {!error && pageItems?.length ? (
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                    {sorted.map((g) => {
+                    {pageItems.map((g) => {
                         const year = toYearLabel(g.release_date);
                         const platformNames = g.platforms?.map((p) => p.name).join(", ") || "—";
-                        const rating = (ratings as Record<number, number | null>)[g.id] ?? null;
+                        const rating = (pageRatings as Record<number, number | null>)[g.id] ?? null;
 
                         return (
                             <li
@@ -242,15 +352,10 @@ export default async function GamesPage({
                                 {/* Text block */}
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%" }}>
                                     <div>
-                                        <Link
-                                            href={`/games/${g.id}`}
-                                            style={{ color: "#fff", textDecoration: "none", fontWeight: 600 }}
-                                        >
+                                        <Link href={`/games/${g.id}`} style={{ color: "#fff", textDecoration: "none", fontWeight: 600 }}>
                                             {g.name}
                                         </Link>
-                                        <div style={{ fontSize: 12, opacity: 0.8 }}>
-                                            Platforms: {platformNames}
-                                        </div>
+                                        <div style={{ fontSize: 12, opacity: 0.8 }}>Platforms: {platformNames}</div>
                                     </div>
 
                                     {/* Right aligned meta */}
@@ -264,6 +369,9 @@ export default async function GamesPage({
                     })}
                 </ul>
             ) : null}
+
+            {/* Bottom pagination */}
+            {!error && total > 0 ? <PaginationBar total={total} page={page} size={size} sort={sortParam} /> : null}
         </div>
     );
 }

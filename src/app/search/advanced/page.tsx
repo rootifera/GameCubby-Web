@@ -41,7 +41,7 @@ function buildQuery(sp: Record<string, string | string[] | undefined>) {
         "location_id",
         "include_manual",
         "limit",
-        "offset"
+        "offset",
     ] as const;
 
     for (const key of passthrough) {
@@ -56,7 +56,7 @@ function buildQuery(sp: Record<string, string | string[] | undefined>) {
         "genre_ids",
         "mode_ids",
         "perspective_ids",
-        "igdb_tag_ids"
+        "igdb_tag_ids",
     ] as const;
 
     for (const key of multi) {
@@ -78,7 +78,9 @@ function buildQuery(sp: Record<string, string | string[] | undefined>) {
     return qs.toString();
 }
 
-async function runAdvancedSearch(sp: Record<string, string | string[] | undefined>): Promise<GameLike[]> {
+async function runAdvancedSearch(
+    sp: Record<string, string | string[] | undefined>
+): Promise<GameLike[]> {
     const query = buildQuery(sp);
     const url = `${API_BASE_URL}/search/advanced${query ? `?${query}` : ""}`;
     const res = await fetch(url, { cache: "no-store" });
@@ -106,12 +108,14 @@ function isBasicCompatible(sp: Record<string, string | string[] | undefined>) {
         "platform_ids", // we’ll take first id as platform_id
         "tag_ids",
         "limit",
-        "offset"
+        "offset",
     ]);
 
     return usedKeys.every((k) => allowed.has(k));
 }
-async function runBasicFallback(sp: Record<string, string | string[] | undefined>): Promise<GameLike[]> {
+async function runBasicFallback(
+    sp: Record<string, string | string[] | undefined>
+): Promise<GameLike[]> {
     const qs = new URLSearchParams();
     const name = typeof sp.name === "string" ? sp.name.trim() : "";
     const year = typeof sp.year === "string" ? sp.year.trim() : "";
@@ -205,8 +209,19 @@ function parseIdsCSV(csv: string): Array<number | string> {
         .map((s) => (Number.isNaN(Number(s)) ? s : Number(s)));
 }
 
+/** Build a link to this page with patched search params (for pagination) */
+function hrefWith(
+    sp: Record<string, string | string[] | undefined>,
+    patch: Record<string, string>
+) {
+    const copy: Record<string, string | string[] | undefined> = { ...sp };
+    for (const [k, v] of Object.entries(patch)) copy[k] = v;
+    const qs = buildQuery(copy);
+    return `/search/advanced${qs ? `?${qs}` : ""}`;
+}
+
 export default async function AdvancedSearchPage({
-                                                     searchParams
+                                                     searchParams,
                                                  }: {
     searchParams?: Record<string, string | string[] | undefined>;
 }) {
@@ -215,16 +230,13 @@ export default async function AdvancedSearchPage({
     let error: string | null = null;
     let usedFallback = false;
 
+    // Parse limit/offset for pagination (server-side)
+    const parsedLimit = Math.max(1, Number(get(sp, "limit", "50")) || 50);
+    const parsedOffset = Math.max(0, Number(get(sp, "offset", "0")) || 0);
+
     // Fetch all dropdown data in parallel
     const [platformOptions, genreOptions, perspectiveOptions, modeOptions, collectionOptions, companyOptions] =
-        await Promise.all([
-            fetchPlatforms(),
-            fetchGenres(),
-            fetchPerspectives(),
-            fetchModes(),
-            fetchCollections(),
-            fetchCompanies()
-        ]);
+        await Promise.all([fetchPlatforms(), fetchGenres(), fetchPerspectives(), fetchModes(), fetchCollections(), fetchCompanies()]);
 
     const hasAnyParam = Object.values(sp).some((v) => (Array.isArray(v) ? v.join("") : v)?.toString().trim());
 
@@ -257,6 +269,10 @@ export default async function AdvancedSearchPage({
     const companyDefaultId = get(sp, "company_id"); // API supports single company_id
     const locationDefaultId = get(sp, "location_id"); // preselect in picker if present
 
+    // Pagination booleans
+    const canPrev = parsedOffset > 0;
+    const canNext = results.length === parsedLimit; // heuristic (no total from API)
+
     return (
         <div style={{ padding: 16 }}>
             <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
@@ -275,47 +291,21 @@ export default async function AdvancedSearchPage({
                 <summary style={summaryBar}>
                     <span>Filters</span>
                     <span style={{ opacity: 0.8, fontSize: 12 }}>
-                        {hasAnyParam ? "Click to show filters" : "Click to hide filters"}
-                    </span>
+            {hasAnyParam ? "Click to show filters" : "Click to hide filters"}
+          </span>
                 </summary>
 
                 <form method="GET" action="/search/advanced" style={{ display: "grid", gap: 12, marginBottom: 16 }}>
                     {/* Row 1 — Name | Year (exact) */}
                     <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 200px" }}>
-                        <LabeledInput
-                            label="Name"
-                            name="name"
-                            defaultValue={get(sp, "name")}
-                            placeholder="partial name…"
-                        />
-                        <LabeledInput
-                            label="Year (exact)"
-                            name="year"
-                            type="number"
-                            defaultValue={get(sp, "year")}
-                            placeholder="1998"
-                            short
-                        />
+                        <LabeledInput label="Name" name="name" defaultValue={get(sp, "name")} placeholder="partial name…" />
+                        <LabeledInput label="Year (exact)" name="year" type="number" defaultValue={get(sp, "year")} placeholder="1998" short />
                     </div>
 
                     {/* Row 2 — Year from | Year to */}
                     <div style={{ display: "grid", gap: 12, gridTemplateColumns: "200px 200px" }}>
-                        <LabeledInput
-                            label="Year from"
-                            name="year_min"
-                            type="number"
-                            defaultValue={get(sp, "year_min")}
-                            placeholder="1990"
-                            short
-                        />
-                        <LabeledInput
-                            label="Year to"
-                            name="year_max"
-                            type="number"
-                            defaultValue={get(sp, "year_max")}
-                            placeholder="2005"
-                            short
-                        />
+                        <LabeledInput label="Year from" name="year_min" type="number" defaultValue={get(sp, "year_min")} placeholder="1990" short />
+                        <LabeledInput label="Year to" name="year_max" type="number" defaultValue={get(sp, "year_max")} placeholder="2005" short />
                     </div>
 
                     {/* Row 3 — Platform | Genre */}
@@ -323,7 +313,7 @@ export default async function AdvancedSearchPage({
                         <MultiSelectDropdown
                             label="Platform"
                             name="platform_ids"
-                            options={platformDefaultIds.length ? platformOptions : platformOptions}
+                            options={platformOptions}
                             defaultSelectedIds={platformDefaultIds}
                             multiple
                             placeholder="Select platforms…"
@@ -331,7 +321,7 @@ export default async function AdvancedSearchPage({
                         <MultiSelectDropdown
                             label="Genre"
                             name="genre_ids"
-                            options={genreDefaultIds.length ? genreOptions : genreOptions}
+                            options={genreOptions}
                             defaultSelectedIds={genreDefaultIds}
                             multiple
                             placeholder="Select genres…"
@@ -343,7 +333,7 @@ export default async function AdvancedSearchPage({
                         <MultiSelectDropdown
                             label="Player Perspective"
                             name="perspective_ids"
-                            options={perspectiveDefaultIds.length ? [] : perspectiveOptions}
+                            options={perspectiveOptions}
                             defaultSelectedIds={perspectiveDefaultIds}
                             multiple
                             placeholder="Select perspectives…"
@@ -351,7 +341,7 @@ export default async function AdvancedSearchPage({
                         <MultiSelectDropdown
                             label="Mode"
                             name="mode_ids"
-                            options={modeDefaultIds.length ? [] : modeOptions}
+                            options={modeOptions}
                             defaultSelectedIds={modeDefaultIds}
                             multiple
                             placeholder="Select modes…"
@@ -382,18 +372,8 @@ export default async function AdvancedSearchPage({
 
                     {/* Row 6 — Tags | IGDB Tags */}
                     <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr" }}>
-                        <TagChipsAutocomplete
-                            label="Tags"
-                            name="tag_ids"
-                            suggestKind="tags"
-                            defaultSelectedIds={tagDefaultIds}
-                        />
-                        <TagChipsAutocomplete
-                            label="IGDB Tags"
-                            name="igdb_tag_ids"
-                            suggestKind="igdb_tags"
-                            defaultSelectedIds={igdbTagDefaultIds}
-                        />
+                        <TagChipsAutocomplete label="Tags" name="tag_ids" suggestKind="tags" defaultSelectedIds={tagDefaultIds} />
+                        <TagChipsAutocomplete label="IGDB Tags" name="igdb_tag_ids" suggestKind="igdb_tags" defaultSelectedIds={igdbTagDefaultIds} />
                     </div>
 
                     {/* Row 7 — Location */}
@@ -417,8 +397,8 @@ export default async function AdvancedSearchPage({
 
                     {/* Row 9 — Limit | Offset */}
                     <div style={{ display: "grid", gap: 12, gridTemplateColumns: "200px 200px" }}>
-                        <LabeledInput label="Limit" name="limit" type="number" defaultValue={get(sp, "limit", "50")} placeholder="50" short />
-                        <LabeledInput label="Offset" name="offset" type="number" defaultValue={get(sp, "offset", "0")} placeholder="0" short />
+                        <LabeledInput label="Limit" name="limit" type="number" defaultValue={get(sp, "limit", String(parsedLimit))} placeholder="50" short />
+                        <LabeledInput label="Offset" name="offset" type="number" defaultValue={get(sp, "offset", String(parsedOffset))} placeholder="0" short />
                     </div>
 
                     {/* Buttons */}
@@ -432,7 +412,7 @@ export default async function AdvancedSearchPage({
                                 borderRadius: 8,
                                 padding: "10px 14px",
                                 fontWeight: 600,
-                                cursor: "pointer"
+                                cursor: "pointer",
                             }}
                         >
                             Search
@@ -444,7 +424,7 @@ export default async function AdvancedSearchPage({
                                 border: "1px solid #2b2b2b",
                                 borderRadius: 8,
                                 padding: "10px 14px",
-                                textDecoration: "none"
+                                textDecoration: "none",
                             }}
                         >
                             Reset
@@ -461,7 +441,7 @@ export default async function AdvancedSearchPage({
                         color: "#dbeafe",
                         padding: 10,
                         borderRadius: 8,
-                        marginBottom: 12
+                        marginBottom: 12,
                     }}
                 >
                     Advanced search failed on the API, so we used a basic-search fallback for this query.
@@ -476,7 +456,7 @@ export default async function AdvancedSearchPage({
                         color: "#ffd7d7",
                         padding: 12,
                         borderRadius: 8,
-                        marginBottom: 16
+                        marginBottom: 16,
                     }}
                 >
                     Failed to search.
@@ -485,54 +465,88 @@ export default async function AdvancedSearchPage({
             ) : null}
 
             {!hasAnyParam ? (
-                <p style={{ opacity: 0.8 }}>
-                    Use the filters above. Collections/Companies are single-select to match the API.
-                </p>
+                <p style={{ opacity: 0.8 }}>Use the filters above. Collections/Companies are single-select to match the API.</p>
             ) : null}
 
+            {/* Results */}
             {results.length ? (
-                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                    {results.map((g) => (
-                        <li
-                            key={g.id}
-                            style={{
-                                display: "flex",
-                                gap: 12,
-                                padding: "12px 8px",
-                                borderBottom: "1px solid #1f1f1f",
-                                alignItems: "center"
-                            }}
-                        >
-                            {/* Cover with hover card (56×56, robust placeholder) */}
-                            <GameHoverCard gameId={g.id}>
-                                <Link href={`/games/${g.id}`} style={{ display: "inline-block", flexShrink: 0 }}>
-                                    <CoverThumb
-                                        name={g.name}
-                                        coverUrl={g.cover_url ?? undefined}
-                                        width={56}
-                                        height={56}
-                                    />
-                                </Link>
-                            </GameHoverCard>
-
-                            {/* Info */}
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%" }}>
-                                <div>
-                                    <Link href={`/games/${g.id}`} style={{ color: "#fff", textDecoration: "none", fontWeight: 600 }}>
-                                        {g.name}
+                <>
+                    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                        {results.map((g) => (
+                            <li
+                                key={g.id}
+                                style={{
+                                    display: "flex",
+                                    gap: 12,
+                                    padding: "12px 8px",
+                                    borderBottom: "1px solid #1f1f1f",
+                                    alignItems: "center",
+                                }}
+                            >
+                                {/* Cover with hover card (56×56, robust placeholder) */}
+                                <GameHoverCard gameId={g.id}>
+                                    <Link href={`/games/${g.id}`} style={{ display: "inline-block", flexShrink: 0 }}>
+                                        <CoverThumb name={g.name} coverUrl={g.cover_url ?? undefined} width={56} height={56} />
                                     </Link>
-                                    <div style={{ fontSize: 12, opacity: 0.8 }}>
-                                        Platforms: {(g.platforms ?? []).map((p) => p.name).join(", ") || "—"}
+                                </GameHoverCard>
+
+                                {/* Info */}
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%" }}>
+                                    <div>
+                                        <Link href={`/games/${g.id}`} style={{ color: "#fff", textDecoration: "none", fontWeight: 600 }}>
+                                            {g.name}
+                                        </Link>
+                                        <div style={{ fontSize: 12, opacity: 0.8 }}>
+                                            Platforms: {(g.platforms ?? []).map((p) => p.name).join(", ") || "—"}
+                                        </div>
+                                    </div>
+                                    <div style={{ textAlign: "right", fontSize: 12, opacity: 0.9 }}>
+                                        <div>Year: {toYearLabel(g.release_date)}</div>
+                                        <div>Rating: {g.rating ?? "—"}</div>
                                     </div>
                                 </div>
-                                <div style={{ textAlign: "right", fontSize: 12, opacity: 0.9 }}>
-                                    <div>Year: {toYearLabel(g.release_date)}</div>
-                                    <div>Rating: {g.rating ?? "—"}</div>
-                                </div>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
+                            </li>
+                        ))}
+                    </ul>
+
+                    {/* Pagination */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+            <span style={{ opacity: 0.8, fontSize: 12 }}>
+              Showing {parsedOffset + 1}–{parsedOffset + results.length}
+            </span>
+                        <div style={{ flex: 1 }} />
+                        <Link
+                            href={hrefWith(sp, { offset: String(Math.max(0, parsedOffset - parsedLimit)), limit: String(parsedLimit) })}
+                            aria-disabled={!canPrev}
+                            style={{
+                                pointerEvents: canPrev ? "auto" : "none",
+                                opacity: canPrev ? 1 : 0.5,
+                                textDecoration: "none",
+                                color: "#eaeaea",
+                                border: "1px solid #2b2b2b",
+                                borderRadius: 8,
+                                padding: "8px 12px",
+                            }}
+                        >
+                            ← Prev
+                        </Link>
+                        <Link
+                            href={hrefWith(sp, { offset: String(parsedOffset + parsedLimit), limit: String(parsedLimit) })}
+                            aria-disabled={!canNext}
+                            style={{
+                                pointerEvents: canNext ? "auto" : "none",
+                                opacity: canNext ? 1 : 0.5,
+                                textDecoration: "none",
+                                color: "#eaeaea",
+                                border: "1px solid #2b2b2b",
+                                borderRadius: 8,
+                                padding: "8px 12px",
+                            }}
+                        >
+                            Next →
+                        </Link>
+                    </div>
+                </>
             ) : hasAnyParam && !error ? (
                 <p style={{ opacity: 0.8 }}>No results.</p>
             ) : null}
@@ -557,7 +571,7 @@ function LabeledInput(
                     padding: "10px 12px",
                     outline: "none",
                     ...(short ? { maxWidth: 160 } : null),
-                    ...style
+                    ...style,
                 }}
             />
         </label>
@@ -570,7 +584,7 @@ const selectStyle: React.CSSProperties = {
     border: "1px solid #2b2b2b",
     borderRadius: 8,
     padding: "10px 12px",
-    outline: "none"
+    outline: "none",
 };
 
 /* Collapsible styles */
@@ -578,7 +592,7 @@ const detailsWrap: React.CSSProperties = {
     border: "1px solid #222",
     borderRadius: 10,
     background: "#121212",
-    marginBottom: 16
+    marginBottom: 16,
 };
 const summaryBar: React.CSSProperties = {
     listStyle: "none",
@@ -590,5 +604,5 @@ const summaryBar: React.CSSProperties = {
     alignItems: "center",
     borderBottom: "1px solid #222",
     color: "#eaeaea",
-    fontWeight: 600
+    fontWeight: 600,
 };

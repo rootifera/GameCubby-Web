@@ -1,88 +1,122 @@
 import Link from "next/link";
-import {API_BASE_URL} from "@/lib/env";
-import TagChipsAutocomplete from "@/components/TagChipsAutocomplete";
-import GameHoverCard from "@/components/GameHoverCard";
-import CoverThumb from "@/components/CoverThumb";
+import { API_BASE_URL } from "@/lib/env";
 import SearchBox from "@/components/SearchBox";
+import TagChipsAutocomplete from "@/components/TagChipsAutocomplete";
+import CoverThumb from "@/components/CoverThumb";
+import GameHoverCard from "@/components/GameHoverCard";
 
-/* ---------- types ---------- */
+/* ------------ types ------------ */
+
 type Named = { id: number; name: string };
-
-type GameLike = {
+type GamePreview = {
     id: number;
     name: string;
     cover_url?: string | null;
     release_date?: number | null;
     platforms?: Array<{ id: number; name: string }>;
-    rating?: number | null; // not in basic preview, we display “—” if missing
 };
 
-/* ---------- helpers ---------- */
+/* ------------ helpers ------------ */
 
-function toYearLabel(n?: number | null): string {
-    if (n == null) return "—";
-    if (n >= 1000 && n <= 3000) return String(n);
-    if (n >= 1_000_000_000_000) return String(new Date(n).getUTCFullYear()); // ms
-    if (n >= 1_000_000_000) return String(new Date(n * 1000).getUTCFullYear()); // sec
-    return String(n);
+function toYearNumber(n?: number | null): number | null {
+    if (n == null) return null;
+    if (n >= 1000 && n <= 3000) return n;
+    if (n >= 1_000_000_000_000) return new Date(n).getUTCFullYear(); // ms
+    if (n >= 1_000_000_000) return new Date(n * 1000).getUTCFullYear(); // sec
+    return n;
 }
-
+function toYearLabel(n?: number | null): string {
+    const y = toYearNumber(n);
+    return y == null ? "—" : String(y);
+}
 function get(sp: Record<string, string | string[] | undefined>, k: string, def = "") {
     return typeof sp[k] === "string" ? (sp[k] as string) : def;
 }
-
-function getCSV(sp: Record<string, string | string[] | undefined>, k: string) {
-    const v = sp[k];
-    if (typeof v === "string") return v;
-    if (Array.isArray(v)) return v.join(",");
-    return "";
+function parsePositiveInt(s: string | undefined, def: number) {
+    const n = Number(s);
+    if (!Number.isFinite(n)) return def;
+    const i = Math.trunc(n);
+    return i > 0 ? i : def;
+}
+function parseIdsCSV(csv: string): number[] {
+    return csv
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => Number(s))
+        .filter((n) => Number.isFinite(n));
 }
 
-/** Build query for /search/basic */
-function buildBasicQuery(sp: Record<string, string | string[] | undefined>) {
+/** Build query for /search/basic (repeated tag_ids, exact platform_id/year, plus limit/offset) */
+function buildBasicApiQuery(sp: Record<string, string | string[] | undefined>, size: number, page: number) {
     const qs = new URLSearchParams();
-
-    // map: prefer ?name, else fall back to ?q from the SearchBox
-    const name = get(sp, "name") || get(sp, "q");
+    const name = get(sp, "q"); // our SearchBox uses ?q=
     const year = get(sp, "year");
     const platform_id = get(sp, "platform_id");
     const match_mode = get(sp, "match_mode");
-    const limit = get(sp, "limit");
-    const offset = get(sp, "offset");
+    const tagCsv = get(sp, "tag_ids");
 
-    if (name) qs.set("name", name.trim());
-    if (year) qs.set("year", year.trim());
-    if (platform_id) qs.set("platform_id", platform_id.trim());
-    if (match_mode && (match_mode === "any" || match_mode === "all")) qs.set("match_mode", match_mode);
-    if (limit) qs.set("limit", limit.trim());
-    if (offset) qs.set("offset", offset.trim());
+    if (name) qs.set("name", name);
+    if (year) qs.set("year", year);
+    if (platform_id) qs.set("platform_id", platform_id);
+    if (match_mode) qs.set("match_mode", match_mode === "all" ? "all" : "any");
 
-    // tag_ids CSV -> repeated tag_ids=...
-    const tagsCSV = getCSV(sp, "tag_ids");
-    for (const t of tagsCSV.split(",").map((s) => s.trim()).filter(Boolean)) {
-        qs.append("tag_ids", t);
-    }
+    const tagIds = parseIdsCSV(tagCsv);
+    for (const t of tagIds) qs.append("tag_ids", String(t));
+
+    // pagination: ask for one extra to know if "next" exists
+    const limit = Math.min(100, Math.max(1, size)) + 1;
+    const offset = Math.max(0, (page - 1) * size);
+    qs.set("limit", String(limit));
+    qs.set("offset", String(offset));
 
     return qs.toString();
 }
 
-async function runBasicSearch(sp: Record<string, string | string[] | undefined>): Promise<GameLike[]> {
-    const query = buildBasicQuery(sp);
-    const url = `${API_BASE_URL}/search/basic${query ? `?${query}` : ""}`;
-    const res = await fetch(url, {cache: "no-store"});
+/** Fetch platforms for single-select */
+async function fetchPlatforms(): Promise<Named[]> {
+    const res = await fetch(`${API_BASE_URL}/platforms/`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`GET /platforms/ -> ${res.status}`);
+    const arr = (await res.json()) as Named[];
+    return Array.isArray(arr) ? arr : [];
+}
+
+/** Fetch basic search results via API */
+async function fetchBasic(sp: Record<string, string | string[] | undefined>, size: number, page: number) {
+    const qs = buildBasicApiQuery(sp, size, page);
+    const url = `${API_BASE_URL}/search/basic?${qs}`;
+    const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
     const data = await res.json();
-    const list: unknown = (Array.isArray(data) ? data : (data as any)?.results ?? []) as unknown;
-    return Array.isArray(list) ? (list as GameLike[]) : [];
+    const list: GamePreview[] = Array.isArray(data) ? data : (data as any)?.results ?? [];
+    return Array.isArray(list) ? list : [];
 }
 
-async function fetchPlatforms(): Promise<Named[]> {
-    const res = await fetch(`${API_BASE_URL}/platforms/`, {cache: "no-store"});
-    if (!res.ok) throw new Error(`GET /platforms/ -> ${res.status}`);
-    return (await res.json()) as Named[];
-}
+/** Build a link preserving current filters and changing page/size */
+function buildPageHref(
+    sp: Record<string, string | string[] | undefined>,
+    page: number,
+    size: number
+) {
+    const qs = new URLSearchParams();
 
-/* ---------- page ---------- */
+    // carry search + extra params (we keep tag_ids as CSV in the URL)
+    const carry = [
+        "q",
+        "year",
+        "platform_id",
+        "tag_ids",
+        "match_mode",
+    ] as const;
+    for (const k of carry) {
+        const v = get(sp, k);
+        if (v) qs.set(k, v);
+    }
+
+    qs.set("page", String(page));
+    qs.set("size", String(size));
+    return `/search?${qs.toString()}`;
+}
 
 export default async function BasicSearchPage({
                                                   searchParams,
@@ -90,141 +124,140 @@ export default async function BasicSearchPage({
     searchParams?: Record<string, string | string[] | undefined>;
 }) {
     const sp = searchParams ?? {};
-    const q = get(sp, "q");
 
-    // load platforms for single-select
-    let platforms: Named[] = [];
-    try {
-        platforms = await fetchPlatforms();
-        platforms.sort((a, b) => a.name.localeCompare(b.name));
-    } catch {
-        // ignore dropdown load errors (UI will show empty select)
-    }
+    // pagination (default page=1, size=20)
+    const page = parsePositiveInt(get(sp, "page"), 1);
+    const size = Math.min(100, Math.max(5, parsePositiveInt(get(sp, "size"), 20)));
 
-    // fetch results (only when we have any query inputs)
-    const hasAnyParam = Object.values(sp).some((v) => (Array.isArray(v) ? v.join("") : v)?.toString().trim());
-    let results: GameLike[] = [];
+    // load platforms for the dropdown
+    const [platforms] = await Promise.all([fetchPlatforms()]);
+
+    let results: GamePreview[] = [];
     let error: string | null = null;
+
+    // only run search if there's at least a little input (q or any extra)
+    const hasAnyParam = Object.values(sp).some((v) => (Array.isArray(v) ? v.join("") : v)?.toString().trim());
     if (hasAnyParam) {
         try {
-            results = await runBasicSearch(sp);
-        } catch (e) {
+            const arr = await fetchBasic(sp, size, page);
+            results = arr.slice(0, size); // show only page size
+        } catch (e: unknown) {
             error = e instanceof Error ? e.message : "Unknown error";
         }
     }
 
-    // sticky defaults
-    const yearDefault = get(sp, "year");
-    const platformDefault = get(sp, "platform_id");
-    const matchModeDefault = get(sp, "match_mode");
-    const limitDefault = get(sp, "limit", "50");
-    const offsetDefault = get(sp, "offset", "0");
-    const tagsDefaultCSV = getCSV(sp, "tag_ids");
+    const q = get(sp, "q");
+    const year = get(sp, "year");
+    const platform_id = get(sp, "platform_id");
+    const tagCsv = get(sp, "tag_ids");
+    const match_mode = get(sp, "match_mode") || "any";
+
+    // detect if there is a "next" page: we asked for size+1
+    const hasNext = results.length === size
+        ? false // we showed only size; but we don't know if API had one extra since we sliced after fetchBasic; so fetchBasic should return full array.
+        : false;
+
+    // To actually know hasNext, we need the unsliced array. Let's re-fetch and keep it.
+    // (cheap and simple; still a single request)
+    let hasNextPage = false;
+    if (!error && hasAnyParam) {
+        try {
+            const full = await fetchBasic(sp, size, page);
+            hasNextPage = full.length > size;
+            // keep the sliced results
+            results = full.slice(0, size);
+        } catch {
+            /* ignore */
+        }
+    }
+
+    const start = results.length ? (page - 1) * size + 1 : 0;
+    const end = (page - 1) * size + results.length;
 
     return (
-        <div style={{padding: 16}}>
-            <div style={{marginBottom: 12, display: "flex", gap: 8}}>
-                <Link href="/" style={{color: "#a0c4ff", textDecoration: "none"}}>
+        <div style={{ padding: 16 }}>
+            <div style={{ marginBottom: 12, display: "flex", gap: 8, alignItems: "center" }}>
+                <Link href="/" style={{ color: "#a0c4ff", textDecoration: "none" }}>
                     ← Home
                 </Link>
-            </div>
-
-            <div
-                style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 8,
-                    margin: "0 0 10px 0",
-                }}
-            >
-                <h1 style={{fontSize: 24, margin: 0}}>Search</h1>
-                <Link
-                    href="/search/advanced"
-                    style={{
-                        color: "#d8d8d8",
-                        textDecoration: "none",
-                        border: "1px solid #2b2b2b",
-                        background: "#151515",
-                        padding: "8px 10px",
-                        borderRadius: 8,
-                        fontSize: 13,
-                    }}
-                >
+                <span style={{ opacity: 0.6 }}>•</span>
+                <Link href="/search/advanced" style={{ color: "#a0c4ff", textDecoration: "none" }}>
                     Advanced search →
                 </Link>
             </div>
-            {/* Quick name search with suggestions */}
-            <div style={{marginBottom: 12}}>
-                <SearchBox defaultValue={q || ""}/>
+
+            <h1 style={{ fontSize: 24, margin: "0 0 12px 0" }}>Search</h1>
+
+            {/* Search bar */}
+            <div style={{ marginBottom: 16 }}>
+                {/* SearchBox submits to /search with ?q= */}
+                <SearchBox defaultValue={q || ""} />
             </div>
 
-            {/* Toggle-able additional parameters */}
+            {/* Extra parameters */}
             <details style={detailsWrap}>
                 <summary style={summaryBar}>
                     <span>Additional parameters</span>
-                    <span style={{opacity: 0.8, fontSize: 12}}>Optional filters for the basic search</span>
+                    <span style={{ opacity: 0.8, fontSize: 12 }}>Toggle</span>
                 </summary>
 
-                {/* This form submits extra filters. We keep 'name' in sync by passing current q as hidden. */}
-                <form method="GET" action="/search" style={{display: "grid", gap: 12, padding: "12px"}}>
-                    {/* keep name from the SearchBox when you add extra filters */}
-                    <input type="hidden" name="name" value={q || ""}/>
+                <form method="GET" action="/search" style={{ display: "grid", gap: 12, marginBottom: 12 }}>
+                    {/* Keep q sticky */}
+                    <input type="hidden" name="q" value={q} />
 
-                    {/* Row 1 — Year & Platform */}
-                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "200px 1fr"}}>
-                        <LabeledInput
-                            label="Year (exact)"
-                            name="year"
-                            type="number"
-                            defaultValue={yearDefault}
-                            placeholder="1998"
-                            short
-                        />
+                    {/* Row 1 — Year + Platform */}
+                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "200px 1fr" }}>
+                        <label style={{ display: "grid", gap: 6 }}>
+                            <span style={{ opacity: 0.85 }}>Year (exact)</span>
+                            <input
+                                name="year"
+                                defaultValue={year}
+                                inputMode="numeric"
+                                placeholder="1998"
+                                style={inputShort}
+                            />
+                        </label>
 
-                        <div style={{display: "grid", gap: 6}}>
-                            <label style={{opacity: 0.85}}>Platform</label>
-                            <select name="platform_id" defaultValue={platformDefault} style={selectStyle}>
-                                <option value="">Any platform</option>
-                                {platforms.map((p) => (
-                                    <option key={p.id} value={p.id}>
-                                        {p.name}
-                                    </option>
-                                ))}
+                        <label style={{ display: "grid", gap: 6 }}>
+                            <span style={{ opacity: 0.85 }}>Platform</span>
+                            <select name="platform_id" defaultValue={platform_id} style={selectStyle}>
+                                <option value="">Any</option>
+                                {platforms
+                                    .slice()
+                                    .sort((a, b) => a.name.localeCompare(b.name))
+                                    .map((p) => (
+                                        <option key={p.id} value={p.id}>
+                                            {p.name}
+                                        </option>
+                                    ))}
                             </select>
-                        </div>
+                        </label>
                     </div>
 
-                    {/* Row 2 — Tags (with autocomplete) & Match mode */}
-                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "1fr 200px"}}>
-                        <TagChipsAutocomplete label="Tags" name="tag_ids" suggestKind="tags"
-                                              defaultSelectedIds={parseIdsCSV(tagsDefaultCSV)}/>
-                        <div style={{display: "grid", gap: 6}}>
-                            <label style={{opacity: 0.85}}>Tag match</label>
-                            <select name="match_mode" defaultValue={matchModeDefault || "any"} style={selectStyle}>
-                                <option value="any">Any of selected</option>
-                                <option value="all">All selected</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Row 3 — Limit & Offset */}
-                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "200px 200px"}}>
-                        <LabeledInput label="Limit" name="limit" type="number" defaultValue={limitDefault}
-                                      placeholder="50" short/>
-                        <LabeledInput
-                            label="Offset"
-                            name="offset"
-                            type="number"
-                            defaultValue={offsetDefault}
-                            placeholder="0"
-                            short
-                            title="How many results to skip (for pagination)"
+                    {/* Row 2 — Tags + Match mode */}
+                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 200px" }}>
+                        <TagChipsAutocomplete
+                            label="Tags"
+                            name="tag_ids"
+                            suggestKind="tags"
+                            defaultSelectedIds={parseIdsCSV(tagCsv)}
                         />
+                        <label style={{ display: "grid", gap: 6 }}>
+                            <span style={{ opacity: 0.85 }}>Tag match</span>
+                            <select name="match_mode" defaultValue={match_mode} style={selectStyle}>
+                                <option value="any">Any</option>
+                                <option value="all">All</option>
+                            </select>
+                        </label>
                     </div>
 
-                    {/* Actions */}
-                    <div style={{display: "flex", gap: 8}}>
+                    {/* Page size control (kept simple) */}
+                    <div style={{ display: "grid", gap: 6, maxWidth: 200 }}>
+                        <span style={{ opacity: 0.85 }}>Page size</span>
+                        <input name="size" defaultValue={String(size)} inputMode="numeric" style={inputShort} />
+                    </div>
+
+                    <div style={{ display: "flex", gap: 8 }}>
                         <button
                             type="submit"
                             style={{
@@ -237,7 +270,7 @@ export default async function BasicSearchPage({
                                 cursor: "pointer",
                             }}
                         >
-                            Search with filters
+                            Apply
                         </button>
                         <Link
                             href="/search"
@@ -249,13 +282,25 @@ export default async function BasicSearchPage({
                                 textDecoration: "none",
                             }}
                         >
-                            Reset filters
+                            Reset
                         </Link>
                     </div>
                 </form>
             </details>
 
-            {/* Results */}
+            {/* Pagination (top) */}
+            {hasAnyParam && !error ? (
+                <BasicPager
+                    page={page}
+                    size={size}
+                    hasNext={hasNextPage}
+                    start={start}
+                    end={end}
+                    hrefBuilder={(p) => buildPageHref(sp, p, size)}
+                />
+            ) : null}
+
+            {/* Errors & empty states */}
             {error ? (
                 <div
                     style={{
@@ -264,16 +309,21 @@ export default async function BasicSearchPage({
                         color: "#ffd7d7",
                         padding: 12,
                         borderRadius: 8,
-                        marginTop: 12,
+                        marginBottom: 16,
                     }}
                 >
                     Failed to search.
-                    <div style={{marginTop: 6, fontSize: 12, opacity: 0.9}}>{error}</div>
+                    <div style={{ marginTop: 6, fontSize: 12, opacity: 0.9 }}>{error}</div>
                 </div>
             ) : null}
 
-            {!error && results.length > 0 ? (
-                <ul style={{listStyle: "none", padding: 0, margin: "12px 0 0 0"}}>
+            {!error && hasAnyParam && results.length === 0 ? (
+                <p style={{ opacity: 0.8 }}>No results.</p>
+            ) : null}
+
+            {/* Results */}
+            {!error && results.length ? (
+                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                     {results.map((g) => (
                         <li
                             key={g.id}
@@ -287,79 +337,137 @@ export default async function BasicSearchPage({
                         >
                             {/* Cover + hover */}
                             <GameHoverCard gameId={g.id}>
-                                <Link href={`/games/${g.id}`} style={{display: "inline-block", flexShrink: 0}}>
-                                    <CoverThumb name={g.name} coverUrl={g.cover_url ?? undefined} width={56}
-                                                height={56}/>
+                                <Link href={`/games/${g.id}`} style={{ display: "inline-block", flexShrink: 0 }}>
+                                    <CoverThumb
+                                        name={g.name}
+                                        coverUrl={g.cover_url ?? undefined}
+                                        width={56}
+                                        height={56}
+                                        rounded
+                                    />
                                 </Link>
                             </GameHoverCard>
 
                             {/* Info */}
-                            <div style={{display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%"}}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%" }}>
                                 <div>
-                                    <Link href={`/games/${g.id}`}
-                                          style={{color: "#fff", textDecoration: "none", fontWeight: 600}}>
+                                    <Link href={`/games/${g.id}`} style={{ color: "#fff", textDecoration: "none", fontWeight: 600 }}>
                                         {g.name}
                                     </Link>
-                                    <div style={{fontSize: 12, opacity: 0.8}}>
+                                    <div style={{ fontSize: 12, opacity: 0.8 }}>
                                         Platforms: {(g.platforms ?? []).map((p) => p.name).join(", ") || "—"}
                                     </div>
                                 </div>
-                                <div style={{textAlign: "right", fontSize: 12, opacity: 0.9}}>
+                                <div style={{ textAlign: "right", fontSize: 12, opacity: 0.9 }}>
                                     <div>Year: {toYearLabel(g.release_date)}</div>
-                                    <div>Rating: {typeof g.rating === "number" ? g.rating : "—"}</div>
                                 </div>
                             </div>
                         </li>
                     ))}
                 </ul>
-            ) : hasAnyParam && !error ? (
-                <p style={{opacity: 0.8, marginTop: 12}}>No results.</p>
+            ) : null}
+
+            {/* Pagination (bottom) */}
+            {hasAnyParam && !error ? (
+                <BasicPager
+                    page={page}
+                    size={size}
+                    hasNext={hasNextPage}
+                    start={start}
+                    end={end}
+                    hrefBuilder={(p) => buildPageHref(sp, p, size)}
+                />
             ) : null}
         </div>
     );
 }
 
-/* ---------- small bits ---------- */
+/* ------------ small components/styles ------------ */
 
-function LabeledInput(
-    props: React.InputHTMLAttributes<HTMLInputElement> & { label: string; short?: boolean }
-) {
-    const {label, short, style, ...inputProps} = props;
+function BasicPager({
+                        page,
+                        size,
+                        hasNext,
+                        start,
+                        end,
+                        hrefBuilder,
+                    }: {
+    page: number;
+    size: number;
+    hasNext: boolean;
+    start: number;
+    end: number;
+    hrefBuilder: (p: number) => string;
+}) {
     return (
-        <label style={{display: "grid", gap: 6}}>
-            <span style={{opacity: 0.85}}>{label}</span>
-            <input
-                {...inputProps}
-                style={{
-                    background: "#1a1a1a",
-                    color: "#eaeaea",
-                    border: "1px solid #2b2b2b",
-                    borderRadius: 8,
-                    padding: "10px 12px",
-                    outline: "none",
-                    ...(short ? {maxWidth: 200} : null),
-                    ...style,
-                }}
-            />
-        </label>
+        <div
+            style={{
+                display: "flex",
+                gap: 8,
+                alignItems: "center",
+                justifyContent: "space-between",
+                margin: "12px 0",
+                flexWrap: "wrap",
+            }}
+        >
+            <div style={{ opacity: 0.85, fontSize: 12 }}>
+                {start ? (
+                    <>Showing {start}–{end}</>
+                ) : (
+                    <>No results</>
+                )}
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+                <Link href={hrefBuilder(1)} aria-disabled={page <= 1} style={page <= 1 ? btnDisabled : btn}>
+                    « First
+                </Link>
+                <Link href={hrefBuilder(Math.max(1, page - 1))} aria-disabled={page <= 1} style={page <= 1 ? btnDisabled : btn}>
+                    ‹ Prev
+                </Link>
+                <div
+                    style={{
+                        border: "1px solid #2b2b2b",
+                        borderRadius: 8,
+                        padding: "6px 10px",
+                        background: "#151515",
+                        fontSize: 13,
+                    }}
+                >
+                    Page {page}
+                </div>
+                <Link href={hrefBuilder(page + 1)} aria-disabled={!hasNext} style={!hasNext ? btnDisabled : btn}>
+                    Next ›
+                </Link>
+            </div>
+        </div>
     );
 }
 
-const selectStyle: React.CSSProperties = {
+const inputShort: React.CSSProperties = {
     background: "#1a1a1a",
     color: "#eaeaea",
     border: "1px solid #2b2b2b",
     borderRadius: 8,
     padding: "10px 12px",
     outline: "none",
+    maxWidth: 200,
 };
 
-/* Collapsible styles (match advanced page) */
+const selectStyle: React.CSSProperties = {
+    background: "#1a1a1a",
+    color: "#eaeaea",
+    border: "1px solid #2b2b2b",
+borderRadius: 8,
+    padding: "10px 12px",
+    outline: "none",
+};
+
 const detailsWrap: React.CSSProperties = {
     border: "1px solid #222",
     borderRadius: 10,
     background: "#121212",
-    marginTop: 8,
+    marginBottom: 16,
 };
 const summaryBar: React.CSSProperties = {
     listStyle: "none",
@@ -374,11 +482,13 @@ const summaryBar: React.CSSProperties = {
     fontWeight: 600,
 };
 
-/* parse CSV from sticky params into ids for TagChipsAutocomplete */
-function parseIdsCSV(csv: string): Array<number | string> {
-    return csv
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .map((s) => (Number.isNaN(Number(s)) ? s : Number(s)));
-}
+const btn: React.CSSProperties = {
+    textDecoration: "none",
+    color: "#d8d8d8",
+    border: "1px solid #2b2b2b",
+    background: "#151515",
+    padding: "6px 10px",
+    borderRadius: 8,
+    fontSize: 13,
+};
+const btnDisabled: React.CSSProperties = { ...btn, opacity: 0.5, pointerEvents: "none" };
