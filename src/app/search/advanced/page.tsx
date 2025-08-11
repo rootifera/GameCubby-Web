@@ -3,6 +3,8 @@ import { API_BASE_URL } from "@/lib/env";
 import MultiSelectDropdown, { type Option } from "@/components/MultiSelectDropdown";
 import TagChipsAutocomplete from "@/components/TagChipsAutocomplete";
 import LocationPicker from "@/components/LocationPicker";
+import CoverThumb from "@/components/CoverThumb";
+import GameHoverCard from "@/components/GameHoverCard";
 
 /** Minimal shape we render */
 type GameLike = {
@@ -341,7 +343,7 @@ export default async function AdvancedSearchPage({
                         <MultiSelectDropdown
                             label="Player Perspective"
                             name="perspective_ids"
-                            options={perspectiveOptions}
+                            options={perspectiveDefaultIds.length ? [] : perspectiveOptions}
                             defaultSelectedIds={perspectiveDefaultIds}
                             multiple
                             placeholder="Select perspectives…"
@@ -349,7 +351,7 @@ export default async function AdvancedSearchPage({
                         <MultiSelectDropdown
                             label="Mode"
                             name="mode_ids"
-                            options={modeOptions}
+                            options={modeDefaultIds.length ? [] : modeOptions}
                             defaultSelectedIds={modeDefaultIds}
                             multiple
                             placeholder="Select modes…"
@@ -501,36 +503,17 @@ export default async function AdvancedSearchPage({
                                 alignItems: "center"
                             }}
                         >
-                            {/* Cover */}
-                            <Link href={`/games/${g.id}`} style={{ display: "inline-block", flexShrink: 0 }}>
-                                {g.cover_url ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                        src={g.cover_url}
-                                        alt={g.name}
+                            {/* Cover with hover card (56×56, robust placeholder) */}
+                            <GameHoverCard gameId={g.id}>
+                                <Link href={`/games/${g.id}`} style={{ display: "inline-block", flexShrink: 0 }}>
+                                    <CoverThumb
+                                        name={g.name}
+                                        coverUrl={g.cover_url ?? undefined}
                                         width={56}
                                         height={56}
-                                        style={{
-                                            width: 56,
-                                            height: 56,
-                                            objectFit: "cover",
-                                            borderRadius: 8,
-                                            border: "1px solid #2b2b2b",
-                                            background: "#141414"
-                                        }}
                                     />
-                                ) : (
-                                    <div
-                                        style={{
-                                            width: 56,
-                                            height: 56,
-                                            borderRadius: 8,
-                                            border: "1px solid #2b2b2b",
-                                            background: "#1b1b1b"
-                                        }}
-                                    />
-                                )}
-                            </Link>
+                                </Link>
+                            </GameHoverCard>
 
                             {/* Info */}
                             <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%" }}>

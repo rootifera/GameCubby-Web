@@ -1,46 +1,54 @@
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
 import SearchBox from "@/components/SearchBox";
+import CoverThumb from "@/components/CoverThumb";
+import GameHoverCard from "@/components/GameHoverCard";
 
-/** Shape we expect back; coded defensively since the schema is loose */
-type GameLike = {
+type Named = { id: number; name: string };
+type GamePreview = {
     id: number;
     name: string;
     cover_url?: string | null;
     release_date?: number | null;
-    platforms?: Array<{ id: number; name: string }>;
-    rating?: number | null;
+    platforms?: Named[];
 };
 
 function toYearLabel(n?: number | null): string {
     if (n == null) return "—";
     if (n >= 1000 && n <= 3000) return String(n);
-    if (n >= 1_000_000_000_000) return String(new Date(n).getUTCFullYear());
-    if (n >= 1_000_000_000) return String(new Date(n * 1000).getUTCFullYear());
+    if (n >= 1_000_000_000_000) return String(new Date(n).getUTCFullYear()); // ms
+    if (n >= 1_000_000_000) return String(new Date(n * 1000).getUTCFullYear()); // sec
     return String(n);
 }
 
-async function searchByName(q: string): Promise<GameLike[]> {
-    const url = `${API_BASE_URL}/search/basic?name=${encodeURIComponent(q)}`;
+async function runBasicSearch(name: string): Promise<GamePreview[]> {
+    const qs = new URLSearchParams();
+    if (name.trim()) qs.set("name", name.trim());
+    const url = `${API_BASE_URL}/search/basic${qs.toString() ? `?${qs.toString()}` : ""}`;
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
     const data = await res.json();
-    const list: unknown = (Array.isArray(data) ? data : (data as any)?.results ?? []) as unknown;
-    return Array.isArray(list) ? (list as GameLike[]) : [];
+    return Array.isArray(data) ? (data as GamePreview[]) : (data?.results ?? []);
 }
 
-export default async function SearchPage({
-                                             searchParams
-                                         }: {
-    searchParams?: { q?: string };
+export default async function BasicSearchPage({
+                                                  searchParams,
+                                              }: {
+    searchParams?: Record<string, string | string[] | undefined>;
 }) {
-    const q = (searchParams?.q ?? "").trim();
-    let results: GameLike[] = [];
+    const sp = searchParams ?? {};
+    // accept both ?q= and ?name=
+    const q =
+        (typeof sp.q === "string" ? sp.q : undefined) ??
+        (typeof sp.name === "string" ? sp.name : "") ??
+        "";
+
+    let results: GamePreview[] = [];
     let error: string | null = null;
 
-    if (q) {
+    if (q && q.trim()) {
         try {
-            results = await searchByName(q);
+            results = await runBasicSearch(q);
         } catch (e: unknown) {
             error = e instanceof Error ? e.message : "Unknown error";
         }
@@ -48,46 +56,22 @@ export default async function SearchPage({
 
     return (
         <div style={{ padding: 16 }}>
-            <div style={{ marginBottom: 12 }}>
+            <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
                 <Link href="/" style={{ color: "#a0c4ff", textDecoration: "none" }}>
-                    ← Back to Home
+                    ← Home
+                </Link>
+                <span style={{ opacity: 0.6 }}>•</span>
+                <Link href="/search/advanced" style={{ color: "#a0c4ff", textDecoration: "none" }}>
+                    Advanced Search
                 </Link>
             </div>
 
             <h1 style={{ fontSize: 24, margin: "0 0 12px 0" }}>Search</h1>
 
-            {/* Tabs: Basic / Advanced */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-        <span
-            style={{
-                padding: "8px 12px",
-                borderRadius: 8,
-                background: "#1e293b",
-                border: "1px solid #3b82f6",
-                color: "#fff",
-                fontWeight: 600
-            }}
-        >
-          Basic
-        </span>
-                <Link
-                    href="/search/advanced"
-                    style={{
-                        padding: "8px 12px",
-                        borderRadius: 8,
-                        background: "#111",
-                        border: "1px solid #2b2b2b",
-                        color: "#d8d8d8",
-                        textDecoration: "none"
-                    }}
-                >
-                    Advanced
-                </Link>
-            </div>
-
-            {/* Autocomplete search box (submits GET /search?q=...) */}
+            {/* Search bar */}
             <div style={{ marginBottom: 16 }}>
-                <SearchBox defaultValue={q} />
+                {/* SearchBox submits to /search with ?q= */}
+                <SearchBox defaultValue={q || ""} />
             </div>
 
             {error ? (
@@ -98,7 +82,7 @@ export default async function SearchPage({
                         color: "#ffd7d7",
                         padding: 12,
                         borderRadius: 8,
-                        marginBottom: 16
+                        marginBottom: 16,
                     }}
                 >
                     Failed to search.
@@ -107,12 +91,8 @@ export default async function SearchPage({
             ) : null}
 
             {!q ? (
-                <p style={{ opacity: 0.8 }}>Type a name and pick a suggestion or press Enter.</p>
-            ) : !results.length && !error ? (
-                <p style={{ opacity: 0.8 }}>No results for “{q}”.</p>
-            ) : null}
-
-            {results.length ? (
+                <p style={{ opacity: 0.8 }}>Type at least 2 characters to search.</p>
+            ) : results.length ? (
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                     {results.map((g) => (
                         <li
@@ -122,41 +102,22 @@ export default async function SearchPage({
                                 gap: 12,
                                 padding: "12px 8px",
                                 borderBottom: "1px solid #1f1f1f",
-                                alignItems: "center"
+                                alignItems: "center",
                             }}
                         >
-                            {/* Cover */}
-                            <Link href={`/games/${g.id}`} style={{ display: "inline-block", flexShrink: 0 }}>
-                                {g.cover_url ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                        src={g.cover_url}
-                                        alt={g.name}
+                            {/* Cover with hover card (56×56 thumb, robust placeholder) */}
+                            <GameHoverCard gameId={g.id}>
+                                <Link href={`/games/${g.id}`} style={{ display: "inline-block", flexShrink: 0 }}>
+                                    <CoverThumb
+                                        name={g.name}
+                                        coverUrl={g.cover_url ?? undefined}
                                         width={56}
                                         height={56}
-                                        style={{
-                                            width: 56,
-                                            height: 56,
-                                            objectFit: "cover",
-                                            borderRadius: 8,
-                                            border: "1px solid #2b2b2b",
-                                            background: "#141414"
-                                        }}
                                     />
-                                ) : (
-                                    <div
-                                        style={{
-                                            width: 56,
-                                            height: 56,
-                                            borderRadius: 8,
-                                            border: "1px solid #2b2b2b",
-                                            background: "#1b1b1b"
-                                        }}
-                                    />
-                                )}
-                            </Link>
+                                </Link>
+                            </GameHoverCard>
 
-                            {/* Info */}
+                            {/* Text */}
                             <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%" }}>
                                 <div>
                                     <Link href={`/games/${g.id}`} style={{ color: "#fff", textDecoration: "none", fontWeight: 600 }}>
@@ -168,13 +129,14 @@ export default async function SearchPage({
                                 </div>
                                 <div style={{ textAlign: "right", fontSize: 12, opacity: 0.9 }}>
                                     <div>Year: {toYearLabel(g.release_date)}</div>
-                                    <div>Rating: {g.rating ?? "—"}</div>
                                 </div>
                             </div>
                         </li>
                     ))}
                 </ul>
-            ) : null}
+            ) : (
+                <p style={{ opacity: 0.8 }}>No results.</p>
+            )}
         </div>
     );
 }

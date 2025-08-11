@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
-import GameHoverCard from "@/components/GameHoverCard";
 import CoverThumb from "@/components/CoverThumb";
+import GameHoverCard from "@/components/GameHoverCard";
 
 /** Minimal types for what we need on this page */
 type GamePreview = {
@@ -51,20 +51,20 @@ async function fetchRatings(ids: number[]): Promise<Record<number, number | null
     return results;
 }
 
-/** ---- helpers for year + sorting ---- */
+/** Year helpers */
 function toYearNumber(n?: number | null): number | null {
     if (n == null) return null;
-    if (n >= 1000 && n <= 3000) return n; // already a year
+    if (n >= 1000 && n <= 3000) return n;
     if (n >= 1_000_000_000_000) return new Date(n).getUTCFullYear(); // ms
     if (n >= 1_000_000_000) return new Date(n * 1000).getUTCFullYear(); // sec
-    return n; // fallback
+    return n;
 }
-
 function toYearLabel(n?: number | null): string {
     const y = toYearNumber(n);
     return y == null ? "—" : String(y);
 }
 
+/** Sorting */
 function sortGames(
     games: GamePreview[],
     ratings: Record<number, number | null>,
@@ -73,7 +73,7 @@ function sortGames(
     const withMeta = games.map((g) => ({
         ...g,
         _year: toYearNumber(g.release_date),
-        _rating: ratings[g.id] ?? null
+        _rating: ratings[g.id] ?? null,
     }));
 
     const byString = (a?: string | null, b?: string | null) =>
@@ -108,11 +108,10 @@ function sortGames(
     return withMeta;
 }
 
-/** ---- sort link ---- */
 function SortLink({
                       label,
                       value,
-                      active
+                      active,
                   }: {
     label: string;
     value: SortKey;
@@ -128,7 +127,7 @@ function SortLink({
                 background: active ? "#1e293b" : "#151515",
                 padding: "6px 10px",
                 borderRadius: 8,
-                fontSize: 13
+                fontSize: 13,
             }}
         >
             {label}
@@ -137,7 +136,7 @@ function SortLink({
 }
 
 export default async function GamesPage({
-                                            searchParams
+                                            searchParams,
                                         }: {
     searchParams?: { sort?: string };
 }) {
@@ -152,7 +151,6 @@ export default async function GamesPage({
         error = e instanceof Error ? e.message : "Unknown error";
     }
 
-    // Fetch ratings only if we actually have games
     const ratings =
         !error && games.length ? await fetchRatings(games.map((g) => g.id)) : {};
 
@@ -165,7 +163,7 @@ export default async function GamesPage({
                     display: "flex",
                     alignItems: "center",
                     gap: 12,
-                    marginBottom: 12
+                    marginBottom: 12,
                 }}
             >
                 <h1 style={{ fontSize: 24, margin: 0 }}>Games</h1>
@@ -178,7 +176,7 @@ export default async function GamesPage({
                     flexWrap: "wrap",
                     gap: 8,
                     alignItems: "center",
-                    marginBottom: 12
+                    marginBottom: 12,
                 }}
             >
                 <span style={{ opacity: 0.8, fontSize: 13 }}>Sort by:</span>
@@ -198,7 +196,7 @@ export default async function GamesPage({
                         color: "#ffd7d7",
                         padding: 12,
                         borderRadius: 8,
-                        marginBottom: 16
+                        marginBottom: 16,
                     }}
                 >
                     Failed to load games.<br />
@@ -225,13 +223,19 @@ export default async function GamesPage({
                                     gap: 12,
                                     padding: "12px 8px",
                                     borderBottom: "1px solid #1f1f1f",
-                                    alignItems: "center"
+                                    alignItems: "center",
                                 }}
                             >
-                                {/* Cover with hover card */}
+                                {/* Cover with hover card (keeps 56×56 size) */}
                                 <GameHoverCard gameId={g.id}>
                                     <Link href={`/games/${g.id}`} style={{ display: "inline-block", flexShrink: 0 }}>
-                                        <CoverThumb name={g.name} coverUrl={g.cover_url} size={56} />
+                                        <CoverThumb
+                                            name={g.name}
+                                            coverUrl={g.cover_url ?? undefined}
+                                            width={56}
+                                            height={56}
+                                            rounded
+                                        />
                                     </Link>
                                 </GameHoverCard>
 

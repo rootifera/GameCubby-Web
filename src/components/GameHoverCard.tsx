@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 /* ------- types ------- */
 
 type Platform = { id: number; name: string };
+type LocationNode = { id: string | number; name: string };
 type GameDetails = {
     id: number;
     name: string;
@@ -12,7 +13,10 @@ type GameDetails = {
     release_date?: number | null;
     rating?: number | null;
     platforms?: Platform[];
-    summary?: string | null;
+    summary?: string | null;            // kept, but we won't show it
+    location_path?: LocationNode[];     // NEW
+    order?: number | null;              // NEW
+    condition?: number | null;          // NEW
 };
 
 /* ------- helpers ------- */
@@ -38,15 +42,9 @@ function toYear(n?: number | null): string {
 }
 
 async function fetchGameViaProxy(id: number): Promise<GameDetails> {
-    // Use our Next.js API proxy to avoid CORS / network issues
     const res = await fetch(`/api/proxy/games/${id}`, { cache: "no-store" });
     if (!res.ok) throw new Error(`GET /api/proxy/games/${id} -> ${res.status}`);
     return (await res.json()) as GameDetails;
-}
-
-function truncate(s: string, n: number) {
-    if (s.length <= n) return s;
-    return s.slice(0, n - 1) + "…";
 }
 
 /* ------- component ------- */
@@ -66,10 +64,8 @@ export default function GameHoverCard({
     const enterTimer = useRef<number | null>(null);
 
     function onEnter() {
-        // tiny delay to avoid flicker when just passing over
         enterTimer.current = window.setTimeout(() => setOpen(true), 120);
     }
-
     function onLeave() {
         if (enterTimer.current) {
             clearTimeout(enterTimer.current);
@@ -77,9 +73,7 @@ export default function GameHoverCard({
         }
         setOpen(false);
     }
-
     function onMove(e: React.MouseEvent) {
-        // keep card inside viewport with margins
         const pad = 16;
         const w = 320;
         const h = 220;
@@ -143,6 +137,11 @@ export default function GameHoverCard({
 
 function CardContent({ g }: { g: GameDetails }) {
     const platforms = (g.platforms ?? []).map((p) => p.name).join(", ") || "—";
+    const locationStr =
+        (g.location_path && g.location_path.length
+            ? g.location_path.map((n) => n.name).join(" > ")
+            : "") || "";
+
     return (
         <div style={{ display: "grid", gridTemplateColumns: "64px 1fr", gap: 10, alignItems: "center" }}>
             {/* Cover / placeholder */}
@@ -179,12 +178,17 @@ function CardContent({ g }: { g: GameDetails }) {
                 <div style={{ fontSize: 12, opacity: 0.85 }}>Platforms: {platforms}</div>
             </div>
 
-            {/* Summary row */}
-            {g.summary ? (
-                <div style={{ gridColumn: "1 / span 2", marginTop: 8, fontSize: 12, opacity: 0.9, lineHeight: 1.45 }}>
-                    {truncate(g.summary, 180)}
+            {/* Location / Order / Condition */}
+            <div style={{ gridColumn: "1 / span 2", marginTop: 8, display: "grid", gap: 6 }}>
+                <div style={{ fontSize: 12, opacity: 0.9 }}>
+                    <span style={{ opacity: 0.75 }}>Location:</span>{" "}
+                    {locationStr ? locationStr : "Not set"}
                 </div>
-            ) : null}
+                <div style={{ fontSize: 12, opacity: 0.9 }}>
+                    Order: {typeof g.order === "number" ? g.order : "—"} · Condition:{" "}
+                    {typeof g.condition === "number" ? g.condition : "—"}
+                </div>
+            </div>
         </div>
     );
 }

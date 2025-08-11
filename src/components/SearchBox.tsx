@@ -1,198 +1,175 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-type SuggestItem = { id?: number; name?: string } | string;
+type Props = {
+    defaultValue?: string;
+};
 
-export default function SearchBox({ defaultValue = "" }: { defaultValue?: string }) {
-    const [value, setValue] = useState(defaultValue);
+export default function SearchBox({ defaultValue = "" }: Props) {
+    const [q, setQ] = useState(defaultValue);
     const [open, setOpen] = useState(false);
     const [items, setItems] = useState<string[]>([]);
-    const [highlight, setHighlight] = useState<number>(-1);
-
-    const formRef = useRef<HTMLFormElement | null>(null);
-    const inputRef = useRef<HTMLInputElement | null>(null);
+    const [highlight, setHighlight] = useState(-1);
     const abortRef = useRef<AbortController | null>(null);
-    const boxRef = useRef<HTMLDivElement | null>(null);
+    const wrapRef = useRef<HTMLDivElement | null>(null);
+    const inputRef = useRef<HTMLInputElement | null>(null);
 
-    // Close the dropdown if user clicks outside
+    // Fetch suggestions for any length >= 2
     useEffect(() => {
-        function onDocMouseDown(e: MouseEvent) {
-            if (!boxRef.current) return;
-            if (!boxRef.current.contains(e.target as Node)) {
-                setOpen(false);
-                setHighlight(-1);
-            }
-        }
-        document.addEventListener("mousedown", onDocMouseDown);
-        return () => document.removeEventListener("mousedown", onDocMouseDown);
-    }, []);
+        const value = q.trim();
+        setHighlight(-1);
 
-    // Debounced suggestions
-    useEffect(() => {
-        if (!value.trim()) {
+        // Close + clear when too short
+        if (value.length < 2) {
             setItems([]);
             setOpen(false);
-            setHighlight(-1);
+            // cancel any in-flight
+            if (abortRef.current) abortRef.current.abort();
             return;
         }
 
+        // debounce a touch
         const t = setTimeout(async () => {
-            // cancel previous request if still running
-            if (abortRef.current) abortRef.current.abort();
-            const controller = new AbortController();
-            abortRef.current = controller;
-
             try {
-                const res = await fetch(`/api/suggest/names?q=${encodeURIComponent(value.trim())}`, {
+                if (abortRef.current) abortRef.current.abort();
+                const ac = new AbortController();
+                abortRef.current = ac;
+
+                const res = await fetch(`/api/suggest/names?q=${encodeURIComponent(value)}`, {
                     cache: "no-store",
-                    signal: controller.signal
+                    signal: ac.signal,
                 });
-                if (!res.ok) throw new Error("bad status");
-                const data = (await res.json()) as SuggestItem[] | unknown;
 
-                // Normalize into an array of strings
-                const names = (Array.isArray(data) ? data : [])
-                    .map((x) => (typeof x === "string" ? x : (x as any)?.name))
-                    .filter((s: unknown): s is string => typeof s === "string" && s.length > 0);
+                if (!res.ok) {
+                    setItems([]);
+                    setOpen(false);
+                    return;
+                }
 
-                setItems(names.slice(0, 8));
-                setOpen(names.length > 0);
-                setHighlight(-1);
+                const arr = (await res.json()) as string[]; // API returns array of names
+                setItems(Array.isArray(arr) ? arr.slice(0, 10) : []);
+                setOpen(true);
             } catch {
-                // swallow errors -> just hide suggestions
-                setItems([]);
-                setOpen(false);
-                setHighlight(-1);
+                // ignore aborted/failed fetch
             }
-        }, 200);
+        }, 150);
 
         return () => clearTimeout(t);
-    }, [value]);
+    }, [q]);
 
-    function submitWith(val: string) {
-        // Put chosen value into the input and submit the GET form to /search?q=...
-        setValue(val);
-        setOpen(false);
-        setHighlight(-1);
-        // Submit on next tick so state updates apply
-        setTimeout(() => formRef.current?.submit(), 0);
+    // Click outside to close
+    useEffect(() => {
+        function onDocClick(e: MouseEvent) {
+            if (!wrapRef.current) return;
+            if (!wrapRef.current.contains(e.target as Node)) setOpen(false);
+        }
+        document.addEventListener("mousedown", onDocClick);
+        return () => document.removeEventListener("mousedown", onDocClick);
+    }, []);
+
+    function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+        if (!q.trim()) {
+            e.preventDefault();
+        }
     }
 
     function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
         if (!open || items.length === 0) return;
+
         if (e.key === "ArrowDown") {
             e.preventDefault();
             setHighlight((h) => (h + 1) % items.length);
         } else if (e.key === "ArrowUp") {
             e.preventDefault();
-            setHighlight((h) => (h <= 0 ? items.length - 1 : h - 1));
+            setHighlight((h) => (h - 1 + items.length) % items.length);
         } else if (e.key === "Enter") {
             if (highlight >= 0 && highlight < items.length) {
                 e.preventDefault();
-                submitWith(items[highlight]);
+                const chosen = items[highlight];
+                // navigate to /search?q=<chosen>
+                window.location.href = `/search?q=${encodeURIComponent(chosen)}`;
             }
         } else if (e.key === "Escape") {
             setOpen(false);
-            setHighlight(-1);
         }
     }
 
-    const dropdown = useMemo(() => {
-        if (!open || items.length === 0) return null;
-        return (
-            <ul
-                role="listbox"
-                aria-label="Suggestions"
-                style={{
-                    position: "absolute",
-                    top: "100%",
-                    left: 0,
-                    right: 0,
-                    marginTop: 4,
-                    background: "#111",
-                    border: "1px solid #262626",
-                    borderRadius: 8,
-                    listStyle: "none",
-                    padding: 4,
-                    zIndex: 50,
-                    boxShadow: "0 6px 20px rgba(0,0,0,0.35)",
-                    maxHeight: 240,
-                    overflowY: "auto"
-                }}
-            >
-                {items.map((name, i) => {
-                    const active = i === highlight;
-                    return (
-                        <li
-                            key={`${name}-${i}`}
-                            role="option"
-                            aria-selected={active}
-                            onMouseDown={(e) => {
-                                // prevent input blur before we handle click
-                                e.preventDefault();
-                                submitWith(name);
-                            }}
-                            onMouseEnter={() => setHighlight(i)}
-                            style={{
-                                padding: "8px 10px",
-                                borderRadius: 6,
-                                cursor: "pointer",
-                                background: active ? "#1e293b" : "transparent",
-                                border: active ? "1px solid #3b82f6" : "1px solid transparent",
-                                color: "#eaeaea"
-                            }}
-                        >
-                            {name}
-                        </li>
-                    );
-                })}
-            </ul>
-        );
-    }, [open, items, highlight]);
+    function choose(name: string) {
+        // fill input and navigate
+        setQ(name);
+        window.location.href = `/search?q=${encodeURIComponent(name)}`;
+    }
 
     return (
-        <div ref={boxRef} style={{ position: "relative", width: "100%" }}>
-            <form ref={formRef} method="GET" action="/search" style={{ display: "flex", gap: 8 }}>
+        <div ref={wrapRef} style={{ position: "relative" }}>
+            <form action="/search" method="GET" onSubmit={onSubmit}>
                 <input
                     ref={inputRef}
-                    type="text"
                     name="q"
-                    value={value}
-                    placeholder="Search games by name…"
-                    autoComplete="off"
-                    onChange={(e) => setValue(e.target.value)}
-                    onFocus={() => setOpen(items.length > 0)}
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
                     onKeyDown={onKeyDown}
+                    placeholder="Search games…"
+                    autoComplete="off"
                     style={{
-                        flex: 1,
+                        width: "100%",
                         background: "#1a1a1a",
                         color: "#eaeaea",
                         border: "1px solid #2b2b2b",
                         borderRadius: 8,
                         padding: "10px 12px",
-                        outline: "none"
+                        outline: "none",
                     }}
                 />
-                <button
-                    type="submit"
-                    style={{
-                        background: "#1e293b",
-                        color: "#fff",
-                        border: "1px solid #3b82f6",
-                        borderRadius: 8,
-                        padding: "10px 14px",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        whiteSpace: "nowrap"
-                    }}
-                >
-                    Search
-                </button>
             </form>
 
-            {/* dropdown */}
-            {dropdown}
+            {open && items.length > 0 ? (
+                <ul
+                    style={{
+                        position: "absolute",
+                        zIndex: 20,
+                        top: "100%",
+                        left: 0,
+                        right: 0,
+                        marginTop: 6,
+                        background: "#0f0f0f",
+                        border: "1px solid #2b2b2b",
+                        borderRadius: 8,
+                        listStyle: "none",
+                        padding: 6,
+                        maxHeight: 260,
+                        overflowY: "auto",
+                    }}
+                >
+                    {items.map((name, idx) => {
+                        const active = idx === highlight;
+                        return (
+                            <li key={`${name}-${idx}`}>
+                                <button
+                                    type="button"
+                                    onMouseEnter={() => setHighlight(idx)}
+                                    onMouseLeave={() => setHighlight(-1)}
+                                    onClick={() => choose(name)}
+                                    style={{
+                                        display: "block",
+                                        width: "100%",
+                                        textAlign: "left",
+                                        border: "none",
+                                        background: active ? "#1e293b" : "transparent",
+                                        color: active ? "#fff" : "#eaeaea",
+                                        borderRadius: 6,
+                                        padding: "8px 10px",
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    {name}
+                                </button>
+                            </li>
+                        );
+                    })}
+                </ul>
+            ) : null}
         </div>
     );
 }

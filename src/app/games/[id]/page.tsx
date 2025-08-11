@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
+import CoverThumb from "@/components/CoverThumb";
 
 type LocationNode = { id: string; name: string };
 
@@ -40,25 +41,12 @@ async function fetchGame(id: string): Promise<Game> {
     return (await res.json()) as Game;
 }
 
-/* helpers */
 function toYear(n?: number | null): string {
     if (n == null) return "—";
     if (n >= 1000 && n <= 3000) return String(n);
     if (n >= 1_000_000_000_000) return String(new Date(n).getUTCFullYear());
     if (n >= 1_000_000_000) return String(new Date(n * 1000).getUTCFullYear());
     return String(n);
-}
-
-function isValidHttpUrl(s?: string | null): s is string {
-    if (!s) return false;
-    const t = s.trim();
-    if (!t) return false;
-    try {
-        const u = new URL(t);
-        return u.protocol === "http:" || u.protocol === "https:";
-    } catch {
-        return false;
-    }
 }
 
 // We don't have the IGDB slug, so link to a site search by name (reliable).
@@ -113,40 +101,14 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                         padding: 16
                     }}
                 >
-                    {/* Cover */}
+                    {/* Cover (rectangular, matching IGDB aspect 264×352 → 180×240) */}
                     <div>
-                        {isValidHttpUrl(game.cover_url) ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                                src={game.cover_url!.trim()}
-                                alt={game.name}
-                                width={180}
-                                height={228}
-                                style={{
-                                    width: 180,
-                                    height: 228,
-                                    objectFit: "cover",
-                                    borderRadius: 10,
-                                    border: "1px solid #2b2b2b",
-                                    background: "#141414"
-                                }}
-                            />
-                        ) : (
-                            <div
-                                style={{
-                                    width: 180,
-                                    height: 228,
-                                    background: "#2b2b2b",
-                                    borderRadius: 10,
-                                    border: "1px solid #2b2b2b"
-                                }}
-                            />
-                        )}
+                        <CoverThumb name={game.name} coverUrl={game.cover_url} width={180} height={240} />
                     </div>
 
                     {/* Info */}
                     <div>
-                        <h1 style={{ fontSize: 26, margin: "0 0 10px 0", letterSpacing: 0.2 }}>{game.name}</h1>
+                        <h1 style={{ fontSize: 24, margin: "0 0 10px 0", letterSpacing: 0.2 }}>{game.name}</h1>
 
                         {/* Quick facts */}
                         <div
@@ -199,21 +161,21 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                                     <>
                                         {game.location_path.map((node, idx) => (
                                             <span key={node.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                                <span
-                                                    style={{
-                                                        background: "#1e1e1e",
-                                                        border: "1px solid #2b2b2b",
-                                                        borderRadius: 999,
-                                                        padding: "4px 10px",
-                                                        fontSize: 12
-                                                    }}
-                                                >
-                                                    {node.name}
-                                                </span>
+                        <span
+                            style={{
+                                background: "#1e1e1e",
+                                border: "1px solid #2b2b2b",
+                                borderRadius: 999,
+                                padding: "4px 10px",
+                                fontSize: 12
+                            }}
+                        >
+                          {node.name}
+                        </span>
                                                 {idx < game.location_path!.length - 1 ? (
                                                     <span style={{ opacity: 0.6 }}>›</span>
                                                 ) : null}
-                                            </span>
+                      </span>
                                         ))}
                                     </>
                                 ) : (
@@ -233,8 +195,8 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                                                 fontSize: 12
                                             }}
                                         >
-                                            Order: {game.order}
-                                        </span>
+                      Order: {game.order}
+                    </span>
                                     </>
                                 ) : null}
                             </div>
@@ -289,8 +251,8 @@ function Pill({ label }: { label: string }) {
                 lineHeight: 1.2
             }}
         >
-            {label}
-        </span>
+      {label}
+    </span>
     );
 }
 
@@ -311,8 +273,8 @@ function MetaRow({ label, items }: { label: string; items?: string[] }) {
                             fontSize: 13
                         }}
                     >
-                        {txt}
-                    </span>
+            {txt}
+          </span>
                 ))}
             </div>
         </div>
