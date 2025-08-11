@@ -556,7 +556,7 @@ function LabeledInput(
                     borderRadius: 8,
                     padding: "10px 12px",
                     outline: "none",
-                    ...(short ? { maxWidth: 200 } : null),
+                    ...(short ? { maxWidth: 160 } : null),
                     ...style
                 }}
             />
