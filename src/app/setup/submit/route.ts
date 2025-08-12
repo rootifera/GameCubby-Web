@@ -19,6 +19,17 @@ export async function POST(req: NextRequest) {
     const igdb_client_secret = String(form.get("igdb_client_secret") ?? "").trim();
     const query_limit_raw = String(form.get("query_limit") ?? "50").trim();
 
+    // NEW: enable_public_downloads (user selects Yes/No, we send "true"/"false" to API)
+    const enable_public_downloads_raw = String(
+        form.get("enable_public_downloads") ?? "false"
+    )
+        .trim()
+        .toLowerCase();
+
+    // normalize strictly to "true" | "false" strings
+    const enable_public_downloads =
+        enable_public_downloads_raw === "true" ? "true" : "false";
+
     // quick validation
     const errors: string[] = [];
     if (admin_username.length < 3) errors.push("Username must be at least 3 characters.");
@@ -33,7 +44,7 @@ export async function POST(req: NextRequest) {
     if (errors.length) {
         return new NextResponse(null, {
             status: 303,
-            headers: { Location: `/setup?error=${encodeURIComponent(errors.join(" "))}` }
+            headers: { Location: `/setup?error=${encodeURIComponent(errors.join(" "))}` },
         });
     }
 
@@ -42,7 +53,9 @@ export async function POST(req: NextRequest) {
         admin_password,
         igdb_client_id,
         igdb_client_secret,
-        query_limit
+        query_limit,
+        // include the new flag as a "true"/"false" string
+        enable_public_downloads,
     };
 
     try {
@@ -51,7 +64,7 @@ export async function POST(req: NextRequest) {
             headers: { "Content-Type": "application/json" },
             // first_run is public; no bearer token needed
             body: JSON.stringify(payload),
-            cache: "no-store"
+            cache: "no-store",
         });
 
         if (res.ok) {
@@ -75,13 +88,13 @@ export async function POST(req: NextRequest) {
 
         return new NextResponse(null, {
             status: 303,
-            headers: { Location: `/setup?error=${encodeURIComponent(detail)}` }
+            headers: { Location: `/setup?error=${encodeURIComponent(detail)}` },
         });
     } catch (err) {
         const msg = err instanceof Error ? err.message : "Network error contacting API.";
         return new NextResponse(null, {
             status: 303,
-            headers: { Location: `/setup?error=${encodeURIComponent(msg)}` }
+            headers: { Location: `/setup?error=${encodeURIComponent(msg)}` },
         });
     }
 }

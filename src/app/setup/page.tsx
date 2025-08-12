@@ -3,7 +3,7 @@ import { API_BASE_URL } from "@/lib/env";
 
 export const metadata = {
     title: "First Run Setup • GameCubby",
-    description: "Configure admin account and IGDB credentials"
+    description: "Configure admin account and IGDB credentials",
 };
 
 /** Check first-run status. API returns plain "true" or "false". */
@@ -30,7 +30,7 @@ async function isFirstRunDone(): Promise<boolean> {
 }
 
 export default async function SetupPage({
-                                            searchParams
+                                            searchParams,
                                         }: {
     searchParams?: { error?: string };
 }) {
@@ -55,7 +55,7 @@ export default async function SetupPage({
                         border: "1px solid #262626",
                         borderRadius: 12,
                         padding: 16,
-                        maxWidth: 640
+                        maxWidth: 640,
                     }}
                 >
                     <p style={{ margin: 0, lineHeight: 1.6 }}>
@@ -79,7 +79,7 @@ export default async function SetupPage({
                                 borderRadius: 8,
                                 padding: "10px 14px",
                                 fontWeight: 600,
-                                textDecoration: "none"
+                                textDecoration: "none",
                             }}
                         >
                             Go to Home
@@ -102,7 +102,7 @@ export default async function SetupPage({
                                 padding: 12,
                                 borderRadius: 8,
                                 marginBottom: 12,
-                                maxWidth: 640
+                                maxWidth: 640,
                             }}
                         >
                             {errorMsg}
@@ -117,7 +117,7 @@ export default async function SetupPage({
                             border: "1px solid #262626",
                             borderRadius: 12,
                             padding: 16,
-                            maxWidth: 640
+                            maxWidth: 640,
                         }}
                     >
                         <fieldset style={{ border: "none", padding: 0, margin: 0 }}>
@@ -190,8 +190,28 @@ export default async function SetupPage({
                             </div>
                         </fieldset>
 
+                        {/* New: Downloads settings */}
+                        <fieldset style={{ border: "none", padding: 0, margin: 0 }}>
+                            <legend style={{ fontWeight: 600, marginBottom: 10 }}>Downloads</legend>
+                            <div style={{ display: "grid", gap: 8, marginBottom: 16 }}>
+                                <label style={labelStyle}>
+                                    <span>Enable Public Downloads</span>
+                                    <select
+                                        name="enable_public_downloads"
+                                        defaultValue="false"
+                                        style={inputStyle}
+                                    >
+                                        <option value="false">No</option>
+                                        <option value="true">Yes</option>
+                                    </select>
+                                </label>
+                            </div>
+                        </fieldset>
+
                         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                            <button type="submit" style={buttonStyle}>Run Setup</button>
+                            <button type="submit" style={buttonStyle}>
+                                Run Setup
+                            </button>
                             <span style={{ opacity: 0.7, fontSize: 12 }}>
                 Submits to <code>/setup/submit</code> and then calls your API.
               </span>
@@ -205,7 +225,7 @@ export default async function SetupPage({
 
 const labelStyle: React.CSSProperties = {
     display: "grid",
-    gap: 6
+    gap: 6,
 };
 
 const inputStyle: React.CSSProperties = {
@@ -214,7 +234,7 @@ const inputStyle: React.CSSProperties = {
     border: "1px solid #2b2b2b",
     borderRadius: 8,
     padding: "10px 12px",
-    outline: "none"
+    outline: "none",
 };
 
 const buttonStyle: React.CSSProperties = {
@@ -224,5 +244,5 @@ const buttonStyle: React.CSSProperties = {
     borderRadius: 8,
     padding: "10px 14px",
     fontWeight: 600,
-    cursor: "pointer"
+    cursor: "pointer",
 };
