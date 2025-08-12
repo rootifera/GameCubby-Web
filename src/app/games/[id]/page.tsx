@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
-import CoverThumb from "@/components/CoverThumb";
 
 type LocationNode = { id: string; name: string };
 
@@ -34,11 +33,39 @@ type Game = {
     location_path?: LocationNode[];
 };
 
+/** Files API types (from OpenAPI) */
+type FileCategory =
+    | "audio_ost"
+    | "patch_update"
+    | "saves"
+    | "disc_image"
+    | "screenshots"
+    | "manuals_docs"
+    | "artwork_covers"
+    | "other";
+
+type FileResponse = {
+    id: number;           // DB row
+    file_id: number;      // <-- use this for downloads
+    game: string;
+    label: string;
+    path: string;
+    category: FileCategory;
+};
+
 async function fetchGame(id: string): Promise<Game> {
     const url = `${API_BASE_URL}/games/${id}`;
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
     return (await res.json()) as Game;
+}
+
+async function fetchGameFiles(id: string): Promise<FileResponse[]> {
+    const url = `${API_BASE_URL}/games/${id}/files/`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
+    const data = await res.json();
+    return Array.isArray(data) ? (data as FileResponse[]) : [];
 }
 
 function toYear(n?: number | null): string {
@@ -54,15 +81,64 @@ function igdbSearchUrl(name: string) {
     return `https://www.igdb.com/search?q=${encodeURIComponent(name)}`;
 }
 
+/** ----- Files grouping helpers ----- */
+
+type GroupKey = "ISOs" | "Images" | "Files";
+
+function groupKeyForCategory(cat: FileCategory): GroupKey {
+    if (cat === "disc_image") return "ISOs";
+    if (cat === "screenshots" || cat === "artwork_covers") return "Images";
+    return "Files"; // manuals_docs, audio_ost, patch_update, saves, other
+}
+
+function prettyCategory(cat: FileCategory): string {
+    switch (cat) {
+        case "disc_image":
+            return "Disc Image";
+        case "screenshots":
+            return "Screenshots";
+        case "artwork_covers":
+            return "Artwork / Covers";
+        case "manuals_docs":
+            return "Manuals / Docs";
+        case "audio_ost":
+            return "Audio / OST";
+        case "patch_update":
+            return "Patch / Update";
+        case "saves":
+            return "Saves";
+        default:
+            return "Other";
+    }
+}
+
+function groupFiles(files: FileResponse[]): Record<GroupKey, FileResponse[]> {
+    const out: Record<GroupKey, FileResponse[]> = { ISOs: [], Images: [], Files: [] };
+    for (const f of files) {
+        out[groupKeyForCategory(f.category)].push(f);
+    }
+    return out;
+}
+
 export default async function GameDetailsPage({ params }: { params: { id: string } }) {
     let game: Game | null = null;
+    let files: FileResponse[] = [];
     let error: string | null = null;
+    let filesError: string | null = null;
 
     try {
         game = await fetchGame(params.id);
     } catch (e: unknown) {
         error = e instanceof Error ? e.message : "Unknown error";
     }
+
+    try {
+        files = await fetchGameFiles(params.id);
+    } catch (e: unknown) {
+        filesError = e instanceof Error ? e.message : "Unknown error";
+    }
+
+    const grouped = files.length ? groupFiles(files) : { ISOs: [], Images: [], Files: [] };
 
     return (
         <div style={{ padding: 16 }}>
@@ -101,9 +177,35 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                         padding: 16
                     }}
                 >
-                    {/* Cover (rectangular, matching IGDB aspect 264×352 → 180×240) */}
+                    {/* Cover */}
                     <div>
-                        <CoverThumb name={game.name} coverUrl={game.cover_url} width={180} height={240} />
+                        {game.cover_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                                src={game.cover_url}
+                                alt={game.name}
+                                width={180}
+                                height={240}
+                                style={{
+                                    width: 180,
+                                    height: 240,
+                                    objectFit: "cover",
+                                    borderRadius: 10,
+                                    border: "1px solid #2b2b2b",
+                                    background: "#141414"
+                                }}
+                            />
+                        ) : (
+                            <div
+                                style={{
+                                    width: 180,
+                                    height: 240,
+                                    background: "#2b2b2b",
+                                    borderRadius: 10,
+                                    border: "1px solid #2b2b2b"
+                                }}
+                            />
+                        )}
                     </div>
 
                     {/* Info */}
@@ -172,9 +274,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                         >
                           {node.name}
                         </span>
-                                                {idx < game.location_path!.length - 1 ? (
-                                                    <span style={{ opacity: 0.6 }}>›</span>
-                                                ) : null}
+                                                {idx < game.location_path!.length - 1 ? <span style={{ opacity: 0.6 }}>›</span> : null}
                       </span>
                                         ))}
                                     </>
@@ -217,6 +317,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                         <MetaRow label="Perspectives" items={game.playerperspectives?.map((x) => x.name)} />
                         <MetaRow label="Tags" items={game.tags?.map((x) => x.name)} />
                         <MetaRow label="IGDB Tags" items={game.igdb_tags?.map((x) => x.name)} />
+
                         {game.companies && game.companies.length ? (
                             <MetaRow
                                 label="Companies"
@@ -233,6 +334,9 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                                 })}
                             />
                         ) : null}
+
+                        {/* Files section */}
+                        <FilesSection grouped={grouped} filesError={filesError} />
                     </div>
                 </article>
             )}
@@ -277,6 +381,110 @@ function MetaRow({ label, items }: { label: string; items?: string[] }) {
           </span>
                 ))}
             </div>
+        </div>
+    );
+}
+
+/** ---------------- Files UI ---------------- */
+
+function FilesSection({
+                          grouped,
+                          filesError
+                      }: {
+    grouped: Record<"ISOs" | "Images" | "Files", FileResponse[]>;
+    filesError: string | null;
+}) {
+    const hasAny =
+        grouped.ISOs.length > 0 || grouped.Images.length > 0 || grouped.Files.length > 0;
+
+    return (
+        <section
+            style={{
+                marginTop: 14,
+                padding: "10px 12px",
+                background: "#141414",
+                border: "1px solid #262626",
+                borderRadius: 10
+            }}
+        >
+            <div style={{ fontWeight: 600, marginBottom: 8 }}>Files</div>
+
+            {filesError ? (
+                <div style={{ fontSize: 12, color: "#fca5a5" }}>
+                    Failed to load files. <span style={{ opacity: 0.8 }}>{filesError}</span>
+                </div>
+            ) : !hasAny ? (
+                <div style={{ opacity: 0.7, fontSize: 13 }}>No files attached.</div>
+            ) : (
+                <div style={{ display: "grid", gap: 12 }}>
+                    <FileGroup title="ISOs" files={grouped.ISOs} />
+                    <FileGroup title="Images" files={grouped.Images} />
+                    <FileGroup title="Files" files={grouped.Files} />
+                </div>
+            )}
+        </section>
+    );
+}
+
+function FileGroup({ title, files }: { title: string; files: FileResponse[] }) {
+    if (!files || files.length === 0) return null;
+    return (
+        <div>
+            <div style={{ opacity: 0.85, marginBottom: 6, fontWeight: 600 }}>{title}</div>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                {files.map((f) => (
+                    <li
+                        key={f.file_id || f.id}
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 10,
+                            padding: "8px 10px",
+                            border: "1px solid #232323",
+                            background: "#1a1a1a",
+                            borderRadius: 8,
+                            marginBottom: 6
+                        }}
+                    >
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+              <span
+                  style={{
+                      background: "#101010",
+                      border: "1px solid #2b2b2b",
+                      borderRadius: 6,
+                      padding: "2px 6px",
+                      fontSize: 11,
+                      whiteSpace: "nowrap"
+                  }}
+                  title={f.category}
+              >
+                {prettyCategory(f.category)}
+              </span>
+                            <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {f.label || f.path.split("/").pop()}
+              </span>
+                        </div>
+
+                        {/* Download via Next proxy using file_id */}
+                        <a
+                            href={`/api/proxy/downloads/${encodeURIComponent(String(f.file_id))}`}
+                            title={`file_id: ${f.file_id} • row id: ${f.id}`}
+                            style={{
+                                textDecoration: "none",
+                                background: "#1e293b",
+                                border: "1px solid #3b82f6",
+                                color: "#e5f0ff",
+                                padding: "6px 10px",
+                                borderRadius: 8,
+                                fontSize: 13
+                            }}
+                        >
+                            Download
+                        </a>
+                    </li>
+                ))}
+            </ul>
         </div>
     );
 }
