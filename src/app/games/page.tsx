@@ -17,7 +17,7 @@ type GameDetails = {
 };
 
 type SortKey =
-    | "recent_desc"   // NEW: default – newest first (highest id)
+    | "recent_desc" // default – newest first (highest id)
     | "name_asc"
     | "name_desc"
     | "year_desc"
@@ -112,7 +112,7 @@ function sortGames(
     return withMeta;
 }
 
-/** Small link pill for sort controls that preserves page/size (use UrlObject to satisfy typed routes) */
+/** Small link pill for sort controls that preserves page/size */
 function SortLink({
                       label,
                       value,
@@ -144,7 +144,7 @@ function SortLink({
     );
 }
 
-/** Pagination bar (use UrlObject to avoid TS2322 with typed routes) */
+/** Pagination bar */
 function PaginationBar({
                            total,
                            page,
@@ -239,7 +239,7 @@ function coerceSortKey(s: unknown): SortKey {
         "rating_desc",
         "rating_asc",
     ];
-    return (allowed.includes(s as SortKey) ? (s as SortKey) : "recent_desc");
+    return allowed.includes(s as SortKey) ? (s as SortKey) : "recent_desc";
 }
 
 export default async function GamesPage({
@@ -252,7 +252,7 @@ export default async function GamesPage({
 
     const sortParam = coerceSortKey(searchParams?.sort);
     const page = parsePositiveInt(searchParams?.page, 1);
-    const size = Math.min(100, Math.max(5, parsePositiveInt(searchParams?.size, 20))); // 5..100
+    const size = Math.min(100, Math.max(5, parsePositiveInt(searchParams?.size, 10))); // 5..100
 
     try {
         games = await fetchGames();
@@ -295,7 +295,7 @@ export default async function GamesPage({
                 <h1 style={{ fontSize: 24, margin: 0 }}>Games</h1>
             </div>
 
-            {/* Sort bar */}
+            {/* Sort bar + page size selector */}
             <div
                 style={{
                     display: "flex",
@@ -313,6 +313,49 @@ export default async function GamesPage({
                 <SortLink label="Year ↑" value="year_asc" active={sortParam === "year_asc"} page={page} size={size} />
                 <SortLink label="Rating ↓" value="rating_desc" active={sortParam === "rating_desc"} page={page} size={size} />
                 <SortLink label="Rating ↑" value="rating_asc" active={sortParam === "rating_asc"} page={page} size={size} />
+
+                {/* spacer */}
+                <div style={{ flex: 1 }} />
+
+                {/* Page size (GET form so no client JS needed) */}
+                <form action="/games" method="get" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input type="hidden" name="sort" value={sortParam} />
+                    <input type="hidden" name="page" value={1} />
+                    <label htmlFor="size" style={{ opacity: 0.8, fontSize: 13 }}>Page size:</label>
+                    <select
+                        id="size"
+                        name="size"
+                        defaultValue={String(size)}
+                        style={{
+                            background: "#151515",
+                            border: "1px solid #2b2b2b",
+                            color: "#d8d8d8",
+                            borderRadius: 8,
+                            padding: "6px 10px",
+                            fontSize: 13,
+                        }}
+                    >
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <button
+                        type="submit"
+                        style={{
+                            textDecoration: "none",
+                            color: "#d8d8d8",
+                            border: "1px solid #2b2b2b",
+                            background: "#151515",
+                            padding: "6px 10px",
+                            borderRadius: 8,
+                            fontSize: 13,
+                            cursor: "pointer",
+                        }}
+                    >
+                        Apply
+                    </button>
+                </form>
             </div>
 
             {/* Top pagination */}
@@ -357,7 +400,7 @@ export default async function GamesPage({
                             >
                                 {/* Cover with hover card (keeps 56×56 size) */}
                                 <GameHoverCard gameId={g.id}>
-                                    <Link href={{ pathname: `/games/${g.id}` }} style={{ display: "inline-block", flexShrink: 0 }}>
+                                    <Link href={`/games/${g.id}`} style={{ display: "inline-block", flexShrink: 0 }}>
                                         <CoverThumb
                                             name={g.name}
                                             coverUrl={g.cover_url ?? undefined}
@@ -371,7 +414,7 @@ export default async function GamesPage({
                                 {/* Text block */}
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%" }}>
                                     <div>
-                                        <Link href={{ pathname: `/games/${g.id}` }} style={{ color: "#fff", textDecoration: "none", fontWeight: 600 }}>
+                                        <Link href={`/games/${g.id}`} style={{ color: "#fff", textDecoration: "none", fontWeight: 600 }}>
                                             {g.name}
                                         </Link>
                                         <div style={{ fontSize: 12, opacity: 0.8 }}>Platforms: {platformNames}</div>

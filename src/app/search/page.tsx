@@ -50,7 +50,7 @@ function parseIdsCSV(csv: string): number[] {
 /** Build query for /search/basic (repeated tag_ids, exact platform_id/year, plus limit/offset) */
 function buildBasicApiQuery(sp: Record<string, string | string[] | undefined>, size: number, page: number) {
     const qs = new URLSearchParams();
-    const name = get(sp, "q"); // our SearchBox uses ?q=
+    const name = get(sp, "q");
     const year = get(sp, "year");
     const platform_id = get(sp, "platform_id");
     const match_mode = get(sp, "match_mode");
@@ -92,30 +92,24 @@ async function fetchBasic(sp: Record<string, string | string[] | undefined>, siz
     return Array.isArray(list) ? list : [];
 }
 
-/** Build a link preserving current filters and changing page/size */
-function buildPageHref(
+/** Build a UrlObject preserving current filters and changing page/size */
+function buildPageUrl(
     sp: Record<string, string | string[] | undefined>,
     page: number,
     size: number
 ) {
-    const qs = new URLSearchParams();
+    const query: Record<string, string> = {};
 
-    // carry search + extra params (we keep tag_ids as CSV in the URL)
-    const carry = [
-        "q",
-        "year",
-        "platform_id",
-        "tag_ids",
-        "match_mode",
-    ] as const;
+    const carry = ["q", "year", "platform_id", "tag_ids", "match_mode"] as const;
     for (const k of carry) {
         const v = get(sp, k);
-        if (v) qs.set(k, v);
+        if (v) query[k] = v;
     }
 
-    qs.set("page", String(page));
-    qs.set("size", String(size));
-    return `/search?${qs.toString()}`;
+    query.page = String(page);
+    query.size = String(size);
+
+    return { pathname: "/search", query };
 }
 
 export default async function BasicSearchPage({
@@ -135,7 +129,7 @@ export default async function BasicSearchPage({
     let results: GamePreview[] = [];
     let error: string | null = null;
 
-    // only run search if there's at least a little input (q or any extra)
+    // run only if there's some input
     const hasAnyParam = Object.values(sp).some((v) => (Array.isArray(v) ? v.join("") : v)?.toString().trim());
     if (hasAnyParam) {
         try {
@@ -152,19 +146,12 @@ export default async function BasicSearchPage({
     const tagCsv = get(sp, "tag_ids");
     const match_mode = get(sp, "match_mode") || "any";
 
-    // detect if there is a "next" page: we asked for size+1
-    const hasNext = results.length === size
-        ? false // we showed only size; but we don't know if API had one extra since we sliced after fetchBasic; so fetchBasic should return full array.
-        : false;
-
-    // To actually know hasNext, we need the unsliced array. Let's re-fetch and keep it.
-    // (cheap and simple; still a single request)
+    // Re-fetch unsliced to determine hasNext
     let hasNextPage = false;
     if (!error && hasAnyParam) {
         try {
             const full = await fetchBasic(sp, size, page);
             hasNextPage = full.length > size;
-            // keep the sliced results
             results = full.slice(0, size);
         } catch {
             /* ignore */
@@ -176,22 +163,35 @@ export default async function BasicSearchPage({
 
     return (
         <div style={{ padding: 16 }}>
-            <div style={{ marginBottom: 12, display: "flex", gap: 8, alignItems: "center" }}>
-                <Link href="/" style={{ color: "#a0c4ff", textDecoration: "none" }}>
-                    ← Home
-                </Link>
+            {/* Header crumbs + Basic/Advanced toggle */}
+            <div style={{ marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <Link href={{ pathname: "/" }} style={{ color: "#a0c4ff", textDecoration: "none" }}>← Home</Link>
                 <span style={{ opacity: 0.6 }}>•</span>
-                <Link href="/search/advanced" style={{ color: "#a0c4ff", textDecoration: "none" }}>
-                    Advanced search →
-                </Link>
+                <div style={{ display: "flex", gap: 6 }}>
+                    <Link
+                        href={{ pathname: "/search" }}
+                        style={toggleActive}
+                        aria-current="page"
+                    >
+                        Basic
+                    </Link>
+                    <Link
+                        href={{ pathname: "/search/advanced" }}
+                        style={toggleInactive}
+                    >
+                        Advanced
+                    </Link>
+                </div>
             </div>
 
             <h1 style={{ fontSize: 24, margin: "0 0 12px 0" }}>Search</h1>
 
-            {/* Search bar */}
+            {/* Search bar (tighter width) */}
             <div style={{ marginBottom: 16 }}>
-                {/* SearchBox submits to /search with ?q= */}
-                <SearchBox defaultValue={q || ""} />
+                <div style={{ maxWidth: 540, width: "100%" }}>
+                    {/* SearchBox submits to /search with ?q= */}
+                    <SearchBox defaultValue={q || ""} />
+                </div>
             </div>
 
             {/* Extra parameters */}
@@ -273,7 +273,7 @@ export default async function BasicSearchPage({
                             Apply
                         </button>
                         <Link
-                            href="/search"
+                            href={{ pathname: "/search" }}
                             style={{
                                 color: "#d8d8d8",
                                 border: "1px solid #2b2b2b",
@@ -292,11 +292,10 @@ export default async function BasicSearchPage({
             {hasAnyParam && !error ? (
                 <BasicPager
                     page={page}
-                    size={size}
                     hasNext={hasNextPage}
                     start={start}
                     end={end}
-                    hrefBuilder={(p) => buildPageHref(sp, p, size)}
+                    hrefBuilder={(p) => buildPageUrl(sp, p, size)}
                 />
             ) : null}
 
@@ -371,11 +370,10 @@ export default async function BasicSearchPage({
             {hasAnyParam && !error ? (
                 <BasicPager
                     page={page}
-                    size={size}
                     hasNext={hasNextPage}
                     start={start}
                     end={end}
-                    hrefBuilder={(p) => buildPageHref(sp, p, size)}
+                    hrefBuilder={(p) => buildPageUrl(sp, p, size)}
                 />
             ) : null}
         </div>
@@ -386,18 +384,16 @@ export default async function BasicSearchPage({
 
 function BasicPager({
                         page,
-                        size,
                         hasNext,
                         start,
                         end,
                         hrefBuilder,
                     }: {
     page: number;
-    size: number;
     hasNext: boolean;
     start: number;
     end: number;
-    hrefBuilder: (p: number) => string;
+    hrefBuilder: (p: number) => { pathname: string; query: Record<string, string> };
 }) {
     return (
         <div
@@ -411,11 +407,7 @@ function BasicPager({
             }}
         >
             <div style={{ opacity: 0.85, fontSize: 12 }}>
-                {start ? (
-                    <>Showing {start}–{end}</>
-                ) : (
-                    <>No results</>
-                )}
+                {start ? <>Showing {start}–{end}</> : <>No results</>}
             </div>
 
             <div style={{ display: "flex", gap: 8 }}>
@@ -458,7 +450,7 @@ const selectStyle: React.CSSProperties = {
     background: "#1a1a1a",
     color: "#eaeaea",
     border: "1px solid #2b2b2b",
-borderRadius: 8,
+    borderRadius: 8,
     padding: "10px 12px",
     outline: "none",
 };
@@ -492,3 +484,24 @@ const btn: React.CSSProperties = {
     fontSize: 13,
 };
 const btnDisabled: React.CSSProperties = { ...btn, opacity: 0.5, pointerEvents: "none" };
+
+/* Toggle button styles */
+const toggleBase: React.CSSProperties = {
+    textDecoration: "none",
+    padding: "6px 10px",
+    borderRadius: 999,
+    fontSize: 13,
+    border: "1px solid #2b2b2b",
+};
+const toggleActive: React.CSSProperties = {
+    ...toggleBase,
+    background: "#1e293b",
+    borderColor: "#3b82f6",
+    color: "#fff",
+    fontWeight: 600,
+};
+const toggleInactive: React.CSSProperties = {
+    ...toggleBase,
+    background: "#151515",
+    color: "#d8d8d8",
+};
