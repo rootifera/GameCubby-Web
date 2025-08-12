@@ -19,16 +19,16 @@ export async function POST(req: NextRequest) {
     const igdb_client_secret = String(form.get("igdb_client_secret") ?? "").trim();
     const query_limit_raw = String(form.get("query_limit") ?? "50").trim();
 
-    // NEW: enable_public_downloads (user selects Yes/No, we send "true"/"false" to API)
-    const enable_public_downloads_raw = String(
-        form.get("enable_public_downloads") ?? "false"
-    )
+    // New: public downloads (form shows Yes/No; API expects boolean)
+    // Defaults to "false" when missing.
+    const publicDownloadsRaw = String(form.get("public_downloads_enabled") ?? "false")
         .trim()
         .toLowerCase();
-
-    // normalize strictly to "true" | "false" strings
-    const enable_public_downloads =
-        enable_public_downloads_raw === "true" ? "true" : "false";
+    const public_downloads_enabled =
+        publicDownloadsRaw === "true" ||
+        publicDownloadsRaw === "yes" ||
+        publicDownloadsRaw === "1" ||
+        publicDownloadsRaw === "on";
 
     // quick validation
     const errors: string[] = [];
@@ -54,8 +54,7 @@ export async function POST(req: NextRequest) {
         igdb_client_id,
         igdb_client_secret,
         query_limit,
-        // include the new flag as a "true"/"false" string
-        enable_public_downloads,
+        public_downloads_enabled, // ← send boolean to API
     };
 
     try {
