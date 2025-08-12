@@ -67,6 +67,21 @@ function igdbSearchUrl(name: string) {
     return `https://www.igdb.com/search?q=${encodeURIComponent(name)}`;
 }
 
+/** Helper: basename from a path */
+function basenameFromPath(p: string): string {
+    const parts = p.split("/");
+    return parts[parts.length - 1] || p;
+}
+
+/** Helper: suggest a nice download filename */
+function suggestFilename(f: UiFile): string {
+    const base = basenameFromPath(f.path);
+    const dot = base.lastIndexOf(".");
+    const ext = dot > -1 ? base.slice(dot) : "";
+    const raw = f.label?.trim() ? f.label.trim() + ext : base;
+    return raw.replace(/[\\/:*?"<>|]/g, "_");
+}
+
 export default async function GameDetailsPage({ params }: { params: { id: string } }) {
     let game: Game | null = null;
     let files: UiFile[] = [];
@@ -92,7 +107,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
         "Save Files",
         "Patches and Updates",
         "Manuals and Docs",
-        "Audio / OST",       // <-- added
+        "Audio / OST",
         "Others",
     ];
     const hasAny = groupOrder.some((k) => grouped[k]?.length);
@@ -294,7 +309,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                             />
                         ) : null}
 
-                        {/* Downloads (grouped) */}
+                        {/* Downloads (grouped, with visible filenames) */}
                         <section
                             style={{
                                 marginTop: 14,
@@ -378,57 +393,72 @@ function FileGroup({ title, files }: { title: string; files: UiFile[] }) {
                 {title} <span style={{ opacity: 0.6, fontWeight: 400 }}>({files.length})</span>
             </div>
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                {files.map((f) => (
-                    <li
-                        key={f.file_id}
-                        style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            gap: 10,
-                            padding: "8px 10px",
-                            border: "1px solid #232323",
-                            background: "#1a1a1a",
-                            borderRadius: 8,
-                            marginBottom: 6,
-                        }}
-                    >
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-              <span
-                  style={{
-                      background: "#101010",
-                      border: "1px solid #2b2b2b",
-                      borderRadius: 6,
-                      padding: "2px 6px",
-                      fontSize: 11,
-                      whiteSpace: "nowrap",
-                  }}
-                  title={f.category}
-              >
-                {prettyCategory(f.category)}
-              </span>
-                            <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {f.label || f.path.split("/").pop()}
-              </span>
-                        </div>
+                {files.map((f) => {
+                    const fid = f.file_id;
+                    const displayName = f.label || basenameFromPath(f.path);
+                    const fileName = basenameFromPath(f.path);
+                    const downloadName = suggestFilename(f);
 
-                        <a
-                            href={`/api/proxy/downloads/${encodeURIComponent(String(f.file_id))}`}
-                            title={`file_id: ${f.file_id} • row id: ${f.id}`}
+                    return (
+                        <li
+                            key={fid}
                             style={{
-                                textDecoration: "none",
-                                background: "#1e293b",
-                                border: "1px solid #3b82f6",
-                                color: "#e5f0ff",
-                                padding: "6px 10px",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                gap: 10,
+                                padding: "8px 10px",
+                                border: "1px solid #232323",
+                                background: "#1a1a1a",
                                 borderRadius: 8,
-                                fontSize: 13,
+                                marginBottom: 6,
                             }}
                         >
-                            Download
-                        </a>
-                    </li>
-                ))}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  <span
+                      style={{
+                          background: "#101010",
+                          border: "1px solid #2b2b2b",
+                          borderRadius: 6,
+                          padding: "2px 6px",
+                          fontSize: 11,
+                          whiteSpace: "nowrap",
+                      }}
+                      title={f.category}
+                  >
+                    {prettyCategory(f.category)}
+                  </span>
+                                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 600 }}>
+                    {displayName}
+                  </span>
+                                </div>
+                                {/* NEW: show the actual filename */}
+                                <div style={{ fontSize: 12, opacity: 0.7, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                    {fileName}
+                                </div>
+                            </div>
+
+                            <a
+                                href={`/api/proxy/downloads/${encodeURIComponent(String(fid))}`}
+                                download={downloadName}
+                                title={`file_id: ${f.file_id} • row id: ${f.id}`}
+                                style={{
+                                    textDecoration: "none",
+                                    background: "#1e293b",
+                                    border: "1px solid #3b82f6",
+                                    color: "#e5f0ff",
+                                    padding: "6px 10px",
+                                    borderRadius: 8,
+                                    fontSize: 13,
+                                    whiteSpace: "nowrap",
+                                }}
+                            >
+                                Download
+                            </a>
+                        </li>
+                    );
+                })}
             </ul>
         </div>
     );

@@ -17,16 +17,16 @@ async function fetchJSON<T>(url: string): Promise<T> {
     return (text ? JSON.parse(text) : {}) as T;
 }
 
-/** Build a friendly default filename:
- *  - Prefer label + extension from path
- *  - Fallback to basename from path
- *  - Strip illegal filename chars
- */
+/** Helpers */
+function basenameFromPath(p: string): string {
+    const i = p.lastIndexOf("/");
+    return i >= 0 ? p.slice(i + 1) : p;
+}
 function suggestFilename(f: UiFile): string {
-    const baseFromPath = f.path.split("/").pop() || "download";
-    const dot = baseFromPath.lastIndexOf(".");
-    const ext = dot > -1 ? baseFromPath.slice(dot) : "";
-    const raw = f.label?.trim() ? f.label.trim() + ext : baseFromPath;
+    const base = basenameFromPath(f.path);
+    const dot = base.lastIndexOf(".");
+    const ext = dot > -1 ? base.slice(dot) : "";
+    const raw = f.label?.trim() ? f.label.trim() + ext : base;
     return raw.replace(/[\\/:*?"<>|]/g, "_");
 }
 
@@ -110,7 +110,10 @@ function FileGroup({ title, files }: { title: string; files: UiFile[] }) {
             <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
                 {files.map((f) => {
                     const fid = f.file_id;
-                    const filename = suggestFilename(f);
+                    const displayName = f.label || basenameFromPath(f.path);
+                    const fileName = basenameFromPath(f.path);
+                    const downloadName = suggestFilename(f);
+
                     return (
                         <li key={`${fid}-${f.path}`} style={rowStyle}>
                             <div style={{ flex: 1, minWidth: 0 }}>
@@ -129,18 +132,19 @@ function FileGroup({ title, files }: { title: string; files: UiFile[] }) {
                     {prettyCategory(f.category)}
                   </span>
                                     <span style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {f.label || f.path.split("/").pop()}
+                    {displayName}
                   </span>
                                 </div>
+                                {/* show the actual filename under the label */}
                                 <div style={{ fontSize: 12, opacity: 0.7, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                    {f.path}
+                                    {fileName}
                                 </div>
                             </div>
 
                             {/* Download via proxy using guaranteed file_id, with a suggested filename */}
                             <a
                                 href={`/api/proxy/downloads/${encodeURIComponent(String(fid))}`}
-                                download={filename}
+                                download={downloadName}
                                 style={btnLink}
                                 title={`file_id: ${f.file_id} • row id: ${f.id}`}
                             >

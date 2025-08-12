@@ -17,6 +17,7 @@ type GameDetails = {
 };
 
 type SortKey =
+    | "recent_desc"   // NEW: default – newest first (highest id)
     | "name_asc"
     | "name_desc"
     | "year_desc"
@@ -85,6 +86,9 @@ function sortGames(
         (a ?? Infinity) - (b ?? Infinity);
 
     switch (key) {
+        case "recent_desc":
+            withMeta.sort((a, b) => byNumberDesc(a.id, b.id)); // newest id first
+            break;
         case "name_asc":
             withMeta.sort((a, b) => byString(a.name, b.name));
             break;
@@ -108,7 +112,7 @@ function sortGames(
     return withMeta;
 }
 
-/** Small link pill for sort controls that preserves page/size */
+/** Small link pill for sort controls that preserves page/size (use UrlObject to satisfy typed routes) */
 function SortLink({
                       label,
                       value,
@@ -124,7 +128,7 @@ function SortLink({
 }) {
     return (
         <Link
-            href={`/games?sort=${value}&page=${page}&size=${size}`}
+            href={{ pathname: "/games", query: { sort: value, page, size } }}
             style={{
                 textDecoration: "none",
                 color: active ? "#fff" : "#d8d8d8",
@@ -140,7 +144,7 @@ function SortLink({
     );
 }
 
-/** Pagination bar */
+/** Pagination bar (use UrlObject to avoid TS2322 with typed routes) */
 function PaginationBar({
                            total,
                            page,
@@ -155,7 +159,7 @@ function PaginationBar({
     const lastPage = Math.max(1, Math.ceil(total / size));
     const start = total === 0 ? 0 : (page - 1) * size + 1;
     const end = Math.min(total, page * size);
-    const link = (p: number) => `/games?sort=${sort}&page=${p}&size=${size}`;
+    const link = (p: number) => ({ pathname: "/games", query: { sort, page: p, size } });
 
     return (
         <div
@@ -224,6 +228,20 @@ function parsePositiveInt(s: string | undefined, def: number) {
     return i > 0 ? i : def;
 }
 
+/** Ensure sort param is one of our keys (fallback to recent_desc) */
+function coerceSortKey(s: unknown): SortKey {
+    const allowed: SortKey[] = [
+        "recent_desc",
+        "name_asc",
+        "name_desc",
+        "year_desc",
+        "year_asc",
+        "rating_desc",
+        "rating_asc",
+    ];
+    return (allowed.includes(s as SortKey) ? (s as SortKey) : "recent_desc");
+}
+
 export default async function GamesPage({
                                             searchParams,
                                         }: {
@@ -232,7 +250,7 @@ export default async function GamesPage({
     let games: GamePreview[] = [];
     let error: string | null = null;
 
-    const sortParam = (searchParams?.sort as SortKey) || "name_asc";
+    const sortParam = coerceSortKey(searchParams?.sort);
     const page = parsePositiveInt(searchParams?.page, 1);
     const size = Math.min(100, Math.max(5, parsePositiveInt(searchParams?.size, 20))); // 5..100
 
@@ -288,6 +306,7 @@ export default async function GamesPage({
                 }}
             >
                 <span style={{ opacity: 0.8, fontSize: 13 }}>Sort by:</span>
+                <SortLink label="Recently added" value="recent_desc" active={sortParam === "recent_desc"} page={page} size={size} />
                 <SortLink label="Name A–Z" value="name_asc" active={sortParam === "name_asc"} page={page} size={size} />
                 <SortLink label="Name Z–A" value="name_desc" active={sortParam === "name_desc"} page={page} size={size} />
                 <SortLink label="Year ↓" value="year_desc" active={sortParam === "year_desc"} page={page} size={size} />
@@ -338,7 +357,7 @@ export default async function GamesPage({
                             >
                                 {/* Cover with hover card (keeps 56×56 size) */}
                                 <GameHoverCard gameId={g.id}>
-                                    <Link href={`/games/${g.id}`} style={{ display: "inline-block", flexShrink: 0 }}>
+                                    <Link href={{ pathname: `/games/${g.id}` }} style={{ display: "inline-block", flexShrink: 0 }}>
                                         <CoverThumb
                                             name={g.name}
                                             coverUrl={g.cover_url ?? undefined}
@@ -352,7 +371,7 @@ export default async function GamesPage({
                                 {/* Text block */}
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%" }}>
                                     <div>
-                                        <Link href={`/games/${g.id}`} style={{ color: "#fff", textDecoration: "none", fontWeight: 600 }}>
+                                        <Link href={{ pathname: `/games/${g.id}` }} style={{ color: "#fff", textDecoration: "none", fontWeight: 600 }}>
                                             {g.name}
                                         </Link>
                                         <div style={{ fontSize: 12, opacity: 0.8 }}>Platforms: {platformNames}</div>
