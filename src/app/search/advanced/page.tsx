@@ -42,6 +42,9 @@ function buildQuery(sp: Record<string, string | string[] | undefined>) {
         "include_manual",
         "limit",
         "offset",
+        // NEW: tag match modes
+        "match_mode",
+        "igdb_match_mode",
     ] as const;
 
     for (const key of passthrough) {
@@ -209,15 +212,20 @@ function parseIdsCSV(csv: string): Array<number | string> {
         .map((s) => (Number.isNaN(Number(s)) ? s : Number(s)));
 }
 
-/** Build a link to this page with patched search params (for pagination) */
+/** Build a UrlObject to this page with patched search params (for pagination) */
 function hrefWith(
     sp: Record<string, string | string[] | undefined>,
     patch: Record<string, string>
-) {
-    const copy: Record<string, string | string[] | undefined> = { ...sp };
-    for (const [k, v] of Object.entries(patch)) copy[k] = v;
-    const qs = buildQuery(copy);
-    return `/search/advanced${qs ? `?${qs}` : ""}`;
+): { pathname: string; query: Record<string, string> } {
+    // Start with current params (collapse arrays to CSV for stability)
+    const query: Record<string, string> = {};
+    for (const [k, v] of Object.entries(sp)) {
+        if (typeof v === "string") query[k] = v;
+        else if (Array.isArray(v)) query[k] = v.join(",");
+    }
+    // Apply patch (offset/limit etc.)
+    for (const [k, v] of Object.entries(patch)) query[k] = v;
+    return { pathname: "/search/advanced", query };
 }
 
 export default async function AdvancedSearchPage({
@@ -235,10 +243,25 @@ export default async function AdvancedSearchPage({
     const parsedOffset = Math.max(0, Number(get(sp, "offset", "0")) || 0);
 
     // Fetch all dropdown data in parallel
-    const [platformOptions, genreOptions, perspectiveOptions, modeOptions, collectionOptions, companyOptions] =
-        await Promise.all([fetchPlatforms(), fetchGenres(), fetchPerspectives(), fetchModes(), fetchCollections(), fetchCompanies()]);
+    const [
+        platformOptions,
+        genreOptions,
+        perspectiveOptions,
+        modeOptions,
+        collectionOptions,
+        companyOptions,
+    ] = await Promise.all([
+        fetchPlatforms(),
+        fetchGenres(),
+        fetchPerspectives(),
+        fetchModes(),
+        fetchCollections(),
+        fetchCompanies(),
+    ]);
 
-    const hasAnyParam = Object.values(sp).some((v) => (Array.isArray(v) ? v.join("") : v)?.toString().trim());
+    const hasAnyParam = Object.values(sp).some((v) =>
+        (Array.isArray(v) ? v.join("") : v)?.toString().trim()
+    );
 
     if (hasAnyParam) {
         try {
@@ -269,23 +292,34 @@ export default async function AdvancedSearchPage({
     const companyDefaultId = get(sp, "company_id"); // API supports single company_id
     const locationDefaultId = get(sp, "location_id"); // preselect in picker if present
 
+    // NEW: match modes (default 'any')
+    const tagMatch = get(sp, "match_mode") || "any";
+    const igdbTagMatch = get(sp, "igdb_match_mode") || "any";
+
     // Pagination booleans
     const canPrev = parsedOffset > 0;
     const canNext = results.length === parsedLimit; // heuristic (no total from API)
 
     return (
         <div style={{ padding: 16 }}>
-            <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
-                <Link href="/search" style={{ color: "#a0c4ff", textDecoration: "none" }}>
-                    ← Basic Search
-                </Link>
-                <span style={{ opacity: 0.6 }}>•</span>
-                <Link href="/" style={{ color: "#a0c4ff", textDecoration: "none" }}>
-                    Home
+            {/* Breadcrumb */}
+            <div style={{ marginBottom: 12 }}>
+                <Link href={{ pathname: "/" }} style={{ color: "#a0c4ff", textDecoration: "none" }}>
+                    ← Home
                 </Link>
             </div>
 
-            <h1 style={{ fontSize: 24, margin: "0 0 12px 0" }}>Advanced Search</h1>
+            <h1 style={{ fontSize: 24, margin: "0 0 8px 0" }}>Search</h1>
+
+            {/* Basic / Advanced toggle directly under title */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                <Link href={{ pathname: "/search" }} style={toggleInactive}>
+                    Basic
+                </Link>
+                <Link href={{ pathname: "/search/advanced" }} style={toggleActive} aria-current="page">
+                    Advanced
+                </Link>
+            </div>
 
             <details open={!hasAnyParam} style={detailsWrap}>
                 <summary style={summaryBar}>
@@ -376,6 +410,26 @@ export default async function AdvancedSearchPage({
                         <TagChipsAutocomplete label="IGDB Tags" name="igdb_tag_ids" suggestKind="igdb_tags" defaultSelectedIds={igdbTagDefaultIds} />
                     </div>
 
+                    {/* Row 6.1 — Tag match modes */}
+                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "200px 200px" }}>
+                        <label style={{ display: "grid", gap: 6 }}>
+                            <span style={{ opacity: 0.85 }}>Tag match</span>
+                            <select name="match_mode" defaultValue={tagMatch} style={selectStyle}>
+                                <option value="any">Any</option>
+                                <option value="all">All</option>
+                                <option value="exact">Exact</option>
+                            </select>
+                        </label>
+                        <label style={{ display: "grid", gap: 6 }}>
+                            <span style={{ opacity: 0.85 }}>IGDB Tag match</span>
+                            <select name="igdb_match_mode" defaultValue={igdbTagMatch} style={selectStyle}>
+                                <option value="any">Any</option>
+                                <option value="all">All</option>
+                                <option value="exact">Exact</option>
+                            </select>
+                        </label>
+                    </div>
+
                     {/* Row 7 — Location */}
                     <div>
                         <LocationPicker
@@ -417,16 +471,7 @@ export default async function AdvancedSearchPage({
                         >
                             Search
                         </button>
-                        <Link
-                            href="/search/advanced"
-                            style={{
-                                color: "#d8d8d8",
-                                border: "1px solid #2b2b2b",
-                                borderRadius: 8,
-                                padding: "10px 14px",
-                                textDecoration: "none",
-                            }}
-                        >
+                        <Link href={{ pathname: "/search/advanced" }} style={btn}>
                             Reset
                         </Link>
                     </div>
@@ -518,30 +563,14 @@ export default async function AdvancedSearchPage({
                         <Link
                             href={hrefWith(sp, { offset: String(Math.max(0, parsedOffset - parsedLimit)), limit: String(parsedLimit) })}
                             aria-disabled={!canPrev}
-                            style={{
-                                pointerEvents: canPrev ? "auto" : "none",
-                                opacity: canPrev ? 1 : 0.5,
-                                textDecoration: "none",
-                                color: "#eaeaea",
-                                border: "1px solid #2b2b2b",
-                                borderRadius: 8,
-                                padding: "8px 12px",
-                            }}
+                            style={canPrev ? btn : btnDisabled}
                         >
                             ← Prev
                         </Link>
                         <Link
                             href={hrefWith(sp, { offset: String(parsedOffset + parsedLimit), limit: String(parsedLimit) })}
                             aria-disabled={!canNext}
-                            style={{
-                                pointerEvents: canNext ? "auto" : "none",
-                                opacity: canNext ? 1 : 0.5,
-                                textDecoration: "none",
-                                color: "#eaeaea",
-                                border: "1px solid #2b2b2b",
-                                borderRadius: 8,
-                                padding: "8px 12px",
-                            }}
+                            style={canNext ? btn : btnDisabled}
                         >
                             Next →
                         </Link>
@@ -587,7 +616,7 @@ const selectStyle: React.CSSProperties = {
     outline: "none",
 };
 
-/* Collapsible styles */
+/* Shared styles (match Basic Search) */
 const detailsWrap: React.CSSProperties = {
     border: "1px solid #222",
     borderRadius: 10,
@@ -605,4 +634,35 @@ const summaryBar: React.CSSProperties = {
     borderBottom: "1px solid #222",
     color: "#eaeaea",
     fontWeight: 600,
+};
+
+const btn: React.CSSProperties = {
+    textDecoration: "none",
+    color: "#d8d8d8",
+    border: "1px solid #2b2b2b",
+    background: "#151515",
+    padding: "6px 10px",
+    borderRadius: 8,
+    fontSize: 13,
+};
+const btnDisabled: React.CSSProperties = { ...btn, opacity: 0.5, pointerEvents: "none" };
+
+const toggleBase: React.CSSProperties = {
+    textDecoration: "none",
+    padding: "6px 10px",
+    borderRadius: 999,
+    fontSize: 13,
+    border: "1px solid #2b2b2b",
+};
+const toggleActive: React.CSSProperties = {
+    ...toggleBase,
+    background: "#1e293b",
+    borderColor: "#3b82f6",
+    color: "#fff",
+    fontWeight: 600,
+};
+const toggleInactive: React.CSSProperties = {
+    ...toggleBase,
+    background: "#151515",
+    color: "#d8d8d8",
 };

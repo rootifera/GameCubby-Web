@@ -48,7 +48,11 @@ function parseIdsCSV(csv: string): number[] {
 }
 
 /** Build query for /search/basic (repeated tag_ids, exact platform_id/year, plus limit/offset) */
-function buildBasicApiQuery(sp: Record<string, string | string[] | undefined>, size: number, page: number) {
+function buildBasicApiQuery(
+    sp: Record<string, string | string[] | undefined>,
+    size: number,
+    page: number
+) {
     const qs = new URLSearchParams();
     const name = get(sp, "q");
     const year = get(sp, "year");
@@ -59,7 +63,12 @@ function buildBasicApiQuery(sp: Record<string, string | string[] | undefined>, s
     if (name) qs.set("name", name);
     if (year) qs.set("year", year);
     if (platform_id) qs.set("platform_id", platform_id);
-    if (match_mode) qs.set("match_mode", match_mode === "all" ? "all" : "any");
+
+    // now allow: any | all | exact  (fallback to any)
+    if (match_mode) {
+        const allowed = new Set(["any", "all", "exact"]);
+        qs.set("match_mode", allowed.has(match_mode) ? match_mode : "any");
+    }
 
     const tagIds = parseIdsCSV(tagCsv);
     for (const t of tagIds) qs.append("tag_ids", String(t));
@@ -82,7 +91,11 @@ async function fetchPlatforms(): Promise<Named[]> {
 }
 
 /** Fetch basic search results via API */
-async function fetchBasic(sp: Record<string, string | string[] | undefined>, size: number, page: number) {
+async function fetchBasic(
+    sp: Record<string, string | string[] | undefined>,
+    size: number,
+    page: number
+) {
     const qs = buildBasicApiQuery(sp, size, page);
     const url = `${API_BASE_URL}/search/basic?${qs}`;
     const res = await fetch(url, { cache: "no-store" });
@@ -129,8 +142,10 @@ export default async function BasicSearchPage({
     let results: GamePreview[] = [];
     let error: string | null = null;
 
-    // run only if there's some input
-    const hasAnyParam = Object.values(sp).some((v) => (Array.isArray(v) ? v.join("") : v)?.toString().trim());
+    // only run if there's some input
+    const hasAnyParam = Object.values(sp).some((v) =>
+        (Array.isArray(v) ? v.join("") : v)?.toString().trim()
+    );
     if (hasAnyParam) {
         try {
             const arr = await fetchBasic(sp, size, page);
@@ -163,33 +178,28 @@ export default async function BasicSearchPage({
 
     return (
         <div style={{ padding: 16 }}>
-            {/* Header crumbs + Basic/Advanced toggle */}
-            <div style={{ marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <Link href={{ pathname: "/" }} style={{ color: "#a0c4ff", textDecoration: "none" }}>← Home</Link>
-                <span style={{ opacity: 0.6 }}>•</span>
-                <div style={{ display: "flex", gap: 6 }}>
-                    <Link
-                        href={{ pathname: "/search" }}
-                        style={toggleActive}
-                        aria-current="page"
-                    >
-                        Basic
-                    </Link>
-                    <Link
-                        href={{ pathname: "/search/advanced" }}
-                        style={toggleInactive}
-                    >
-                        Advanced
-                    </Link>
-                </div>
+            {/* Breadcrumb */}
+            <div style={{ marginBottom: 12 }}>
+                <Link href={{ pathname: "/" }} style={{ color: "#a0c4ff", textDecoration: "none" }}>
+                    ← Home
+                </Link>
             </div>
 
-            <h1 style={{ fontSize: 24, margin: "0 0 12px 0" }}>Search</h1>
+            <h1 style={{ fontSize: 24, margin: "0 0 8px 0" }}>Search</h1>
 
-            {/* Search bar (tighter width) */}
+            {/* Basic / Advanced toggle directly under title */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                <Link href={{ pathname: "/search" }} style={toggleActive} aria-current="page">
+                    Basic
+                </Link>
+                <Link href={{ pathname: "/search/advanced" }} style={toggleInactive}>
+                    Advanced
+                </Link>
+            </div>
+
+            {/* Search bar (tighter width like /games controls) */}
             <div style={{ marginBottom: 16 }}>
                 <div style={{ maxWidth: 540, width: "100%" }}>
-                    {/* SearchBox submits to /search with ?q= */}
                     <SearchBox defaultValue={q || ""} />
                 </div>
             </div>
@@ -247,11 +257,12 @@ export default async function BasicSearchPage({
                             <select name="match_mode" defaultValue={match_mode} style={selectStyle}>
                                 <option value="any">Any</option>
                                 <option value="all">All</option>
+                                <option value="exact">Exact</option>
                             </select>
                         </label>
                     </div>
 
-                    {/* Page size control (kept simple) */}
+                    {/* Page size control */}
                     <div style={{ display: "grid", gap: 6, maxWidth: 200 }}>
                         <span style={{ opacity: 0.85 }}>Page size</span>
                         <input name="size" defaultValue={String(size)} inputMode="numeric" style={inputShort} />
