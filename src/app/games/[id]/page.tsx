@@ -1,5 +1,12 @@
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
+import {
+    groupFiles,
+    GroupKey,
+    normalizeFiles,
+    prettyCategory,
+    UiFile,
+} from "@/lib/files";
 
 type LocationNode = { id: string; name: string };
 
@@ -33,26 +40,6 @@ type Game = {
     location_path?: LocationNode[];
 };
 
-/** Files API types (from OpenAPI) */
-type FileCategory =
-    | "audio_ost"
-    | "patch_update"
-    | "saves"
-    | "disc_image"
-    | "screenshots"
-    | "manuals_docs"
-    | "artwork_covers"
-    | "other";
-
-type FileResponse = {
-    id: number;           // DB row
-    file_id: number;      // <-- use this for downloads
-    game: string;
-    label: string;
-    path: string;
-    category: FileCategory;
-};
-
 async function fetchGame(id: string): Promise<Game> {
     const url = `${API_BASE_URL}/games/${id}`;
     const res = await fetch(url, { cache: "no-store" });
@@ -60,12 +47,12 @@ async function fetchGame(id: string): Promise<Game> {
     return (await res.json()) as Game;
 }
 
-async function fetchGameFiles(id: string): Promise<FileResponse[]> {
+async function fetchGameFiles(id: string): Promise<UiFile[]> {
     const url = `${API_BASE_URL}/games/${id}/files/`;
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
     const data = await res.json();
-    return Array.isArray(data) ? (data as FileResponse[]) : [];
+    return normalizeFiles(data);
 }
 
 function toYear(n?: number | null): string {
@@ -76,53 +63,13 @@ function toYear(n?: number | null): string {
     return String(n);
 }
 
-// We don't have the IGDB slug, so link to a site search by name (reliable).
 function igdbSearchUrl(name: string) {
     return `https://www.igdb.com/search?q=${encodeURIComponent(name)}`;
 }
 
-/** ----- Files grouping helpers ----- */
-
-type GroupKey = "ISOs" | "Images" | "Files";
-
-function groupKeyForCategory(cat: FileCategory): GroupKey {
-    if (cat === "disc_image") return "ISOs";
-    if (cat === "screenshots" || cat === "artwork_covers") return "Images";
-    return "Files"; // manuals_docs, audio_ost, patch_update, saves, other
-}
-
-function prettyCategory(cat: FileCategory): string {
-    switch (cat) {
-        case "disc_image":
-            return "Disc Image";
-        case "screenshots":
-            return "Screenshots";
-        case "artwork_covers":
-            return "Artwork / Covers";
-        case "manuals_docs":
-            return "Manuals / Docs";
-        case "audio_ost":
-            return "Audio / OST";
-        case "patch_update":
-            return "Patch / Update";
-        case "saves":
-            return "Saves";
-        default:
-            return "Other";
-    }
-}
-
-function groupFiles(files: FileResponse[]): Record<GroupKey, FileResponse[]> {
-    const out: Record<GroupKey, FileResponse[]> = { ISOs: [], Images: [], Files: [] };
-    for (const f of files) {
-        out[groupKeyForCategory(f.category)].push(f);
-    }
-    return out;
-}
-
 export default async function GameDetailsPage({ params }: { params: { id: string } }) {
     let game: Game | null = null;
-    let files: FileResponse[] = [];
+    let files: UiFile[] = [];
     let error: string | null = null;
     let filesError: string | null = null;
 
@@ -138,7 +85,17 @@ export default async function GameDetailsPage({ params }: { params: { id: string
         filesError = e instanceof Error ? e.message : "Unknown error";
     }
 
-    const grouped = files.length ? groupFiles(files) : { ISOs: [], Images: [], Files: [] };
+    const grouped = groupFiles(files);
+    const groupOrder: GroupKey[] = [
+        "ISOs",
+        "Images",
+        "Save Files",
+        "Patches and Updates",
+        "Manuals and Docs",
+        "Audio / OST",       // <-- added
+        "Others",
+    ];
+    const hasAny = groupOrder.some((k) => grouped[k]?.length);
 
     return (
         <div style={{ padding: 16 }}>
@@ -156,7 +113,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                         color: "#ffd7d7",
                         padding: 12,
                         borderRadius: 8,
-                        marginBottom: 16
+                        marginBottom: 16,
                     }}
                 >
                     Failed to load game.
@@ -174,7 +131,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                         background: "#111",
                         border: "1px solid #262626",
                         borderRadius: 12,
-                        padding: 16
+                        padding: 16,
                     }}
                 >
                     {/* Cover */}
@@ -192,7 +149,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                                     objectFit: "cover",
                                     borderRadius: 10,
                                     border: "1px solid #2b2b2b",
-                                    background: "#141414"
+                                    background: "#141414",
                                 }}
                             />
                         ) : (
@@ -202,7 +159,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                                     height: 240,
                                     background: "#2b2b2b",
                                     borderRadius: 10,
-                                    border: "1px solid #2b2b2b"
+                                    border: "1px solid #2b2b2b",
                                 }}
                             />
                         )}
@@ -210,7 +167,9 @@ export default async function GameDetailsPage({ params }: { params: { id: string
 
                     {/* Info */}
                     <div>
-                        <h1 style={{ fontSize: 24, margin: "0 0 10px 0", letterSpacing: 0.2 }}>{game.name}</h1>
+                        <h1 style={{ fontSize: 24, margin: "0 0 10px 0", letterSpacing: 0.2 }}>
+                            {game.name}
+                        </h1>
 
                         {/* Quick facts */}
                         <div
@@ -220,14 +179,13 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                                 gap: 8,
                                 fontSize: 14,
                                 opacity: 0.95,
-                                marginBottom: 12
+                                marginBottom: 12,
                             }}
                         >
                             <Pill label={`Year: ${toYear(game.release_date)}`} />
                             <Pill label={`Rating: ${typeof game.rating === "number" ? game.rating : "—"}`} />
                             <Pill label={`Condition: ${game.condition ?? "—"}`} />
 
-                            {/* IGDB pill becomes a link; keeps the ID visible */}
                             <a
                                 href={igdbSearchUrl(game.name)}
                                 target="_blank"
@@ -239,7 +197,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                                     borderRadius: 999,
                                     padding: "4px 10px",
                                     lineHeight: 1.2,
-                                    color: "#eaeaea"
+                                    color: "#eaeaea",
                                 }}
                                 title="Open on IGDB (search by name)"
                             >
@@ -254,7 +212,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                                 padding: "10px 12px",
                                 background: "#141414",
                                 border: "1px solid #262626",
-                                borderRadius: 10
+                                borderRadius: 10,
                             }}
                         >
                             <div style={{ fontWeight: 600, marginBottom: 6 }}>Location:</div>
@@ -269,12 +227,14 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                                 border: "1px solid #2b2b2b",
                                 borderRadius: 999,
                                 padding: "4px 10px",
-                                fontSize: 12
+                                fontSize: 12,
                             }}
                         >
                           {node.name}
                         </span>
-                                                {idx < game.location_path!.length - 1 ? <span style={{ opacity: 0.6 }}>›</span> : null}
+                                                {idx < game.location_path!.length - 1 ? (
+                                                    <span style={{ opacity: 0.6 }}>›</span>
+                                                ) : null}
                       </span>
                                         ))}
                                     </>
@@ -282,7 +242,6 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                                     <span style={{ opacity: 0.7 }}>Not set</span>
                                 )}
 
-                                {/* Order appended at the end */}
                                 {typeof game.order === "number" ? (
                                     <>
                                         <span style={{ opacity: 0.6 }}>·</span>
@@ -292,7 +251,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                                                 border: "1px solid #2b2b2b",
                                                 borderRadius: 999,
                                                 padding: "4px 10px",
-                                                fontSize: 12
+                                                fontSize: 12,
                                             }}
                                         >
                       Order: {game.order}
@@ -326,7 +285,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                                         c.developer ? "dev" : "",
                                         c.publisher ? "pub" : "",
                                         c.porting ? "port" : "",
-                                        c.supporting ? "supp" : ""
+                                        c.supporting ? "supp" : "",
                                     ]
                                         .filter(Boolean)
                                         .join("/");
@@ -335,8 +294,34 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                             />
                         ) : null}
 
-                        {/* Files section */}
-                        <FilesSection grouped={grouped} filesError={filesError} />
+                        {/* Downloads (grouped) */}
+                        <section
+                            style={{
+                                marginTop: 14,
+                                padding: "10px 12px",
+                                background: "#141414",
+                                border: "1px solid #262626",
+                                borderRadius: 10,
+                            }}
+                        >
+                            <div style={{ fontWeight: 600, marginBottom: 8 }}>Downloads</div>
+
+                            {filesError ? (
+                                <div style={{ fontSize: 12, color: "#fca5a5" }}>
+                                    Failed to load files. <span style={{ opacity: 0.8 }}>{filesError}</span>
+                                </div>
+                            ) : !hasAny ? (
+                                <div style={{ opacity: 0.7, fontSize: 13 }}>No files attached.</div>
+                            ) : (
+                                <div style={{ display: "grid", gap: 12 }}>
+                                    {groupOrder.map((key) =>
+                                        grouped[key].length ? (
+                                            <FileGroup key={key} title={key} files={grouped[key]} />
+                                        ) : null
+                                    )}
+                                </div>
+                            )}
+                        </section>
                     </div>
                 </article>
             )}
@@ -352,7 +337,7 @@ function Pill({ label }: { label: string }) {
                 border: "1px solid #2b2b2b",
                 borderRadius: 999,
                 padding: "4px 10px",
-                lineHeight: 1.2
+                lineHeight: 1.2,
             }}
         >
       {label}
@@ -374,7 +359,7 @@ function MetaRow({ label, items }: { label: string; items?: string[] }) {
                             border: "1px solid #2b2b2b",
                             borderRadius: 8,
                             padding: "4px 8px",
-                            fontSize: 13
+                            fontSize: 13,
                         }}
                     >
             {txt}
@@ -385,56 +370,17 @@ function MetaRow({ label, items }: { label: string; items?: string[] }) {
     );
 }
 
-/** ---------------- Files UI ---------------- */
-
-function FilesSection({
-                          grouped,
-                          filesError
-                      }: {
-    grouped: Record<"ISOs" | "Images" | "Files", FileResponse[]>;
-    filesError: string | null;
-}) {
-    const hasAny =
-        grouped.ISOs.length > 0 || grouped.Images.length > 0 || grouped.Files.length > 0;
-
-    return (
-        <section
-            style={{
-                marginTop: 14,
-                padding: "10px 12px",
-                background: "#141414",
-                border: "1px solid #262626",
-                borderRadius: 10
-            }}
-        >
-            <div style={{ fontWeight: 600, marginBottom: 8 }}>Files</div>
-
-            {filesError ? (
-                <div style={{ fontSize: 12, color: "#fca5a5" }}>
-                    Failed to load files. <span style={{ opacity: 0.8 }}>{filesError}</span>
-                </div>
-            ) : !hasAny ? (
-                <div style={{ opacity: 0.7, fontSize: 13 }}>No files attached.</div>
-            ) : (
-                <div style={{ display: "grid", gap: 12 }}>
-                    <FileGroup title="ISOs" files={grouped.ISOs} />
-                    <FileGroup title="Images" files={grouped.Images} />
-                    <FileGroup title="Files" files={grouped.Files} />
-                </div>
-            )}
-        </section>
-    );
-}
-
-function FileGroup({ title, files }: { title: string; files: FileResponse[] }) {
+function FileGroup({ title, files }: { title: string; files: UiFile[] }) {
     if (!files || files.length === 0) return null;
     return (
         <div>
-            <div style={{ opacity: 0.85, marginBottom: 6, fontWeight: 600 }}>{title}</div>
+            <div style={{ opacity: 0.85, marginBottom: 6, fontWeight: 600 }}>
+                {title} <span style={{ opacity: 0.6, fontWeight: 400 }}>({files.length})</span>
+            </div>
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                 {files.map((f) => (
                     <li
-                        key={f.file_id || f.id}
+                        key={f.file_id}
                         style={{
                             display: "flex",
                             justifyContent: "space-between",
@@ -444,7 +390,7 @@ function FileGroup({ title, files }: { title: string; files: FileResponse[] }) {
                             border: "1px solid #232323",
                             background: "#1a1a1a",
                             borderRadius: 8,
-                            marginBottom: 6
+                            marginBottom: 6,
                         }}
                     >
                         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
@@ -455,7 +401,7 @@ function FileGroup({ title, files }: { title: string; files: FileResponse[] }) {
                       borderRadius: 6,
                       padding: "2px 6px",
                       fontSize: 11,
-                      whiteSpace: "nowrap"
+                      whiteSpace: "nowrap",
                   }}
                   title={f.category}
               >
@@ -466,7 +412,6 @@ function FileGroup({ title, files }: { title: string; files: FileResponse[] }) {
               </span>
                         </div>
 
-                        {/* Download via Next proxy using file_id */}
                         <a
                             href={`/api/proxy/downloads/${encodeURIComponent(String(f.file_id))}`}
                             title={`file_id: ${f.file_id} • row id: ${f.id}`}
@@ -477,7 +422,7 @@ function FileGroup({ title, files }: { title: string; files: FileResponse[] }) {
                                 color: "#e5f0ff",
                                 padding: "6px 10px",
                                 borderRadius: 8,
-                                fontSize: 13
+                                fontSize: 13,
                             }}
                         >
                             Download

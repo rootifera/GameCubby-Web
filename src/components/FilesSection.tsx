@@ -2,35 +2,36 @@
 
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "@/lib/env";
-
-type FileItem = {
-    id: number;            // DB row id (not used for download)
-    file_id: number;       // <-- use this for downloads
-    game: string;
-    label: string;
-    path: string;
-    category?: "isos" | "images" | "files" | "other" | string;
-};
+import {
+    UiFile,
+    normalizeFiles,
+    groupFiles,
+    prettyCategory,
+    GroupKey,
+} from "@/lib/files";
 
 async function fetchJSON<T>(url: string): Promise<T> {
     const res = await fetch(url, { cache: "no-store" });
     const text = await res.text();
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}${text ? `: ${text.slice(0,160)}` : ""}`);
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}${text ? `: ${text.slice(0, 160)}` : ""}`);
     return (text ? JSON.parse(text) : {}) as T;
 }
 
-function groupByCategory(items: FileItem[]) {
-    const groups: Record<string, FileItem[]> = { isos: [], images: [], files: [], other: [] };
-    for (const f of items) {
-        const key = (f.category ?? "").toLowerCase();
-        if (key in groups) groups[key].push(f);
-        else groups.other.push(f);
-    }
-    return groups;
+/** Build a friendly default filename:
+ *  - Prefer label + extension from path
+ *  - Fallback to basename from path
+ *  - Strip illegal filename chars
+ */
+function suggestFilename(f: UiFile): string {
+    const baseFromPath = f.path.split("/").pop() || "download";
+    const dot = baseFromPath.lastIndexOf(".");
+    const ext = dot > -1 ? baseFromPath.slice(dot) : "";
+    const raw = f.label?.trim() ? f.label.trim() + ext : baseFromPath;
+    return raw.replace(/[\\/:*?"<>|]/g, "_");
 }
 
 export default function FilesSection({ gameId }: { gameId: number }) {
-    const [items, setItems] = useState<FileItem[] | null>(null);
+    const [files, setFiles] = useState<UiFile[] | null>(null);
     const [err, setErr] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -40,59 +41,46 @@ export default function FilesSection({ gameId }: { gameId: number }) {
             try {
                 setLoading(true);
                 setErr(null);
-                const list = await fetchJSON<FileItem[]>(
-                    `${API_BASE_URL}/games/${gameId}/files/`
-                );
-                if (!cancelled) setItems(Array.isArray(list) ? list : []);
+
+                const raw = await fetchJSON<unknown>(`${API_BASE_URL}/games/${gameId}/files/`);
+                const normalized = normalizeFiles(raw);
+
+                if (!cancelled) setFiles(normalized);
             } catch (e) {
                 if (!cancelled) setErr(e instanceof Error ? e.message : "Failed to load files");
             } finally {
                 if (!cancelled) setLoading(false);
             }
         })();
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+        };
     }, [gameId]);
 
     if (loading) return <SectionWrap><div style={{ opacity: 0.8 }}>Loading files…</div></SectionWrap>;
     if (err) return <SectionWrap><div style={{ color: "#fca5a5" }}>{err}</div></SectionWrap>;
-    if (!items || items.length === 0) return <SectionWrap><div style={{ opacity: 0.7 }}>No files.</div></SectionWrap>;
+    if (!files || files.length === 0) return <SectionWrap><div style={{ opacity: 0.7 }}>No files.</div></SectionWrap>;
 
-    const groups = groupByCategory(items);
+    const grouped = groupFiles(files);
+
+    const groupOrder: GroupKey[] = [
+        "ISOs",
+        "Images",
+        "Save Files",
+        "Patches and Updates",
+        "Manuals and Docs",
+        "Audio / OST",
+        "Others",
+    ];
 
     return (
         <SectionWrap>
-            {(["isos","images","files","other"] as const).map((cat) => {
-                const arr = groups[cat];
-                if (!arr?.length) return null;
-                return (
-                    <div key={cat} style={{ marginBottom: 12 }}>
-                        <div style={{ fontWeight: 600, marginBottom: 6, textTransform: "capitalize" }}>
-                            {cat} <span style={{ opacity: 0.6, fontWeight: 400 }}>({arr.length})</span>
-                        </div>
-                        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
-                            {arr.map((f) => (
-                                <li key={`${f.file_id}-${f.path}`} style={rowStyle}>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                            {f.label || f.path.split("/").pop()}
-                                        </div>
-                                        <div style={{ fontSize: 12, opacity: 0.7, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                            {f.path}
-                                        </div>
-                                    </div>
-                                    {/* IMPORTANT: download via proxy using file_id */}
-                                    <a
-                                        href={`/api/proxy/downloads/${encodeURIComponent(String(f.file_id))}`}
-                                        style={btnLink}
-                                    >
-                                        Download
-                                    </a>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                );
-            })}
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>Downloads</div>
+            <div style={{ display: "grid", gap: 12 }}>
+                {groupOrder.map((key) =>
+                    grouped[key].length ? <FileGroup key={key} title={key} files={grouped[key]} /> : null
+                )}
+            </div>
         </SectionWrap>
     );
 }
@@ -108,10 +96,63 @@ const SectionWrap: React.FC<{ children: React.ReactNode }> = ({ children }) => (
             borderRadius: 10,
         }}
     >
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>Files</div>
         {children}
     </section>
 );
+
+function FileGroup({ title, files }: { title: string; files: UiFile[] }) {
+    if (!files || files.length === 0) return null;
+    return (
+        <div>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                {title} <span style={{ opacity: 0.6, fontWeight: 400 }}>({files.length})</span>
+            </div>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
+                {files.map((f) => {
+                    const fid = f.file_id;
+                    const filename = suggestFilename(f);
+                    return (
+                        <li key={`${fid}-${f.path}`} style={rowStyle}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <span
+                      style={{
+                          background: "#101010",
+                          border: "1px solid #2b2b2b",
+                          borderRadius: 6,
+                          padding: "2px 6px",
+                          fontSize: 11,
+                          whiteSpace: "nowrap",
+                      }}
+                      title={f.category}
+                  >
+                    {prettyCategory(f.category)}
+                  </span>
+                                    <span style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {f.label || f.path.split("/").pop()}
+                  </span>
+                                </div>
+                                <div style={{ fontSize: 12, opacity: 0.7, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                    {f.path}
+                                </div>
+                            </div>
+
+                            {/* Download via proxy using guaranteed file_id, with a suggested filename */}
+                            <a
+                                href={`/api/proxy/downloads/${encodeURIComponent(String(fid))}`}
+                                download={filename}
+                                style={btnLink}
+                                title={`file_id: ${f.file_id} • row id: ${f.id}`}
+                            >
+                                Download
+                            </a>
+                        </li>
+                    );
+                })}
+            </ul>
+        </div>
+    );
+}
 
 const rowStyle: React.CSSProperties = {
     display: "flex",
