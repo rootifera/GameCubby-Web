@@ -310,33 +310,44 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                         ) : null}
 
                         {/* Downloads (grouped, with visible filenames) */}
-                        <section
+                        <details
                             style={{
                                 marginTop: 14,
-                                padding: "10px 12px",
                                 background: "#141414",
                                 border: "1px solid #262626",
                                 borderRadius: 10,
+                                padding: 12
                             }}
                         >
-                            <div style={{ fontWeight: 600, marginBottom: 8 }}>Downloads</div>
+                            <summary
+                                style={{
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                    listStyle: "none",
+                                    userSelect: "none",
+                                    outline: "none"
+                                }}
+                            >
+                                Downloads{" "}
+                                {hasAny ? <span style={{ opacity: 0.6, fontWeight: 400 }}>({files.length})</span> : null}
+                            </summary>
 
-                            {filesError ? (
-                                <div style={{ fontSize: 12, color: "#fca5a5" }}>
-                                    Failed to load files. <span style={{ opacity: 0.8 }}>{filesError}</span>
-                                </div>
-                            ) : !hasAny ? (
-                                <div style={{ opacity: 0.7, fontSize: 13 }}>No files attached.</div>
-                            ) : (
-                                <div style={{ display: "grid", gap: 12 }}>
-                                    {groupOrder.map((key) =>
-                                        grouped[key].length ? (
-                                            <FileGroup key={key} title={key} files={grouped[key]} />
-                                        ) : null
-                                    )}
-                                </div>
-                            )}
-                        </section>
+                            <div style={{ marginTop: 10 }}>
+                                {filesError ? (
+                                    <div style={{ fontSize: 12, color: "#fca5a5" }}>
+                                        Failed to load files. <span style={{ opacity: 0.8 }}>{filesError}</span>
+                                    </div>
+                                ) : !hasAny ? (
+                                    <div style={{ opacity: 0.7, fontSize: 13 }}>No files attached.</div>
+                                ) : (
+                                    <div style={{ display: "grid", gap: 12 }}>
+                                        {groupOrder.map((key) =>
+                                            grouped[key].length ? <FileGroup key={key} title={key} files={grouped[key]} /> : null
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </details>
                     </div>
                 </article>
             )}
@@ -441,7 +452,8 @@ function FileGroup({ title, files }: { title: string; files: UiFile[] }) {
 
                             <a
                                 href={`/api/proxy/downloads/${encodeURIComponent(String(fid))}`}
-                                download={downloadName}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 title={`file_id: ${f.file_id} • row id: ${f.id}`}
                                 style={{
                                     textDecoration: "none",
@@ -456,6 +468,7 @@ function FileGroup({ title, files }: { title: string; files: UiFile[] }) {
                             >
                                 Download
                             </a>
+
                         </li>
                     );
                 })}

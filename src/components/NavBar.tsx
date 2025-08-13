@@ -31,7 +31,7 @@ function NavItem({ href, label }: NavItemProps) {
         boxShadow: focused ? "0 0 0 2px rgba(59,130,246,0.35)" : "none",
         display: "inline-flex",
         alignItems: "center",
-        lineHeight: 1
+        lineHeight: 1,
     };
 
     return (
@@ -56,12 +56,11 @@ function NavItem({ href, label }: NavItemProps) {
 }
 
 export default function NavBar() {
-    // Explicitly type as Route to satisfy typedRoutes
+    // Left-side navigation (Admin removed; will appear on the right as Login/Admin button)
     const links: Array<{ href: Route; label: string }> = [
         { href: "/" as Route, label: "Home" },
         { href: "/games" as Route, label: "Games" },
         { href: "/search" as Route, label: "Search" },
-        { href: "/admin" as Route, label: "Admin" }
     ];
 
     return (

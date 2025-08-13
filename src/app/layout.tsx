@@ -1,10 +1,11 @@
 import Link from "next/link";
 import NavBar from "@/components/NavBar";
 import ApiStatus from "@/components/ApiStatus";
+import AuthActions from "@/components/AuthActions";
 
 export const metadata = {
     title: "GameCubby",
-    description: "Game collection manager"
+    description: "Game collection manager",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -18,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 color: "#eaeaea",
                 minHeight: "100vh",
                 display: "flex",
-                flexDirection: "column"
+                flexDirection: "column",
             }}
         >
         {/* Top navigation */}
@@ -28,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 background: "#111",
                 position: "sticky",
                 top: 0,
-                zIndex: 10
+                zIndex: 10,
             }}
         >
             <nav
@@ -38,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     padding: "12px 16px",
                     display: "flex",
                     alignItems: "center",
-                    gap: 16
+                    gap: 16,
                 }}
             >
                 <Link
@@ -47,7 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         fontWeight: 700,
                         textDecoration: "none",
                         color: "#fff",
-                        letterSpacing: 0.3
+                        letterSpacing: 0.3,
                     }}
                 >
                     GameCubby
@@ -59,8 +60,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {/* spacer */}
                 <div style={{ flex: 1 }} />
 
-                {/* API status dot on the right (kept as-is) */}
+                {/* API status dot, then auth actions (Login / Admin Panel + Logout on far right) */}
                 <ApiStatus />
+                <AuthActions />
             </nav>
         </header>
 
@@ -76,12 +78,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 borderTop: "1px solid #1f1f1f",
                 padding: "12px 16px",
                 background: "#111",
-                color: "#9a9a9a"
+                color: "#9a9a9a",
             }}
         >
-            <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-                GameCubby Web UI — early scaffold
-            </div>
+            <div style={{ maxWidth: 1100, margin: "0 auto" }}>GameCubby Web UI — early scaffold</div>
         </footer>
         </body>
         </html>

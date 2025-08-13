@@ -1,20 +1,19 @@
-// src/app/api/health/route.ts
+// src/app/api/admin/health/route.ts
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
 /** Soft-validate JWT by decoding payload and checking exp (no signature check). */
 function isJwtActive(token: string): boolean {
     try {
-        const [, payloadB64] = token.split(".");
-        if (!payloadB64) return false;
-        const b64 = payloadB64.replace(/-/g, "+").replace(/_/g, "/");
+        const parts = token.split(".");
+        if (parts.length < 2) return false;
+        const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
         const pad = b64.length % 4 ? "=".repeat(4 - (b64.length % 4)) : "";
         const json = Buffer.from(b64 + pad, "base64").toString("utf8");
         const payload = JSON.parse(json) as { exp?: number };
-        if (typeof payload.exp !== "number") return true; // treat as active if no exp
+        if (typeof payload.exp !== "number") return true; // no exp -> treat as active
         const now = Math.floor(Date.now() / 1000);
         return payload.exp > now;
     } catch {
@@ -23,29 +22,11 @@ function isJwtActive(token: string): boolean {
 }
 
 export async function GET() {
-    // 1) API online check (same as before)
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
-
-    let online = false;
-    try {
-        const res = await fetch(`${API_BASE_URL}/first_run/status`, {
-            cache: "no-store",
-            signal: controller.signal,
-        });
-        online = res.ok;
-    } catch {
-        online = false;
-    } finally {
-        clearTimeout(timeout);
-    }
-
-    // 2) Auth status from HttpOnly cookie __gcub_a
     const token = cookies().get("__gcub_a")?.value || "";
     const authed = token ? isJwtActive(token) : false;
 
     return NextResponse.json(
-        { online, authed },
+        { authed },
         { status: 200, headers: { "Cache-Control": "no-store" } }
     );
 }

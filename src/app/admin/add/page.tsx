@@ -59,6 +59,9 @@ function parseIdsCSV(csv: string | null | undefined): number[] {
 /* ================================================================== */
 
 export default function AdminAddGamePage() {
+    /* ---- mode: IGDB vs Custom ---- */
+    const [mode, setMode] = useState<"igdb" | "custom">("igdb");
+
     /* ---- search state ---- */
     const [q, setQ] = useState("");
     const [hasSearched, setHasSearched] = useState(false);
@@ -96,9 +99,8 @@ export default function AdminAddGamePage() {
         }
         setLoading(true);
         setError(null);
-        setHasSearched(true); // mark that user initiated a search
+        setHasSearched(true);
         try {
-            // Protected admin proxy (reads gc_at cookie)
             const res = await fetch(`/api/admin/igdb/search?q=${encodeURIComponent(query)}`, {
                 cache: "no-store",
             });
@@ -167,11 +169,11 @@ export default function AdminAddGamePage() {
     const headerNote = useMemo(() => {
         if (loading) return "Searching…";
         if (error) return "Search failed";
-        if (!hasSearched) return ""; // show nothing until user clicks Search
+        if (!hasSearched) return "";
         return results.length ? `Found ${results.length} result${results.length === 1 ? "" : "s"}` : "No results";
     }, [loading, error, results.length, hasSearched]);
 
-    /* ---------------- Add form submit ---------------- */
+    /* ---------------- Add-from-IGDB submit ---------------- */
     async function onAddSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         if (!details) return;
@@ -179,7 +181,6 @@ export default function AdminAddGamePage() {
         setSaveError(null);
         setSavedMsg(null);
 
-        // Read values from the form (for components that write hidden inputs)
         const fd = new FormData(formRef.current!);
         const location_id = Number(fd.get("location_id") || 0) || 0;
         const tagCSV = String(fd.get("tag_ids") || "");
@@ -195,7 +196,6 @@ export default function AdminAddGamePage() {
         };
 
         try {
-            // Internal admin proxy (forwards with cookie bearer)
             const res = await fetch("/api/admin/games/from_igdb", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -212,7 +212,6 @@ export default function AdminAddGamePage() {
             }
 
             setSavedMsg("Saved!");
-            // brief confirmation then close to keep search results intact
             setTimeout(() => {
                 closeDetails();
             }, 900);
@@ -220,6 +219,61 @@ export default function AdminAddGamePage() {
             setSaveError(err instanceof Error ? err.message : "Failed to save");
         } finally {
             setSaving(false);
+        }
+    }
+
+    /* ---------------- Custom add submit ---------------- */
+    const customFormRef = useRef<HTMLFormElement | null>(null);
+    const [customSaving, setCustomSaving] = useState(false);
+    const [customSaved, setCustomSaved] = useState<string | null>(null);
+    const [customError, setCustomError] = useState<string | null>(null);
+
+    async function onCustomSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        setCustomSaving(true);
+        setCustomSaved(null);
+        setCustomError(null);
+
+        const fd = new FormData(customFormRef.current!);
+
+        const payload = {
+            name: String(fd.get("name") || "").trim(),
+            summary: String(fd.get("summary") || ""),
+            release_date: Number(fd.get("release_date") || 0) || 0,
+            cover_url: String(fd.get("cover_url") || "").trim(),
+            condition: Number(fd.get("condition") || 0) || 0,
+            location_id: Number(fd.get("location_id") || 0) || 0,
+            order: Number(fd.get("order") || 0) || 0,
+            mode_ids: parseIdsCSV(String(fd.get("mode_ids") || "")),
+            platform_ids: parseIdsCSV(String(fd.get("platform_ids") || "")),
+            genre_ids: parseIdsCSV(String(fd.get("genre_ids") || "")),
+            player_perspective_ids: parseIdsCSV(String(fd.get("player_perspective_ids") || "")),
+            rating: Number(fd.get("rating") || 0) || 0,
+            collection_id: Number(fd.get("collection_id") || 0) || 0,
+            tag_ids: parseIdsCSV(String(fd.get("tag_ids") || "")),
+            company_ids: parseIdsCSV(String(fd.get("company_ids") || "")),
+        };
+
+        try {
+            const res = await fetch("/api/admin/games", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+                let msg = `${res.status} ${res.statusText}`;
+                try {
+                    const t = await res.text();
+                    if (t) msg = t;
+                } catch {}
+                throw new Error(msg);
+            }
+            setCustomSaved("Saved!");
+            customFormRef.current?.reset();
+        } catch (err) {
+            setCustomError(err instanceof Error ? err.message : "Failed to save");
+        } finally {
+            setCustomSaving(false);
         }
     }
 
@@ -234,271 +288,146 @@ export default function AdminAddGamePage() {
                 </Link>
             </div>
 
-            <h1 style={{ fontSize: 24, margin: "0 0 8px 0" }}>Add Game (IGDB)</h1>
+            <h1 style={{ fontSize: 24, margin: "0 0 8px 0" }}>Add Game</h1>
 
-            {/* Search bar */}
-            <form
-                onSubmit={doSearch}
-                style={{ display: "flex", gap: 8, marginBottom: 12, maxWidth: 600 }}
-            >
-                <input
-                    value={q}
-                    onChange={(e) => {
-                        setQ(e.target.value);
-                        setHasSearched(false); // typing again hides status until next search
-                        setError(null);
-                    }}
-                    placeholder="Search IGDB titles… (e.g., Age of Empires)"
-                    autoFocus
-                    style={{
-                        flex: 1,
-                        background: "#1a1a1a",
-                        color: "#eaeaea",
-                        border: "1px solid #2b2b2b",
-                        borderRadius: 8,
-                        padding: "10px 12px",
-                        outline: "none",
-                    }}
-                />
+            {/* Mode toggles */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                 <button
-                    type="submit"
-                    disabled={loading}
+                    type="button"
+                    onClick={() => setMode("igdb")}
+                    aria-pressed={mode === "igdb"}
                     style={{
-                        background: "#1e293b",
-                        color: "#fff",
-                        border: "1px solid #3b82f6",
+                        background: mode === "igdb" ? "#1e293b" : "#151515",
+                        color: mode === "igdb" ? "#fff" : "#eaeaea",
+                        border: `1px solid ${mode === "igdb" ? "#3b82f6" : "#2b2b2b"}`,
                         borderRadius: 8,
-                        padding: "10px 14px",
+                        padding: "8px 12px",
+                        cursor: "pointer",
                         fontWeight: 600,
-                        cursor: loading ? "default" : "pointer",
-                        opacity: loading ? 0.7 : 1,
                     }}
                 >
-                    Search
+                    IGDB
                 </button>
-            </form>
-
-            {/* Status / errors */}
-            {headerNote ? (
-                <div style={{ opacity: 0.8, marginBottom: 8, fontSize: 13 }}>{headerNote}</div>
-            ) : null}
-            {error ? (
-                <div
+                <button
+                    type="button"
+                    onClick={() => setMode("custom")}
+                    aria-pressed={mode === "custom"}
                     style={{
-                        background: "#3b0f12",
-                        border: "1px solid #5b1a1f",
-                        color: "#ffd7d7",
-                        padding: 12,
+                        background: mode === "custom" ? "#1e293b" : "#151515",
+                        color: mode === "custom" ? "#fff" : "#eaeaea",
+                        border: `1px solid ${mode === "custom" ? "#3b82f6" : "#2b2b2b"}`,
                         borderRadius: 8,
-                        marginBottom: 12,
-                        maxWidth: 700,
+                        padding: "8px 12px",
+                        cursor: "pointer",
+                        fontWeight: 600,
                     }}
                 >
-                    {error}
-                </div>
-            ) : null}
+                    Custom
+                </button>
+            </div>
 
-            {/* Results list */}
-            {results.length > 0 ? (
-                <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
-                    {results.map((g) => (
-                        <li
-                            key={g.id}
+            {mode === "igdb" ? (
+                <>
+                    {/* Search bar */}
+                    <form onSubmit={doSearch} style={{ display: "flex", gap: 8, marginBottom: 12, maxWidth: 600 }}>
+                        <input
+                            value={q}
+                            onChange={(e) => {
+                                setQ(e.target.value);
+                                setHasSearched(false);
+                                setError(null);
+                            }}
+                            placeholder='Search IGDB titles… (e.g., "Age of Empires", "aoe1", "nfs2")'
+                            autoFocus
                             style={{
-                                display: "grid",
-                                gridTemplateColumns: "72px 1fr auto",
-                                gap: 12,
-                                alignItems: "center",
-                                background: "#111",
-                                border: "1px solid #262626",
-                                borderRadius: 10,
-                                padding: 8,
+                                flex: 1,
+                                background: "#1a1a1a",
+                                color: "#eaeaea",
+                                border: "1px solid #2b2b2b",
+                                borderRadius: 8,
+                                padding: "10px 12px",
+                                outline: "none",
+                            }}
+                        />
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            style={{
+                                background: "#1e293b",
+                                color: "#fff",
+                                border: "1px solid #3b82f6",
+                                borderRadius: 8,
+                                padding: "10px 14px",
+                                fontWeight: 600,
+                                cursor: loading ? "default" : "pointer",
+                                opacity: loading ? 0.7 : 1,
+                            }}
+                            title="Search IGDB"
+                        >
+                            Search
+                        </button>
+                    </form>
+
+                    {/* Status / errors */}
+                    {headerNote ? (
+                        <div style={{ opacity: 0.8, marginBottom: 8, fontSize: 13 }}>{headerNote}</div>
+                    ) : null}
+                    {error ? (
+                        <div
+                            style={{
+                                background: "#3b0f12",
+                                border: "1px solid #5b1a1f",
+                                color: "#ffd7d7",
+                                padding: 12,
+                                borderRadius: 8,
+                                marginBottom: 12,
+                                maxWidth: 700,
                             }}
                         >
-                            {/* Cover (clickable) */}
-                            <div
-                                onClick={() => openDetails(g.id)}
-                                role="button"
-                                title="View details"
-                                style={{
-                                    width: 72,
-                                    height: 96,
-                                    background: "#1a1a1a",
-                                    border: "1px solid #2b2b2b",
-                                    borderRadius: 6,
-                                    overflow: "hidden",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    cursor: "pointer",
-                                }}
-                            >
-                                {g.cover_url ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                        src={g.cover_url}
-                                        alt={g.name}
-                                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                                    />
-                                ) : (
-                                    <span style={{ opacity: 0.6, fontSize: 12 }}>No cover</span>
-                                )}
-                            </div>
-
-                            {/* Info (name clickable) */}
-                            <div style={{ minWidth: 0 }}>
-                                <button
-                                    type="button"
-                                    onClick={() => openDetails(g.id)}
-                                    title="View details"
-                                    style={{
-                                        all: "unset",
-                                        cursor: "pointer",
-                                        fontWeight: 600,
-                                        color: "#fff",
-                                    }}
-                                >
-                                    {g.name}{" "}
-                                    <span style={{ opacity: 0.7, fontWeight: 400 }}>
-                    {typeof g.release_date === "number" ? `(${toYear(g.release_date)})` : ""}
-                  </span>
-                                </button>
-
-                                <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>
-                                    {(g.platforms ?? []).map((p) => p.name).join(", ") || "—"}
-                                </div>
-                                {g.summary ? (
-                                    <div
-                                        style={{
-                                            fontSize: 12,
-                                            opacity: 0.7,
-                                            marginTop: 6,
-                                            display: "-webkit-box",
-                                            WebkitLineClamp: 2,
-                                            WebkitBoxOrient: "vertical",
-                                            overflow: "hidden",
-                                        }}
-                                    >
-                                        {g.summary}
-                                    </div>
-                                ) : null}
-                            </div>
-
-                            {/* View -> opens overlay */}
-                            <div>
-                                <button
-                                    type="button"
-                                    title="View details"
-                                    style={{
-                                        background: "#151515",
-                                        color: "#eaeaea",
-                                        border: "1px solid #2b2b2b",
-                                        borderRadius: 8,
-                                        padding: "8px 12px",
-                                        cursor: "pointer",
-                                    }}
-                                    onClick={() => openDetails(g.id)}
-                                >
-                                    View
-                                </button>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-            ) : null}
-
-            {/* Details Overlay */}
-            {openId != null ? (
-                <div
-                    role="dialog"
-                    aria-modal="true"
-                    style={{
-                        position: "fixed",
-                        inset: 0,
-                        background: "rgba(0,0,0,0.6)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: 16,
-                        zIndex: 100,
-                    }}
-                    onClick={closeDetails}
-                >
-                    <div
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                            width: "min(960px, 96vw)",
-                            maxHeight: "90vh",
-                            overflow: "auto",
-                            background: "#0f0f10",
-                            border: "1px solid #262626",
-                            borderRadius: 12,
-                            padding: 16,
-                        }}
-                    >
-                        {/* Titlebar */}
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12 }}>
-                            <h2 style={{ margin: 0, fontSize: 20 }}>
-                                {details?.name || "Loading…"}
-                                {typeof details?.release_date === "number" ? (
-                                    <span style={{ opacity: 0.7, fontWeight: 400 }}> ({toYear(details.release_date)})</span>
-                                ) : null}
-                            </h2>
-                            <button
-                                type="button"
-                                onClick={closeDetails}
-                                style={{
-                                    background: "#151515",
-                                    color: "#eaeaea",
-                                    border: "1px solid #2b2b2b",
-                                    borderRadius: 8,
-                                    padding: "6px 10px",
-                                    cursor: "pointer",
-                                }}
-                            >
-                                Close
-                            </button>
+                            {error}
                         </div>
+                    ) : null}
 
-                        {/* States */}
-                        {detailsLoading ? (
-                            <div style={{ opacity: 0.8, marginTop: 8 }}>Loading details…</div>
-                        ) : detailsError ? (
-                            <div
-                                style={{
-                                    background: "#3b0f12",
-                                    border: "1px solid #5b1a1f",
-                                    color: "#ffd7d7",
-                                    padding: 12,
-                                    borderRadius: 8,
-                                    marginTop: 12,
-                                }}
-                            >
-                                {detailsError}
-                            </div>
-                        ) : details ? (
-                            <>
-                                {/* Info grid */}
-                                <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", gap: 16, marginTop: 12 }}>
-                                    {/* Cover */}
+                    {/* Results list */}
+                    {results.length > 0 ? (
+                        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
+                            {results.map((g) => (
+                                <li
+                                    key={g.id}
+                                    style={{
+                                        display: "grid",
+                                        gridTemplateColumns: "72px 1fr auto",
+                                        gap: 12,
+                                        alignItems: "center",
+                                        background: "#111",
+                                        border: "1px solid #262626",
+                                        borderRadius: 10,
+                                        padding: 8,
+                                    }}
+                                >
+                                    {/* Cover (clickable) */}
                                     <div
+                                        onClick={() => openDetails(g.id)}
+                                        role="button"
+                                        title="View details"
                                         style={{
-                                            width: 180,
-                                            height: 220,
+                                            width: 72,
+                                            height: 96,
                                             background: "#1a1a1a",
                                             border: "1px solid #2b2b2b",
-                                            borderRadius: 8,
+                                            borderRadius: 6,
                                             overflow: "hidden",
                                             display: "flex",
                                             alignItems: "center",
                                             justifyContent: "center",
+                                            cursor: "pointer",
                                         }}
                                     >
-                                        {details.cover_url ? (
+                                        {g.cover_url ? (
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img
-                                                src={details.cover_url}
-                                                alt={details.name}
+                                                src={g.cover_url}
+                                                alt={g.name}
                                                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
                                             />
                                         ) : (
@@ -506,191 +435,690 @@ export default function AdminAddGamePage() {
                                         )}
                                     </div>
 
-                                    {/* Read-only facts */}
-                                    <div style={{ display: "grid", gap: 10 }}>
-                                        {details.summary ? (
-                                            <p style={{ margin: 0, lineHeight: 1.5, whiteSpace: "pre-wrap", opacity: 0.95 }}>
-                                                {details.summary}
-                                            </p>
-                                        ) : null}
-
-                                        <Row label="Platforms">
-                                            {(details.platforms ?? []).map((p) => p.name).join(", ") || "—"}
-                                        </Row>
-                                        <Row label="Genres">{(details.genres ?? []).map((g) => g.name).join(", ") || "—"}</Row>
-                                        <Row label="Modes">{(details.game_modes ?? []).map((m) => m.name).join(", ") || "—"}</Row>
-                                        <Row label="Rating">{details.rating ?? "—"}</Row>
-                                        <Row label="Collection">{details.collection?.name ?? "—"}</Row>
-                                        <Row label="Companies">
-                                            {(details.companies ?? [])
-                                                .map((c) => {
-                                                    const roles = [
-                                                        c.developer ? "dev" : null,
-                                                        c.publisher ? "pub" : null,
-                                                        c.porting ? "port" : null,
-                                                        c.supporting ? "support" : null,
-                                                    ].filter(Boolean);
-                                                    return `${c.name}${roles.length ? ` (${roles.join(",")})` : ""}`;
-                                                })
-                                                .join(", ") || "—"}
-                                        </Row>
-                                        <Row label="Tags">{(details.igdb_tags ?? []).map((t) => t.name).join(", ") || "—"}</Row>
-                                    </div>
-                                </div>
-
-                                {/* Divider */}
-                                <div style={{ height: 1, background: "#1f1f1f", margin: "14px 0" }} />
-
-                                {/* Add form */}
-                                <form ref={formRef} onSubmit={onAddSubmit} style={{ display: "grid", gap: 12 }}>
-                                    {/* Hidden igdb_id for clarity (we still pack JSON manually) */}
-                                    <input type="hidden" name="igdb_id" value={details.id} />
-
-                                    {/* Platforms (from details) */}
-                                    <div>
-                                        <div style={{ fontWeight: 600, marginBottom: 6 }}>Select your platform(s)</div>
-                                        {details.platforms?.length ? (
-                                            <div style={{ display: "grid", gap: 6 }}>
-                                                {details.platforms.map((p) => {
-                                                    const checked = selectedPlatforms.has(p.id);
-                                                    return (
-                                                        <label
-                                                            key={p.id}
-                                                            style={{
-                                                                display: "flex",
-                                                                alignItems: "center",
-                                                                gap: 8,
-                                                                padding: "6px 8px",
-                                                                borderRadius: 6,
-                                                                background: checked ? "#1e293b" : "transparent",
-                                                                border: checked ? "1px solid #334155" : "1px solid transparent",
-                                                            }}
-                                                        >
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={checked}
-                                                                onChange={() =>
-                                                                    setSelectedPlatforms((prev) => {
-                                                                        const next = new Set(prev);
-                                                                        if (next.has(p.id)) next.delete(p.id);
-                                                                        else next.add(p.id);
-                                                                        return next;
-                                                                    })
-                                                                }
-                                                                style={{ accentColor: "#3b82f6" }}
-                                                            />
-                                                            <span>{p.name}</span>
-                                                        </label>
-                                                    );
-                                                })}
-                                            </div>
-                                        ) : (
-                                            <div style={{ opacity: 0.7 }}>No platform data from IGDB.</div>
-                                        )}
-                                    </div>
-
-                                    {/* Location (tree picker writes hidden input name="location_id") */}
-                                    <LocationTreePicker label="Location" name="location_id" />
-
-                                    {/* User Tags (chips with suggestions -> writes hidden input name="tag_ids" = CSV) */}
-                                    <TagChipsAutocomplete label="Tags" name="tag_ids" suggestKind="tags" />
-
-                                    {/* Condition & Order */}
-                                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "200px 200px" }}>
-                                        <label style={{ display: "grid", gap: 6 }}>
-                                            <span style={{ opacity: 0.85 }}>Condition (0–10)</span>
-                                            <select
-                                                value={condition}
-                                                onChange={(e) => setCondition(Number(e.target.value) || 0)}
-                                                style={selectStyle}
-                                            >
-                                                {Array.from({ length: 11 }, (_, i) => i).map((n) => (
-                                                    <option key={n} value={n}>
-                                                        {n}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </label>
-
-                                        <label style={{ display: "grid", gap: 6 }}>
-                                            <span style={{ opacity: 0.85 }}>Order</span>
-                                            <input
-                                                type="number"
-                                                inputMode="numeric"
-                                                value={order}
-                                                onChange={(e) => setOrder(Number(e.target.value) || 0)}
-                                                style={inputStyle}
-                                                placeholder="0"
-                                            />
-                                        </label>
-                                    </div>
-
-                                    {/* Save / status */}
-                                    {saveError ? (
-                                        <div
-                                            style={{
-                                                background: "#3b0f12",
-                                                border: "1px solid #5b1a1f",
-                                                color: "#ffd7d7",
-                                                padding: 10,
-                                                borderRadius: 8,
-                                            }}
-                                        >
-                                            {saveError}
-                                        </div>
-                                    ) : null}
-                                    {savedMsg ? (
-                                        <div
-                                            style={{
-                                                background: "#16321f",
-                                                border: "1px solid #1d5f38",
-                                                color: "#c9f7d2",
-                                                padding: 10,
-                                                borderRadius: 8,
-                                            }}
-                                        >
-                                            {savedMsg}
-                                        </div>
-                                    ) : null}
-
-                                    <div style={{ display: "flex", gap: 8 }}>
-                                        <button
-                                            type="submit"
-                                            disabled={saving}
-                                            style={{
-                                                background: "#1e293b",
-                                                color: "#fff",
-                                                border: "1px solid #3b82f6",
-                                                borderRadius: 8,
-                                                padding: "10px 14px",
-                                                fontWeight: 600,
-                                                cursor: saving ? "default" : "pointer",
-                                                opacity: saving ? 0.7 : 1,
-                                            }}
-                                        >
-                                            {saving ? "Saving…" : "Add from IGDB"}
-                                        </button>
+                                    {/* Info (name clickable) */}
+                                    <div style={{ minWidth: 0 }}>
                                         <button
                                             type="button"
-                                            onClick={closeDetails}
+                                            onClick={() => openDetails(g.id)}
+                                            title="View details"
+                                            style={{
+                                                all: "unset",
+                                                cursor: "pointer",
+                                                fontWeight: 600,
+                                                color: "#fff",
+                                            }}
+                                        >
+                                            {g.name}{" "}
+                                            <span style={{ opacity: 0.7, fontWeight: 400 }}>
+                        {typeof g.release_date === "number" ? `(${toYear(g.release_date)})` : ""}
+                      </span>
+                                        </button>
+
+                                        <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>
+                                            {(g.platforms ?? []).map((p) => p.name).join(", ") || "—"}
+                                        </div>
+                                        {g.summary ? (
+                                            <div
+                                                style={{
+                                                    fontSize: 12,
+                                                    opacity: 0.7,
+                                                    marginTop: 6,
+                                                    display: "-webkit-box",
+                                                    WebkitLineClamp: 2,
+                                                    WebkitBoxOrient: "vertical",
+                                                    overflow: "hidden",
+                                                }}
+                                            >
+                                                {g.summary}
+                                            </div>
+                                        ) : null}
+                                    </div>
+
+                                    {/* View -> opens overlay */}
+                                    <div>
+                                        <button
+                                            type="button"
+                                            title="View details"
                                             style={{
                                                 background: "#151515",
                                                 color: "#eaeaea",
                                                 border: "1px solid #2b2b2b",
                                                 borderRadius: 8,
-                                                padding: "10px 14px",
+                                                padding: "8px 12px",
                                                 cursor: "pointer",
                                             }}
+                                            onClick={() => openDetails(g.id)}
                                         >
-                                            Cancel
+                                            View
                                         </button>
                                     </div>
-                                </form>
-                            </>
-                        ) : null}
+                                </li>
+                            ))}
+                        </ul>
+                    ) : null}
+
+                    {/* Details Overlay */}
+                    {openId != null ? (
+                        <div
+                            role="dialog"
+                            aria-modal="true"
+                            style={{
+                                position: "fixed",
+                                inset: 0,
+                                background: "rgba(0,0,0,0.6)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                padding: 16,
+                                zIndex: 100,
+                            }}
+                            onClick={closeDetails}
+                        >
+                            <div
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                    width: "min(960px, 96vw)",
+                                    maxHeight: "90vh",
+                                    overflow: "auto",
+                                    background: "#0f0f10",
+                                    border: "1px solid #262626",
+                                    borderRadius: 12,
+                                    padding: 16,
+                                }}
+                            >
+                                {/* Titlebar */}
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12 }}>
+                                    <h2 style={{ margin: 0, fontSize: 20 }}>
+                                        {details?.name || "Loading…"}
+                                        {typeof details?.release_date === "number" ? (
+                                            <span style={{ opacity: 0.7, fontWeight: 400 }}> ({toYear(details.release_date)})</span>
+                                        ) : null}
+                                    </h2>
+                                    <button
+                                        type="button"
+                                        onClick={closeDetails}
+                                        style={{
+                                            background: "#151515",
+                                            color: "#eaeaea",
+                                            border: "1px solid #2b2b2b",
+                                            borderRadius: 8,
+                                            padding: "6px 10px",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+
+                                {/* States */}
+                                {detailsLoading ? (
+                                    <div style={{ opacity: 0.8, marginTop: 8 }}>Loading details…</div>
+                                ) : detailsError ? (
+                                    <div
+                                        style={{
+                                            background: "#3b0f12",
+                                            border: "1px solid #5b1a1f",
+                                            color: "#ffd7d7",
+                                            padding: 12,
+                                            borderRadius: 8,
+                                            marginTop: 12,
+                                        }}
+                                    >
+                                        {detailsError}
+                                    </div>
+                                ) : details ? (
+                                    <>
+                                        {/* Info grid */}
+                                        <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", gap: 16, marginTop: 12 }}>
+                                            {/* Cover */}
+                                            <div
+                                                style={{
+                                                    width: 180,
+                                                    height: 220,
+                                                    background: "#1a1a1a",
+                                                    border: "1px solid #2b2b2b",
+                                                    borderRadius: 8,
+                                                    overflow: "hidden",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                }}
+                                            >
+                                                {details.cover_url ? (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img
+                                                        src={details.cover_url}
+                                                        alt={details.name}
+                                                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                                    />
+                                                ) : (
+                                                    <span style={{ opacity: 0.6, fontSize: 12 }}>No cover</span>
+                                                )}
+                                            </div>
+
+                                            {/* Read-only facts */}
+                                            <div style={{ display: "grid", gap: 10 }}>
+                                                {details.summary ? (
+                                                    <p style={{ margin: 0, lineHeight: 1.5, whiteSpace: "pre-wrap", opacity: 0.95 }}>
+                                                        {details.summary}
+                                                    </p>
+                                                ) : null}
+
+                                                <Row label="Platforms">
+                                                    {(details.platforms ?? []).map((p) => p.name).join(", ") || "—"}
+                                                </Row>
+                                                <Row label="Genres">{(details.genres ?? []).map((g) => g.name).join(", ") || "—"}</Row>
+                                                <Row label="Modes">{(details.game_modes ?? []).map((m) => m.name).join(", ") || "—"}</Row>
+                                                <Row label="Rating">{details.rating ?? "—"}</Row>
+                                                <Row label="Collection">{details.collection?.name ?? "—"}</Row>
+                                                <Row label="Companies">
+                                                    {(details.companies ?? [])
+                                                        .map((c) => {
+                                                            const roles = [
+                                                                c.developer ? "dev" : null,
+                                                                c.publisher ? "pub" : null,
+                                                                c.porting ? "port" : null,
+                                                                c.supporting ? "support" : null,
+                                                            ].filter(Boolean);
+                                                            return `${c.name}${roles.length ? ` (${roles.join(",")})` : ""}`;
+                                                        })
+                                                        .join(", ") || "—"}
+                                                </Row>
+                                                <Row label="Tags">{(details.igdb_tags ?? []).map((t) => t.name).join(", ") || "—"}</Row>
+                                            </div>
+                                        </div>
+
+                                        {/* Divider */}
+                                        <div style={{ height: 1, background: "#1f1f1f", margin: "14px 0" }} />
+
+                                        {/* Add form */}
+                                        <form ref={formRef} onSubmit={onAddSubmit} style={{ display: "grid", gap: 12 }}>
+                                            <input type="hidden" name="igdb_id" value={details.id} />
+
+                                            {/* Platforms (from details) */}
+                                            <div>
+                                                <div style={{ fontWeight: 600, marginBottom: 6 }}>Select your platform(s)</div>
+                                                {details.platforms?.length ? (
+                                                    <div style={{ display: "grid", gap: 6 }}>
+                                                        {details.platforms.map((p) => {
+                                                            const checked = selectedPlatforms.has(p.id);
+                                                            return (
+                                                                <label
+                                                                    key={p.id}
+                                                                    style={{
+                                                                        display: "flex",
+                                                                        alignItems: "center",
+                                                                        gap: 8,
+                                                                        padding: "6px 8px",
+                                                                        borderRadius: 6,
+                                                                        background: checked ? "#1e293b" : "transparent",
+                                                                        border: checked ? "1px solid #334155" : "1px solid transparent",
+                                                                    }}
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={checked}
+                                                                        onChange={() =>
+                                                                            setSelectedPlatforms((prev) => {
+                                                                                const next = new Set(prev);
+                                                                                if (next.has(p.id)) next.delete(p.id);
+                                                                                else next.add(p.id);
+                                                                                return next;
+                                                                            })
+                                                                        }
+                                                                        style={{ accentColor: "#3b82f6" }}
+                                                                    />
+                                                                    <span>{p.name}</span>
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ opacity: 0.7 }}>No platform data from IGDB.</div>
+                                                )}
+                                            </div>
+
+                                            {/* Location */}
+                                            <LocationTreePicker label="Location" name="location_id" />
+
+                                            {/* User Tags */}
+                                            <TagChipsAutocomplete label="Tags" name="tag_ids" suggestKind="tags" />
+
+                                            {/* Condition & Order */}
+                                            <div style={{ display: "grid", gap: 12, gridTemplateColumns: "200px 200px" }}>
+                                                <label style={{ display: "grid", gap: 6 }}>
+                                                    <span style={{ opacity: 0.85 }}>Condition (0–10)</span>
+                                                    <select
+                                                        value={condition}
+                                                        onChange={(e) => setCondition(Number(e.target.value) || 0)}
+                                                        style={{
+                                                            background: "#1a1a1a",
+                                                            color: "#eaeaea",
+                                                            border: "1px solid #2b2b2b",
+                                                            borderRadius: 8,
+                                                            padding: "10px 12px",
+                                                            outline: "none",
+                                                        }}
+                                                    >
+                                                        {Array.from({ length: 11 }, (_, i) => i).map((n) => (
+                                                            <option key={n} value={n}>
+                                                                {n}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </label>
+
+                                                <label style={{ display: "grid", gap: 6 }}>
+                                                    <span style={{ opacity: 0.85 }}>Order</span>
+                                                    <input
+                                                        type="number"
+                                                        inputMode="numeric"
+                                                        value={order}
+                                                        onChange={(e) => setOrder(Number(e.target.value) || 0)}
+                                                        style={{
+                                                            background: "#1a1a1a",
+                                                            color: "#eaeaea",
+                                                            border: "1px solid #2b2b2b",
+                                                            borderRadius: 8,
+                                                            padding: "10px 12px",
+                                                            outline: "none",
+                                                        }}
+                                                        placeholder="0"
+                                                    />
+                                                </label>
+                                            </div>
+
+                                            {/* Save / status */}
+                                            {saveError ? (
+                                                <div
+                                                    style={{
+                                                        background: "#3b0f12",
+                                                        border: "1px solid #5b1a1f",
+                                                        color: "#ffd7d7",
+                                                        padding: 10,
+                                                        borderRadius: 8,
+                                                    }}
+                                                >
+                                                    {saveError}
+                                                </div>
+                                            ) : null}
+                                            {savedMsg ? (
+                                                <div
+                                                    style={{
+                                                        background: "#16321f",
+                                                        border: "1px solid #1d5f38",
+                                                        color: "#c9f7d2",
+                                                        padding: 10,
+                                                        borderRadius: 8,
+                                                    }}
+                                                >
+                                                    {savedMsg}
+                                                </div>
+                                            ) : null}
+
+                                            <div style={{ display: "flex", gap: 8 }}>
+                                                <button
+                                                    type="submit"
+                                                    disabled={saving}
+                                                    style={{
+                                                        background: "#1e293b",
+                                                        color: "#fff",
+                                                        border: "1px solid #3b82f6",
+                                                        borderRadius: 8,
+                                                        padding: "10px 14px",
+                                                        fontWeight: 600,
+                                                        cursor: saving ? "default" : "pointer",
+                                                        opacity: saving ? 0.7 : 1,
+                                                    }}
+                                                >
+                                                    {saving ? "Saving…" : "Add from IGDB"}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={closeDetails}
+                                                    style={{
+                                                        background: "#151515",
+                                                        color: "#eaeaea",
+                                                        border: "1px solid #2b2b2b",
+                                                        borderRadius: 8,
+                                                        padding: "10px 14px",
+                                                        cursor: "pointer",
+                                                    }}
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </>
+                                ) : null}
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {/* IGDB tip (bottom, faded) */}
+                    <div style={{ marginTop: 18, opacity: 0.6, fontSize: 12, maxWidth: 700 }}>
+                        Tip: You can use alternative titles in the search. For example, if “Age of Empires” returns too many results,
+                        try “aoe” or “aoe1”. Or instead of “Need for Speed II”, try “nfs2”.
                     </div>
+                </>
+            ) : (
+                /* -------- Custom mode -------- */
+                <div
+                    style={{
+                        background: "#111",
+                        border: "1px solid #262626",
+                        borderRadius: 12,
+                        padding: 16,
+                        maxWidth: 900,
+                    }}
+                >
+                    <div style={{ fontWeight: 700, marginBottom: 8 }}>Add Custom Game</div>
+
+                    <form ref={customFormRef} onSubmit={onCustomSubmit} style={{ display: "grid", gap: 10 }}>
+                        <label style={{ display: "grid", gap: 6 }}>
+                            <span style={{ opacity: 0.85 }}>Name</span>
+                            <input
+                                name="name"
+                                required
+                                placeholder="Required"
+                                style={{
+                                    background: "#1a1a1a",
+                                    color: "#eaeaea",
+                                    border: "1px solid #2b2b2b",
+                                    borderRadius: 8,
+                                    padding: "10px 12px",
+                                    outline: "none",
+                                }}
+                            />
+                        </label>
+
+                        <label style={{ display: "grid", gap: 6 }}>
+                            <span style={{ opacity: 0.85 }}>Summary</span>
+                            <textarea
+                                name="summary"
+                                rows={4}
+                                placeholder="Optional"
+                                style={{
+                                    background: "#1a1a1a",
+                                    color: "#eaeaea",
+                                    border: "1px solid #2b2b2b",
+                                    borderRadius: 8,
+                                    padding: "10px 12px",
+                                    outline: "none",
+                                    resize: "vertical",
+                                }}
+                            />
+                        </label>
+
+                        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span style={{ opacity: 0.85 }}>Release Year</span>
+                                <input
+                                    type="number"
+                                    name="release_date"
+                                    placeholder="e.g., 1998"
+                                    style={{
+                                        background: "#1a1a1a",
+                                        color: "#eaeaea",
+                                        border: "1px solid #2b2b2b",
+                                        borderRadius: 8,
+                                        padding: "10px 12px",
+                                        outline: "none",
+                                    }}
+                                />
+                            </label>
+
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span style={{ opacity: 0.85 }}>Cover URL</span>
+                                <input
+                                    name="cover_url"
+                                    placeholder="https://…"
+                                    style={{
+                                        background: "#1a1a1a",
+                                        color: "#eaeaea",
+                                        border: "1px solid #2b2b2b",
+                                        borderRadius: 8,
+                                        padding: "10px 12px",
+                                        outline: "none",
+                                    }}
+                                />
+                            </label>
+                        </div>
+
+                        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span style={{ opacity: 0.85 }}>Condition (0–10)</span>
+                                <select
+                                    name="condition"
+                                    defaultValue={0}
+                                    style={{
+                                        background: "#1a1a1a",
+                                        color: "#eaeaea",
+                                        border: "1px solid #2b2b2b",
+                                        borderRadius: 8,
+                                        padding: "10px 12px",
+                                        outline: "none",
+                                    }}
+                                >
+                                    {Array.from({ length: 11 }, (_, i) => i).map((n) => (
+                                        <option key={n} value={n}>
+                                            {n}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span style={{ opacity: 0.85 }}>Order</span>
+                                <input
+                                    type="number"
+                                    name="order"
+                                    placeholder="0"
+                                    style={{
+                                        background: "#1a1a1a",
+                                        color: "#eaeaea",
+                                        border: "1px solid #2b2b2b",
+                                        borderRadius: 8,
+                                        padding: "10px 12px",
+                                        outline: "none",
+                                    }}
+                                />
+                            </label>
+
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span style={{ opacity: 0.85 }}>Rating</span>
+                                <input
+                                    type="number"
+                                    name="rating"
+                                    placeholder="0"
+                                    style={{
+                                        background: "#1a1a1a",
+                                        color: "#eaeaea",
+                                        border: "1px solid #2b2b2b",
+                                        borderRadius: 8,
+                                        padding: "10px 12px",
+                                        outline: "none",
+                                    }}
+                                />
+                            </label>
+                        </div>
+
+                        {/* Location */}
+                        <LocationTreePicker label="Location" name="location_id" />
+
+                        {/* IDs (CSV) */}
+                        <div
+                            style={{
+                                display: "grid",
+                                gap: 12,
+                                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                                alignItems: "start",
+                            }}
+                        >
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span style={{ opacity: 0.85 }}>Platform IDs (CSV)</span>
+                                <input
+                                    name="platform_ids"
+                                    placeholder="e.g., 6,14"
+                                    style={{
+                                        background: "#1a1a1a",
+                                        color: "#eaeaea",
+                                        border: "1px solid #2b2b2b",
+                                        borderRadius: 8,
+                                        padding: "10px 12px",
+                                        outline: "none",
+                                    }}
+                                />
+                            </label>
+
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span style={{ opacity: 0.85 }}>Mode IDs (CSV)</span>
+                                <input
+                                    name="mode_ids"
+                                    placeholder="e.g., 1,2"
+                                    style={{
+                                        background: "#1a1a1a",
+                                        color: "#eaeaea",
+                                        border: "1px solid #2b2b2b",
+                                        borderRadius: 8,
+                                        padding: "10px 12px",
+                                        outline: "none",
+                                    }}
+                                />
+                            </label>
+
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span style={{ opacity: 0.85 }}>Genre IDs (CSV)</span>
+                                <input
+                                    name="genre_ids"
+                                    placeholder="e.g., 11,15"
+                                    style={{
+                                        background: "#1a1a1a",
+                                        color: "#eaeaea",
+                                        border: "1px solid #2b2b2b",
+                                        borderRadius: 8,
+                                        padding: "10px 12px",
+                                        outline: "none",
+                                    }}
+                                />
+                            </label>
+
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span style={{ opacity: 0.85 }}>Player Perspective IDs (CSV)</span>
+                                <input
+                                    name="player_perspective_ids"
+                                    placeholder="IDs like 1,3"
+                                    style={{
+                                        background: "#1a1a1a",
+                                        color: "#eaeaea",
+                                        border: "1px solid #2b2b2b",
+                                        borderRadius: 8,
+                                        padding: "10px 12px",
+                                        outline: "none",
+                                    }}
+                                />
+                            </label>
+
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span style={{ opacity: 0.85 }}>Collection ID</span>
+                                <input
+                                    name="collection_id"
+                                    type="number"
+                                    placeholder="0 (none)"
+                                    style={{
+                                        background: "#1a1a1a",
+                                        color: "#eaeaea",
+                                        border: "1px solid #2b2b2b",
+                                        borderRadius: 8,
+                                        padding: "10px 12px",
+                                        outline: "none",
+                                    }}
+                                />
+                            </label>
+
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span style={{ opacity: 0.85 }}>Company IDs (CSV)</span>
+                                <input
+                                    name="company_ids"
+                                    placeholder="e.g., 68,128"
+                                    style={{
+                                        background: "#1a1a1a",
+                                        color: "#eaeaea",
+                                        border: "1px solid #2b2b2b",
+                                        borderRadius: 8,
+                                        padding: "10px 12px",
+                                        outline: "none",
+                                    }}
+                                />
+                            </label>
+                        </div>
+
+                        {/* Tags */}
+                        <TagChipsAutocomplete label="Tags" name="tag_ids" suggestKind="tags" />
+
+                        {/* Custom errors/status */}
+                        {customError ? (
+                            <div
+                                style={{
+                                    background: "#3b0f12",
+                                    border: "1px solid #5b1a1f",
+                                    color: "#ffd7d7",
+                                    padding: 10,
+                                    borderRadius: 8,
+                                }}
+                            >
+                                {customError}
+                            </div>
+                        ) : null}
+                        {customSaved ? (
+                            <div
+                                style={{
+                                    background: "#16321f",
+                                    border: "1px solid #1d5f38",
+                                    color: "#c9f7d2",
+                                    padding: 10,
+                                    borderRadius: 8,
+                                }}
+                            >
+                                {customSaved}
+                            </div>
+                        ) : null}
+
+                        <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                                type="submit"
+                                disabled={customSaving}
+                                style={{
+                                    background: "#1e293b",
+                                    color: "#fff",
+                                    border: "1px solid #3b82f6",
+                                    borderRadius: 8,
+                                    padding: "10px 14px",
+                                    fontWeight: 600,
+                                    cursor: customSaving ? "default" : "pointer",
+                                    opacity: customSaving ? 0.7 : 1,
+                                }}
+                            >
+                                {customSaving ? "Saving…" : "Save"}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setMode("igdb")}
+                                style={{
+                                    background: "#151515",
+                                    color: "#eaeaea",
+                                    border: "1px solid #2b2b2b",
+                                    borderRadius: 8,
+                                    padding: "10px 14px",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
                 </div>
-            ) : null}
+            )}
         </div>
     );
 }
@@ -705,21 +1133,3 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
         </div>
     );
 }
-
-const selectStyle: React.CSSProperties = {
-    background: "#1a1a1a",
-    color: "#eaeaea",
-    border: "1px solid #2b2b2b",
-    borderRadius: 8,
-    padding: "10px 12px",
-    outline: "none",
-};
-
-const inputStyle: React.CSSProperties = {
-    background: "#1a1a1a",
-    color: "#eaeaea",
-    border: "1px solid #2b2b2b",
-    borderRadius: 8,
-    padding: "10px 12px",
-    outline: "none",
-};
