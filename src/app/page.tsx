@@ -1,33 +1,33 @@
-// src/app/page.tsx
+import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
 import { redirect } from "next/navigation";
 
-/* ------------ types ------------ */
-type Named = { id: number; name: string };
+/** ---------- Types from the endpoints ---------- */
 
-type GamePreview = {
-    id: number;
-    name: string;
-    release_date?: number | null;
-    platforms?: Array<{ id: number; name: string }>;
+type Overview = {
+    total_games: number;
+    total_games_unique: number;
+    release_range?: { oldest_year?: number | null; newest_year?: number | null } | null;
+    top_genres?: Array<{ genre_id: number; name: string; count: number }>;
+    top_platforms?: Array<{ platform_id: number; name: string; count: number }>;
+    top_publishers?: Array<{ company_id: number; name: string; count: number }>;
+    top_developers?: Array<{ company_id: number; name: string; count: number }>;
+    top_years?: Array<{ year: number; count: number }>;
+    top_highest_rated?: Array<{ game_id: number; igdb_id: number; name: string; rating: number | null }>;
+    top_lowest_rated?: Array<{ game_id: number; igdb_id: number; name: string; rating: number | null }>;
 };
 
-type GameDetailForCounts = {
-    id: number;
-    genres?: Named[];
-    companies?: Array<{ company: Named }>;
+type Health = {
+    missing_cover?: number;
+    missing_release_year?: number;
+    no_platforms?: number;
+    no_location?: number;
+    untagged?: number;
+    total_games_unique?: number;
+    total_games?: number;
 };
 
-/* ------------ helpers ------------ */
-
-function toYearNumber(n?: number | null): number | null {
-    if (n == null) return null;
-    if (n >= 1000 && n <= 3000) return n;
-    if (n >= 1_000_000_000_000) return new Date(n).getUTCFullYear(); // ms
-    if (n >= 1_000_000_000) return new Date(n * 1000).getUTCFullYear(); // sec
-    return n;
-}
-
+/** ---------- First-run status (unchanged) ---------- */
 async function isFirstRunDone(): Promise<boolean> {
     try {
         const res = await fetch(`${API_BASE_URL}/first_run/status`, { cache: "no-store" });
@@ -36,7 +36,7 @@ async function isFirstRunDone(): Promise<boolean> {
         if (text === "true") return true;
         if (text === "false") return false;
 
-        // If backend ever returns JSON like { done: true }
+        // Defensive: accept JSON { done: boolean } too
         try {
             const parsed = JSON.parse(text);
             if (typeof parsed?.done === "boolean") return parsed.done;
@@ -45,166 +45,74 @@ async function isFirstRunDone(): Promise<boolean> {
         }
         return true;
     } catch {
-        // Fail open so users can still use the app
+        // Fail open so users can still use the app if probe fails
         return true;
     }
 }
 
-async function fetchJSON<T>(path: string): Promise<T> {
-    const url = `${API_BASE_URL}${path}`;
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
-    return (await res.json()) as T;
+/** ---------- API calls ---------- */
+async function fetchOverview(): Promise<Overview> {
+    const res = await fetch(`${API_BASE_URL}/stats/overview`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`GET /stats/overview -> ${res.status} ${res.statusText}`);
+    return (await res.json()) as Overview;
 }
 
-/**
- * Fetch a subset (or all) game details in small batches to aggregate
- * companies and genres. Keeps it light by only reading needed fields.
- */
-async function fetchDetailsForCounts(
-    gameIds: number[],
-    maxToScan = 400,
-    batchSize = 25
-): Promise<GameDetailForCounts[]> {
-    const ids = gameIds.slice(0, Math.max(1, maxToScan));
-    const details: GameDetailForCounts[] = [];
-
-    for (let i = 0; i < ids.length; i += batchSize) {
-        const chunk = ids.slice(i, i + batchSize);
-        const chunkDetails = await Promise.all(
-            chunk.map(async (id) => {
-                // We’ll receive the full Game, but we only read genres/companies
-                const d = await fetchJSON<GameDetailForCounts>(`/games/${id}`);
-                return {
-                    id: d.id,
-                    genres: d.genres ?? [],
-                    companies: d.companies ?? [],
-                };
-            })
-        );
-        details.push(...chunkDetails);
-    }
-
-    return details;
+async function fetchHealth(): Promise<Health> {
+    const res = await fetch(`${API_BASE_URL}/stats/health`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`GET /stats/health -> ${res.status} ${res.statusText}`);
+    return (await res.json()) as Health;
 }
 
-/* ------------ page ------------ */
-
+/** ---------- Page ---------- */
 export default async function HomePage() {
-    // 1) Setup redirect if needed
+    // Redirect to setup if first run not completed
     const done = await isFirstRunDone();
-    if (!done) {
-        redirect("/setup");
-    }
+    if (!done) redirect("/setup");
 
-    // 2) Overview data
-    let totalGames = 0;
-    let topPlatforms: Array<{ id: number; name: string; count: number }> = [];
-    let releaseMin: number | null = null;
-    let releaseMax: number | null = null;
-
-    // New: Top-3 companies/genres
-    let topCompanies: Array<{ id: number; name: string; count: number }> = [];
-    let topGenres: Array<{ id: number; name: string; count: number }> = [];
-
+    let overview: Overview | null = null;
+    let health: Health | null = null;
     let error: string | null = null;
 
     try {
-        const games = await fetchJSON<GamePreview[]>("/games/");
-
-        const list = Array.isArray(games) ? games : [];
-        totalGames = list.length;
-
-        // Release range
-        const years: number[] = [];
-        for (const g of list) {
-            const y = toYearNumber(g.release_date);
-            if (y != null) years.push(y);
-        }
-        if (years.length) {
-            releaseMin = Math.min(...years);
-            releaseMax = Math.max(...years);
-        }
-
-        // Top platforms (from preview list)
-        const pCounts = new Map<number, { id: number; name: string; count: number }>();
-        for (const g of list) {
-            for (const p of g.platforms ?? []) {
-                const prev = pCounts.get(p.id);
-                if (prev) prev.count += 1;
-                else pCounts.set(p.id, { id: p.id, name: p.name, count: 1 });
-            }
-        }
-        topPlatforms = Array.from(pCounts.values())
-            .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-            .slice(0, 10);
-
-        // Top companies & genres (fetch lightweight details, aggregate)
-        if (totalGames > 0) {
-            const ids = list.map((g) => g.id);
-            const details = await fetchDetailsForCounts(ids);
-
-            const cCounts = new Map<number, { id: number; name: string; count: number }>();
-            const gCounts = new Map<number, { id: number; name: string; count: number }>();
-
-            for (const d of details) {
-                // Deduplicate per-game so a company/genre isn't double-counted within the same game
-                const seenCompanyIds = new Set<number>();
-                for (const c of d.companies ?? []) {
-                    const cId = c?.company?.id;
-                    const cName = c?.company?.name ?? "";
-                    if (!cId || seenCompanyIds.has(cId)) continue;
-                    seenCompanyIds.add(cId);
-
-                    const prev = cCounts.get(cId);
-                    if (prev) prev.count += 1;
-                    else cCounts.set(cId, { id: cId, name: cName, count: 1 });
-                }
-
-                const seenGenreIds = new Set<number>();
-                for (const gn of d.genres ?? []) {
-                    if (!gn?.id || seenGenreIds.has(gn.id)) continue;
-                    seenGenreIds.add(gn.id);
-
-                    const prev = gCounts.get(gn.id);
-                    if (prev) prev.count += 1;
-                    else gCounts.set(gn.id, { id: gn.id, name: gn.name, count: 1 });
-                }
-            }
-
-            topCompanies = Array.from(cCounts.values())
-                .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-                .slice(0, 3);
-
-            topGenres = Array.from(gCounts.values())
-                .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-                .slice(0, 3);
-        }
+        [overview, health] = await Promise.all([fetchOverview(), fetchHealth()]);
     } catch (e: unknown) {
-        error = e instanceof Error ? e.message : "Unknown error";
+        error = e instanceof Error ? e.message : "Unknown error loading statistics.";
     }
+
+    const totalGames = overview?.total_games ?? 0;
+    const uniqueGames = overview?.total_games_unique ?? 0;
+    const oldest = overview?.release_range?.oldest_year ?? null;
+    const newest = overview?.release_range?.newest_year ?? null;
+
+    const topPlatforms = overview?.top_platforms ?? [];
+    const topGenres = overview?.top_genres ?? [];
+    const topPublishers = overview?.top_publishers ?? [];
+    const topDevelopers = overview?.top_developers ?? [];
+    const topYears = overview?.top_years ?? [];
+    const highestRated = overview?.top_highest_rated ?? [];
+    const lowestRated = overview?.top_lowest_rated ?? [];
+
+    const healthItems = [
+        { label: "Untagged", value: health?.untagged ?? 0 },
+        { label: "Missing release year", value: health?.missing_release_year ?? 0 },
+        { label: "No platforms", value: health?.no_platforms ?? 0 },
+        { label: "No location", value: health?.no_location ?? 0 },
+        { label: "Missing cover", value: health?.missing_cover ?? 0 },
+    ];
+    const totalIssues = healthItems.reduce((sum, it) => sum + (it.value || 0), 0);
 
     return (
         <main style={{ maxWidth: 1100, margin: "24px auto", padding: "0 16px" }}>
             <h1 style={{ fontSize: 24, margin: "0 0 16px 0" }}>Overview</h1>
 
             {error ? (
-                <div
-                    style={{
-                        background: "#3b0f12",
-                        border: "1px solid #5b1a1f",
-                        color: "#ffd7d7",
-                        padding: 12,
-                        borderRadius: 8,
-                        marginBottom: 16,
-                    }}
-                >
+                <div style={errBox}>
                     Failed to load statistics.
                     <div style={{ marginTop: 6, fontSize: 12, opacity: 0.9 }}>{error}</div>
                 </div>
             ) : null}
 
-            {/* Stat cards (only Total Games as requested) */}
+            {/* Stat cards */}
             <section
                 style={{
                     display: "grid",
@@ -214,183 +122,284 @@ export default async function HomePage() {
                 }}
             >
                 <StatCard label="Total Games" value={totalGames} />
-                {/* Keep release range block compact and consistent */}
-                <div
-                    style={{
-                        background: "#111",
-                        border: "1px solid #262626",
-                        borderRadius: 12,
-                        padding: 16,
-                    }}
-                >
-                    <div style={{ opacity: 0.8, marginBottom: 6 }}>Release Range</div>
-                    <div style={{ fontSize: 18, fontWeight: 600 }}>
-                        {releaseMin != null && releaseMax != null ? (
-                            releaseMin === releaseMax ? (
-                                <>{releaseMin}</>
-                            ) : (
-                                <>
-                                    {releaseMin} – {releaseMax}
-                                </>
-                            )
-                        ) : (
-                            <>—</>
-                        )}
-                    </div>
+                <StatCard label="Unique Titles" value={uniqueGames} />
+                <StatCard
+                    label="Release Range"
+                    value={
+                        oldest && newest
+                            ? `${oldest}–${newest}`
+                            : oldest
+                                ? `${oldest}–—`
+                                : newest
+                                    ? `—–${newest}`
+                                    : "—"
+                    }
+                />
+            </section>
+
+            {/* Health snapshot (all fields) */}
+            <section style={panel}>
+                <div style={panelHeaderRow}>
+                    <h2 style={panelTitle}>Library Health</h2>
+                    <span style={{ opacity: 0.7, fontSize: 12 }}>
+            {totalIssues === 0 ? "All good 🎉" : `${totalIssues} issue${totalIssues === 1 ? "" : "s"}`}
+          </span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                    {healthItems.map((h) => (
+                        <Badge key={h.label} label={`${h.label}: ${h.value}`} muted={h.value === 0} />
+                    ))}
                 </div>
             </section>
 
-            {/* Top Platforms */}
-            <section
-                style={{
-                    background: "#111",
-                    border: "1px solid #262626",
-                    borderRadius: 12,
-                    padding: 16,
-                    marginBottom: 16,
-                }}
-            >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <h2 style={{ fontSize: 18, margin: 0 }}>Top Platforms</h2>
-                    <span style={{ opacity: 0.7, fontSize: 12 }}>
-            showing up to {topPlatforms.length}
-          </span>
+            {/* Top Platforms (all returned) */}
+            <section style={panel}>
+                <div style={panelHeaderRow}>
+                    <h2 style={panelTitle}>Top Platforms</h2>
+                    <span style={{ opacity: 0.7, fontSize: 12 }}>count by platform</span>
                 </div>
-
                 {topPlatforms.length === 0 ? (
                     <p style={{ opacity: 0.7, marginTop: 10 }}>No platform data yet.</p>
                 ) : (
-                    <ul style={{ listStyle: "none", padding: 0, marginTop: 12 }}>
-                        {topPlatforms.map((p) => (
-                            <li
-                                key={p.id}
-                                style={{
-                                    display: "grid",
-                                    gridTemplateColumns: "1fr auto",
-                                    gap: 8,
-                                    padding: "10px 8px",
-                                    borderTop: "1px solid #1f1f1f",
-                                }}
-                            >
-                                <span>{p.name}</span>
-                                <span style={{ opacity: 0.85 }}>
-                  {p.count} {p.count === 1 ? "game" : "games"}
-                </span>
-                            </li>
-                        ))}
-                    </ul>
+                    <SimpleList
+                        rows={topPlatforms.map((p) => ({
+                            left: p.name,
+                            right: `${p.count} ${p.count === 1 ? "game" : "games"}`,
+                            key: String(p.platform_id),
+                        }))}
+                    />
                 )}
             </section>
 
-            {/* NEW: Top Companies (Top 3) + Top Genres (Top 3) */}
+            {/* Two-up: Top Genres / Top Publishers (show everything) */}
             <section
                 style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                    gridTemplateColumns: "1fr 1fr",
                     gap: 12,
-                    marginBottom: 16,
+                    marginTop: 12,
                 }}
             >
-                {/* Top Companies */}
-                <div
-                    style={{
-                        background: "#111",
-                        border: "1px solid #262626",
-                        borderRadius: 12,
-                        padding: 16,
-                    }}
-                >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <h2 style={{ fontSize: 18, margin: 0 }}>Top Companies</h2>
-                        <span style={{ opacity: 0.7, fontSize: 12 }}>top 3</span>
+                <div style={panel}>
+                    <div style={panelHeaderRow}>
+                        <h2 style={panelTitle}>Top Genres</h2>
+                        <span style={{ opacity: 0.7, fontSize: 12 }}>count by genre</span>
                     </div>
-
-                    {topCompanies.length === 0 ? (
-                        <p style={{ opacity: 0.7, marginTop: 10 }}>No company data yet.</p>
+                    {topGenres.length ? (
+                        <SimpleList
+                            rows={topGenres.map((g) => ({
+                                left: g.name,
+                                right: `${g.count}`,
+                                key: String(g.genre_id),
+                            }))}
+                        />
                     ) : (
-                        <ul style={{ listStyle: "none", padding: 0, marginTop: 12 }}>
-                            {topCompanies.map((c) => (
-                                <li
-                                    key={c.id}
-                                    style={{
-                                        display: "grid",
-                                        gridTemplateColumns: "1fr auto",
-                                        gap: 8,
-                                        padding: "10px 8px",
-                                        borderTop: "1px solid #1f1f1f",
-                                    }}
-                                >
-                                    <span>{c.name}</span>
-                                    <span style={{ opacity: 0.85 }}>
-                    {c.count} {c.count === 1 ? "game" : "games"}
-                  </span>
-                                </li>
-                            ))}
-                        </ul>
+                        <p style={{ opacity: 0.7 }}>No genre data.</p>
                     )}
                 </div>
 
-                {/* Top Genres */}
-                <div
-                    style={{
-                        background: "#111",
-                        border: "1px solid #262626",
-                        borderRadius: 12,
-                        padding: 16,
-                    }}
-                >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <h2 style={{ fontSize: 18, margin: 0 }}>Top Genres</h2>
-                        <span style={{ opacity: 0.7, fontSize: 12 }}>top 3</span>
+                <div style={panel}>
+                    <div style={panelHeaderRow}>
+                        <h2 style={panelTitle}>Top Publishers</h2>
+                        <span style={{ opacity: 0.7, fontSize: 12 }}>count by publisher</span>
                     </div>
-
-                    {topGenres.length === 0 ? (
-                        <p style={{ opacity: 0.7, marginTop: 10 }}>No genre data yet.</p>
+                    {topPublishers.length ? (
+                        <SimpleList
+                            rows={topPublishers.map((c) => ({
+                                left: c.name,
+                                right: `${c.count}`,
+                                key: String(c.company_id),
+                            }))}
+                        />
                     ) : (
-                        <ul style={{ listStyle: "none", padding: 0, marginTop: 12 }}>
-                            {topGenres.map((g) => (
-                                <li
-                                    key={g.id}
-                                    style={{
-                                        display: "grid",
-                                        gridTemplateColumns: "1fr auto",
-                                        gap: 8,
-                                        padding: "10px 8px",
-                                        borderTop: "1px solid #1f1f1f",
-                                    }}
-                                >
-                                    <span>{g.name}</span>
-                                    <span style={{ opacity: 0.85 }}>
-                    {g.count} {g.count === 1 ? "game" : "games"}
-                  </span>
-                                </li>
-                            ))}
-                        </ul>
+                        <p style={{ opacity: 0.7 }}>No publisher data.</p>
                     )}
                 </div>
             </section>
 
-            <p style={{ opacity: 0.7, marginTop: 16, fontSize: 12 }}>
-                (Next ideas: most common tags, top collections, games by location.)
-            </p>
+            {/* Two-up: Top Developers / Top Years */}
+            <section
+                style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 12,
+                    marginTop: 12,
+                }}
+            >
+                <div style={panel}>
+                    <div style={panelHeaderRow}>
+                        <h2 style={panelTitle}>Top Developers</h2>
+                        <span style={{ opacity: 0.7, fontSize: 12 }}>count by developer</span>
+                    </div>
+                    {topDevelopers.length ? (
+                        <SimpleList
+                            rows={topDevelopers.map((c) => ({
+                                left: c.name,
+                                right: `${c.count}`,
+                                key: String(c.company_id),
+                            }))}
+                        />
+                    ) : (
+                        <p style={{ opacity: 0.7 }}>No developer data.</p>
+                    )}
+                </div>
+
+                <div style={panel}>
+                    <div style={panelHeaderRow}>
+                        <h2 style={panelTitle}>Years with Most Games</h2>
+                        <span style={{ opacity: 0.7, fontSize: 12 }}>count by year</span>
+                    </div>
+                    {topYears.length ? (
+                        <SimpleList
+                            rows={topYears.map((y) => ({
+                                left: String(y.year),
+                                right: `${y.count}`,
+                                key: String(y.year),
+                            }))}
+                        />
+                    ) : (
+                        <p style={{ opacity: 0.7 }}>No year data.</p>
+                    )}
+                </div>
+            </section>
+
+            {/* Highest / Lowest rated (all returned) */}
+            <section
+                style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 12,
+                    marginTop: 12,
+                    marginBottom: 12,
+                }}
+            >
+                <div style={panel}>
+                    <div style={panelHeaderRow}>
+                        <h2 style={panelTitle}>Highest Rated</h2>
+                        <span style={{ opacity: 0.7, fontSize: 12 }}>rating (IGDB)</span>
+                    </div>
+                    {highestRated.length ? (
+                        <ul style={listReset}>
+                            {highestRated.map((g) => (
+                                <li key={g.game_id} style={rowItem}>
+                                    <Link
+                                        href={`/games/${g.game_id}`}
+                                        style={{ color: "#eaeaea", textDecoration: "none" }}
+                                        title={`IGDB: ${g.igdb_id}`}
+                                    >
+                                        {g.name}
+                                    </Link>
+                                    <span style={{ opacity: 0.85 }}>{g.rating ?? "—"}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p style={{ opacity: 0.7 }}>No rating data.</p>
+                    )}
+                </div>
+
+                <div style={panel}>
+                    <div style={panelHeaderRow}>
+                        <h2 style={panelTitle}>Lowest Rated</h2>
+                        <span style={{ opacity: 0.7, fontSize: 12 }}>rating (IGDB)</span>
+                    </div>
+                    {lowestRated.length ? (
+                        <ul style={listReset}>
+                            {lowestRated.map((g) => (
+                                <li key={g.game_id} style={rowItem}>
+                                    <Link
+                                        href={`/games/${g.game_id}`}
+                                        style={{ color: "#eaeaea", textDecoration: "none" }}
+                                        title={`IGDB: ${g.igdb_id}`}
+                                    >
+                                        {g.name}
+                                    </Link>
+                                    <span style={{ opacity: 0.85 }}>{g.rating ?? "—"}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p style={{ opacity: 0.7 }}>No rating data.</p>
+                    )}
+                </div>
+            </section>
         </main>
     );
 }
 
-/* ------------ small components ------------ */
+/** ---------- Small building blocks ---------- */
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({ label, value }: { label: string; value: number | string }) {
     return (
-        <div
-            style={{
-                background: "#111",
-                border: "1px solid #262626",
-                borderRadius: 12,
-                padding: 16,
-            }}
-        >
+        <div style={panel}>
             <div style={{ opacity: 0.8, marginBottom: 6 }}>{label}</div>
             <div style={{ fontSize: 28, fontWeight: 700 }}>{value}</div>
         </div>
     );
 }
+
+function Badge({ label, muted }: { label: string; muted?: boolean }) {
+    return (
+        <span
+            style={{
+                background: muted ? "#1a1a1a" : "#1e293b",
+                border: `1px solid ${muted ? "#2b2b2b" : "#3b82f6"}`,
+                color: muted ? "#cfcfcf" : "#dbeafe",
+                padding: "6px 10px",
+                borderRadius: 999,
+                fontSize: 12,
+                whiteSpace: "nowrap",
+            }}
+        >
+      {label}
+    </span>
+    );
+}
+
+function SimpleList({ rows }: { rows: Array<{ left: string; right: string; key: string }> }) {
+    return (
+        <ul style={listReset}>
+            {rows.map((r) => (
+                <li key={r.key} style={rowItem}>
+                    <span>{r.left}</span>
+                    <span style={{ opacity: 0.85 }}>{r.right}</span>
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+/** ---------- Styles ---------- */
+const panel: React.CSSProperties = {
+    background: "#111",
+    border: "1px solid #262626",
+    borderRadius: 12,
+    padding: 16,
+};
+
+const panelHeaderRow: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+};
+
+const panelTitle: React.CSSProperties = { fontSize: 18, margin: 0 };
+
+const listReset: React.CSSProperties = { listStyle: "none", padding: 0, margin: 0, marginTop: 12 };
+
+const rowItem: React.CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: 8,
+    padding: "10px 8px",
+    borderTop: "1px solid #1f1f1f",
+};
+
+const errBox: React.CSSProperties = {
+    background: "#3b0f12",
+    border: "1px solid #5b1a1f",
+    color: "#ffd7d7",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+};
