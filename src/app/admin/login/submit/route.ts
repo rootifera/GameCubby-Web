@@ -2,7 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { API_BASE_URL } from "@/lib/env";
 
-const COOKIE_NAME = "__gcub_a";
+const NEW_COOKIE = "__gcub_a";
+const LEGACY_COOKIE = "gc_at";
 const ONE_WEEK = 60 * 60 * 24 * 7;
 
 export async function POST(req: NextRequest) {
@@ -55,24 +56,32 @@ export async function POST(req: NextRequest) {
         }
 
         const isProd = process.env.NODE_ENV === "production";
-        const cookie = [
-            `${COOKIE_NAME}=${encodeURIComponent(token)}`,
-            "Path=/",
-            "HttpOnly",
-            "SameSite=Lax",
-            `Max-Age=${ONE_WEEK}`,
-            isProd ? "Secure" : null,
-        ]
-            .filter(Boolean)
-            .join("; ");
-
-        return new NextResponse(null, {
+        const res = new NextResponse(null, {
             status: 303,
-            headers: {
-                "Set-Cookie": cookie,
-                Location: next || "/admin",
-            },
+            headers: { Location: next || "/admin" },
         });
+
+        // Set BOTH cookies for compatibility
+        res.cookies.set({
+            name: NEW_COOKIE,
+            value: token,
+            httpOnly: true,
+            sameSite: "lax",
+            secure: isProd,
+            path: "/",
+            maxAge: ONE_WEEK,
+        });
+        res.cookies.set({
+            name: LEGACY_COOKIE,
+            value: token,
+            httpOnly: true,
+            sameSite: "lax",
+            secure: isProd,
+            path: "/",
+            maxAge: ONE_WEEK,
+        });
+
+        return res;
     } catch (err) {
         const msg = err instanceof Error ? err.message : "Login failed";
         return new NextResponse(null, {

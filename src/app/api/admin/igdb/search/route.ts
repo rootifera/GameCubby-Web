@@ -1,5 +1,5 @@
+// src/app/api/admin/igdb/search/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
@@ -7,7 +7,6 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get("q") || "").trim();
-    const gcAt = cookies().get("gc_at")?.value;
 
     if (!q) {
         return NextResponse.json([], { status: 200, headers: { "Cache-Control": "no-store" } });
@@ -22,7 +21,8 @@ export async function GET(req: NextRequest) {
             {
                 cache: "no-store",
                 signal: controller.signal,
-                headers: gcAt ? { Authorization: `Bearer ${gcAt}` } : undefined,
+                // OpenAPI: this endpoint is public — do NOT send Authorization
+                headers: {},
             }
         );
 

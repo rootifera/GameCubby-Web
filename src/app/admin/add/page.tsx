@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import LocationTreePicker from "@/components/LocationTreePicker";
 import TagChipsAutocomplete from "@/components/TagChipsAutocomplete";
+import MultiSelectDropdown, { type Option } from "@/components/MultiSelectDropdown";
 
 /* ---------- Types from IGDB endpoints ---------- */
 type IgdbSearchItem = {
@@ -54,6 +55,57 @@ function parseIdsCSV(csv: string | null | undefined): number[] {
         .filter(Boolean)
         .map((s) => Number(s))
         .filter((n) => Number.isFinite(n) && n > 0);
+}
+
+/** Prefer JSON mix (numbers + strings) from `${name}_mix`, fall back to legacy CSV `${name}` */
+function parseTagIdsFromForm(fd: FormData, name: string): Array<number | string> {
+    const raw = fd.get(`${name}_mix`);
+    const val = typeof raw === "string" ? raw : null;
+
+    if (val) {
+        try {
+            const arr = JSON.parse(val) as unknown;
+            if (Array.isArray(arr)) {
+                const out: Array<number | string> = [];
+                const seen = new Set<string>();
+                for (const item of arr) {
+                    let key: string | null = null;
+                    if (typeof item === "number" && Number.isFinite(item) && item > 0) {
+                        const n = Math.trunc(item);
+                        key = `n:${n}`;
+                        if (!seen.has(key)) {
+                            seen.add(key);
+                            out.push(n);
+                        }
+                    } else if (typeof item === "string") {
+                        const t = item.trim();
+                        if (!t) continue;
+                        if (/^\d+$/.test(t)) {
+                            const n = Number(t);
+                            key = `n:${n}`;
+                            if (!seen.has(key)) {
+                                seen.add(key);
+                                out.push(n);
+                            }
+                        } else {
+                            key = `s:${t.toLowerCase()}`;
+                            if (!seen.has(key)) {
+                                seen.add(key);
+                                out.push(t);
+                            }
+                        }
+                    }
+                }
+                return out;
+            }
+        } catch {
+            /* fall back */
+        }
+    }
+
+    // Fallback: old CSV of numeric IDs
+    const csv = String(fd.get(name) || "");
+    return parseIdsCSV(csv);
 }
 
 /* ================================================================== */
@@ -183,8 +235,8 @@ export default function AdminAddGamePage() {
 
         const fd = new FormData(formRef.current!);
         const location_id = Number(fd.get("location_id") || 0) || 0;
-        const tagCSV = String(fd.get("tag_ids") || "");
-        const tag_ids = parseIdsCSV(tagCSV);
+
+        const tag_ids = parseTagIdsFromForm(fd, "tag_ids"); // mixed array (ids + new strings)
 
         const payload = {
             igdb_id: Number(details.id),
@@ -250,7 +302,7 @@ export default function AdminAddGamePage() {
             player_perspective_ids: parseIdsCSV(String(fd.get("player_perspective_ids") || "")),
             rating: Number(fd.get("rating") || 0) || 0,
             collection_id: Number(fd.get("collection_id") || 0) || 0,
-            tag_ids: parseIdsCSV(String(fd.get("tag_ids") || "")),
+            tag_ids: parseTagIdsFromForm(fd, "tag_ids"), // mixed array (ids + new strings)
             company_ids: parseIdsCSV(String(fd.get("company_ids") || "")),
         };
 
@@ -276,6 +328,65 @@ export default function AdminAddGamePage() {
             setCustomSaving(false);
         }
     }
+
+    /* ================== Load dropdown options (client) ================== */
+
+    const [platformOptions, setPlatformOptions] = useState<Option[]>([]);
+    const [modeOptions, setModeOptions] = useState<Option[]>([]);
+    const [genreOptions, setGenreOptions] = useState<Option[]>([]);
+    const [perspectiveOptions, setPerspectiveOptions] = useState<Option[]>([]);
+    const [collectionOptions, setCollectionOptions] = useState<Option[]>([]);
+    const [companyOptions, setCompanyOptions] = useState<Option[]>([]);
+    const [optsLoading, setOptsLoading] = useState(true);
+    const [optsError, setOptsError] = useState<string | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        async function loadKind(kind: string): Promise<Option[]> {
+            const res = await fetch(`/api/admin/lookups/${encodeURIComponent(kind)}`, { cache: "no-store" });
+            if (!res.ok) throw new Error(`${kind}: ${res.status}`);
+            const arr = (await res.json()) as Array<Record<string, any>>;
+            const out: Option[] = [];
+            for (const it of arr) {
+                const id = Number((it as any).id);
+                const name = String((it as any).name || "");
+                if (Number.isFinite(id) && name) out.push({ id, name });
+            }
+            return out.sort((a, b) => a.name.localeCompare(b.name));
+        }
+
+        (async () => {
+            setOptsLoading(true);
+            setOptsError(null);
+            try {
+                const [plats, modes, genres, persps, colls, comps] = await Promise.all([
+                    loadKind("platforms"),
+                    loadKind("modes"),
+                    loadKind("genres"),
+                    loadKind("perspectives"),
+                    loadKind("collections"),
+                    loadKind("companies"),
+                ]);
+                if (!cancelled) {
+                    setPlatformOptions(plats);
+                    setModeOptions(modes);
+                    setGenreOptions(genres);
+                    setPerspectiveOptions(persps);
+                    setCollectionOptions(colls);
+                    setCompanyOptions(comps);
+                }
+            } catch (e) {
+                if (!cancelled) setOptsError(e instanceof Error ? e.message : "Failed to load options");
+            } finally {
+                if (!cancelled) setOptsLoading(false);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     /* ================================================================== */
 
@@ -369,9 +480,7 @@ export default function AdminAddGamePage() {
                     </form>
 
                     {/* Status / errors */}
-                    {headerNote ? (
-                        <div style={{ opacity: 0.8, marginBottom: 8, fontSize: 13 }}>{headerNote}</div>
-                    ) : null}
+                    {headerNote ? <div style={{ opacity: 0.8, marginBottom: 8, fontSize: 13 }}>{headerNote}</div> : null}
                     {error ? (
                         <div
                             style={{
@@ -424,12 +533,7 @@ export default function AdminAddGamePage() {
                                         }}
                                     >
                                         {g.cover_url ? (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img
-                                                src={g.cover_url}
-                                                alt={g.name}
-                                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                                            />
+                                            <img src={g.cover_url} alt={g.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                                         ) : (
                                             <span style={{ opacity: 0.6, fontSize: 12 }}>No cover</span>
                                         )}
@@ -585,12 +689,7 @@ export default function AdminAddGamePage() {
                                                 }}
                                             >
                                                 {details.cover_url ? (
-                                                    // eslint-disable-next-line @next/next/no-img-element
-                                                    <img
-                                                        src={details.cover_url}
-                                                        alt={details.name}
-                                                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                                                    />
+                                                    <img src={details.cover_url} alt={details.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                                                 ) : (
                                                     <span style={{ opacity: 0.6, fontSize: 12 }}>No cover</span>
                                                 )}
@@ -599,14 +698,10 @@ export default function AdminAddGamePage() {
                                             {/* Read-only facts */}
                                             <div style={{ display: "grid", gap: 10 }}>
                                                 {details.summary ? (
-                                                    <p style={{ margin: 0, lineHeight: 1.5, whiteSpace: "pre-wrap", opacity: 0.95 }}>
-                                                        {details.summary}
-                                                    </p>
+                                                    <p style={{ margin: 0, lineHeight: 1.5, whiteSpace: "pre-wrap", opacity: 0.95 }}>{details.summary}</p>
                                                 ) : null}
 
-                                                <Row label="Platforms">
-                                                    {(details.platforms ?? []).map((p) => p.name).join(", ") || "—"}
-                                                </Row>
+                                                <Row label="Platforms">{(details.platforms ?? []).map((p) => p.name).join(", ") || "—"}</Row>
                                                 <Row label="Genres">{(details.genres ?? []).map((g) => g.name).join(", ") || "—"}</Row>
                                                 <Row label="Modes">{(details.game_modes ?? []).map((m) => m.name).join(", ") || "—"}</Row>
                                                 <Row label="Rating">{details.rating ?? "—"}</Row>
@@ -628,7 +723,7 @@ export default function AdminAddGamePage() {
                                             </div>
                                         </div>
 
-                                        {/* Divider */}
+                                    {/* Divider */}
                                         <div style={{ height: 1, background: "#1f1f1f", margin: "14px 0" }} />
 
                                         {/* Add form */}
@@ -797,8 +892,8 @@ export default function AdminAddGamePage() {
 
                     {/* IGDB tip (bottom, faded) */}
                     <div style={{ marginTop: 18, opacity: 0.6, fontSize: 12, maxWidth: 700 }}>
-                        Tip: You can use alternative titles in the search. For example, if “Age of Empires” returns too many results,
-                        try “aoe” or “aoe1”. Or instead of “Need for Speed II”, try “nfs2”.
+                        Tip: You can use alternative titles in the search. For example, if “Age of Empires” returns too many results, try “aoe” or
+                        “aoe1”. Or instead of “Need for Speed II”, try “nfs2”.
                     </div>
                 </>
             ) : (
@@ -813,6 +908,23 @@ export default function AdminAddGamePage() {
                     }}
                 >
                     <div style={{ fontWeight: 700, marginBottom: 8 }}>Add Custom Game</div>
+
+                    {/* Options loader state */}
+                    {optsLoading ? <div style={{ opacity: 0.8, marginBottom: 8 }}>Loading options…</div> : null}
+                    {optsError ? (
+                        <div
+                            style={{
+                                background: "#3b0f12",
+                                border: "1px solid #5b1a1f",
+                                color: "#ffd7d7",
+                                padding: 10,
+                                borderRadius: 8,
+                                marginBottom: 8,
+                            }}
+                        >
+                            {optsError}
+                        </div>
+                    ) : null}
 
                     <form ref={customFormRef} onSubmit={onCustomSubmit} style={{ display: "grid", gap: 10 }}>
                         <label style={{ display: "grid", gap: 6 }}>
@@ -946,7 +1058,7 @@ export default function AdminAddGamePage() {
                         {/* Location */}
                         <LocationTreePicker label="Location" name="location_id" />
 
-                        {/* IDs (CSV) */}
+                        {/* ---- Dropdowns instead of CSV ---- */}
                         <div
                             style={{
                                 display: "grid",
@@ -955,105 +1067,63 @@ export default function AdminAddGamePage() {
                                 alignItems: "start",
                             }}
                         >
-                            <label style={{ display: "grid", gap: 6 }}>
-                                <span style={{ opacity: 0.85 }}>Platform IDs (CSV)</span>
-                                <input
-                                    name="platform_ids"
-                                    placeholder="e.g., 6,14"
-                                    style={{
-                                        background: "#1a1a1a",
-                                        color: "#eaeaea",
-                                        border: "1px solid #2b2b2b",
-                                        borderRadius: 8,
-                                        padding: "10px 12px",
-                                        outline: "none",
-                                    }}
-                                />
-                            </label>
+                            <MultiSelectDropdown
+                                label="Platforms"
+                                name="platform_ids"
+                                options={platformOptions}
+                                defaultSelectedIds={[]}
+                                multiple
+                                placeholder="Select platforms…"
+                            />
 
-                            <label style={{ display: "grid", gap: 6 }}>
-                                <span style={{ opacity: 0.85 }}>Mode IDs (CSV)</span>
-                                <input
-                                    name="mode_ids"
-                                    placeholder="e.g., 1,2"
-                                    style={{
-                                        background: "#1a1a1a",
-                                        color: "#eaeaea",
-                                        border: "1px solid #2b2b2b",
-                                        borderRadius: 8,
-                                        padding: "10px 12px",
-                                        outline: "none",
-                                    }}
-                                />
-                            </label>
+                            <MultiSelectDropdown
+                                label="Modes"
+                                name="mode_ids"
+                                options={modeOptions}
+                                defaultSelectedIds={[]}
+                                multiple
+                                placeholder="Select modes…"
+                            />
 
-                            <label style={{ display: "grid", gap: 6 }}>
-                                <span style={{ opacity: 0.85 }}>Genre IDs (CSV)</span>
-                                <input
-                                    name="genre_ids"
-                                    placeholder="e.g., 11,15"
-                                    style={{
-                                        background: "#1a1a1a",
-                                        color: "#eaeaea",
-                                        border: "1px solid #2b2b2b",
-                                        borderRadius: 8,
-                                        padding: "10px 12px",
-                                        outline: "none",
-                                    }}
-                                />
-                            </label>
+                            <MultiSelectDropdown
+                                label="Genres"
+                                name="genre_ids"
+                                options={genreOptions}
+                                defaultSelectedIds={[]}
+                                multiple
+                                placeholder="Select genres…"
+                            />
 
-                            <label style={{ display: "grid", gap: 6 }}>
-                                <span style={{ opacity: 0.85 }}>Player Perspective IDs (CSV)</span>
-                                <input
-                                    name="player_perspective_ids"
-                                    placeholder="IDs like 1,3"
-                                    style={{
-                                        background: "#1a1a1a",
-                                        color: "#eaeaea",
-                                        border: "1px solid #2b2b2b",
-                                        borderRadius: 8,
-                                        padding: "10px 12px",
-                                        outline: "none",
-                                    }}
-                                />
-                            </label>
+                            <MultiSelectDropdown
+                                label="Player Perspectives"
+                                name="player_perspective_ids"
+                                options={perspectiveOptions}
+                                defaultSelectedIds={[]}
+                                multiple
+                                placeholder="Select perspectives…"
+                            />
 
-                            <label style={{ display: "grid", gap: 6 }}>
-                                <span style={{ opacity: 0.85 }}>Collection ID</span>
-                                <input
-                                    name="collection_id"
-                                    type="number"
-                                    placeholder="0 (none)"
-                                    style={{
-                                        background: "#1a1a1a",
-                                        color: "#eaeaea",
-                                        border: "1px solid #2b2b2b",
-                                        borderRadius: 8,
-                                        padding: "10px 12px",
-                                        outline: "none",
-                                    }}
-                                />
-                            </label>
+                            <MultiSelectDropdown
+                                label="Collection"
+                                name="collection_id"
+                                options={collectionOptions}
+                                defaultSelectedIds={[]}
+                                multiple={false}
+                                placeholder="Select a collection…"
+                                compact
+                            />
 
-                            <label style={{ display: "grid", gap: 6 }}>
-                                <span style={{ opacity: 0.85 }}>Company IDs (CSV)</span>
-                                <input
-                                    name="company_ids"
-                                    placeholder="e.g., 68,128"
-                                    style={{
-                                        background: "#1a1a1a",
-                                        color: "#eaeaea",
-                                        border: "1px solid #2b2b2b",
-                                        borderRadius: 8,
-                                        padding: "10px 12px",
-                                        outline: "none",
-                                    }}
-                                />
-                            </label>
+                            <MultiSelectDropdown
+                                label="Companies"
+                                name="company_ids"
+                                options={companyOptions}
+                                defaultSelectedIds={[]}
+                                multiple
+                                placeholder="Select companies…"
+                            />
                         </div>
 
-                        {/* Tags */}
+                        {/* Tags (now submit mixed JSON via tag_ids_mix) */}
                         <TagChipsAutocomplete label="Tags" name="tag_ids" suggestKind="tags" />
 
                         {/* Custom errors/status */}

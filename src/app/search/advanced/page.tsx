@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { API_BASE_URL } from "@/lib/env";
-import MultiSelectDropdown, { type Option } from "@/components/MultiSelectDropdown";
+import {API_BASE_URL} from "@/lib/env";
+import MultiSelectDropdown, {type Option} from "@/components/MultiSelectDropdown";
 import TagChipsAutocomplete from "@/components/TagChipsAutocomplete";
 import LocationPicker from "@/components/LocationPicker";
 import CoverThumb from "@/components/CoverThumb";
@@ -26,7 +26,86 @@ function toYearLabel(n?: number | null): string {
     return String(n);
 }
 
-/** Build upstream query string from our searchParams */
+/** Helpers to read params */
+function get(sp: Record<string, string | string[] | undefined>, k: string, def = "") {
+    return typeof sp[k] === "string" ? (sp[k] as string) : def;
+}
+
+function getCSV(sp: Record<string, string | string[] | undefined>, k: string) {
+    const v = sp[k];
+    if (typeof v === "string") return v;
+    if (Array.isArray(v)) return v.join(",");
+    return "";
+}
+
+function parseIdsCSV(csv: string): Array<number | string> {
+    return csv
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => (Number.isNaN(Number(s)) ? s : Number(s)));
+}
+
+/** take first id out of possible CSV for single-value fields */
+function firstId(sp: Record<string, string | string[] | undefined>, key: string) {
+    const raw = get(sp, key, "");
+    const first = raw.split(",").map((s) => s.trim()).filter(Boolean)[0];
+    return first ?? "";
+}
+
+/** Determine if the query has any *meaningful* filters (not just defaults) */
+function hasMeaningfulFilters(sp: Record<string, string | string[] | undefined>) {
+    const nonEmpty = (k: string) => {
+        const v = sp[k];
+        if (typeof v === "string") return v.trim().length > 0;
+        if (Array.isArray(v)) return v.join("").trim().length > 0;
+        return false;
+    };
+
+    // ignore helpers/defaults
+    const ignoreKeys = new Set([
+        "limit",
+        "offset",
+        "match_mode",        // default "any"
+        "igdb_match_mode",   // default "any"
+        "show_filters",
+        "__reset",
+        "__ts",
+    ]);
+
+    // If ANY of the meaningful ones present, we count it:
+    const meaningfulKeys = [
+        "name",
+        "year",
+        "year_min",
+        "year_max",
+        "platform_ids",
+        "tag_ids",
+        "genre_ids",
+        "mode_ids",
+        "perspective_ids",
+        "igdb_tag_ids",
+        "collection_id",
+        "company_id",
+        "location_id",
+        "include_manual",
+    ];
+
+    for (const k of meaningfulKeys) {
+        if (nonEmpty(k)) return true;
+    }
+
+    // If the only params are ignorable ones, return false
+    for (const [k, v] of Object.entries(sp)) {
+        if (ignoreKeys.has(k)) continue;
+        if (Array.isArray(v) ? v.join("").trim() : (v as string | undefined)?.trim()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/** Build upstream query string from our searchParams (normalized) */
 function buildQuery(sp: Record<string, string | string[] | undefined>) {
     const qs = new URLSearchParams();
 
@@ -36,13 +115,11 @@ function buildQuery(sp: Record<string, string | string[] | undefined>) {
         "year",
         "year_min",
         "year_max",
-        "collection_id",
-        "company_id",
         "location_id",
         "include_manual",
         "limit",
         "offset",
-        // NEW: tag match modes
+        // tag match modes
         "match_mode",
         "igdb_match_mode",
     ] as const;
@@ -52,7 +129,13 @@ function buildQuery(sp: Record<string, string | string[] | undefined>) {
         if (typeof v === "string" && v.trim() !== "") qs.set(key, v.trim());
     }
 
-    // Comma-separated -> repeated params
+    // Normalize single-value IDs (in case UI submits CSV for single-select)
+    const collection = firstId(sp, "collection_id");
+    if (collection) qs.set("collection_id", collection);
+    const company = firstId(sp, "company_id");
+    if (company) qs.set("company_id", company);
+
+    // Repeated params
     const multi = [
         "platform_ids",
         "tag_ids",
@@ -86,7 +169,7 @@ async function runAdvancedSearch(
 ): Promise<GameLike[]> {
     const query = buildQuery(sp);
     const url = `${API_BASE_URL}/search/advanced${query ? `?${query}` : ""}`;
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url, {cache: "no-store"});
     if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
     const data = await res.json();
     const list: unknown = (Array.isArray(data) ? data : (data as any)?.results ?? []) as unknown;
@@ -94,15 +177,12 @@ async function runAdvancedSearch(
 }
 
 /** -------- Basic fallback (temporary) -------- */
-function getCSV(sp: Record<string, string | string[] | undefined>, k: string) {
-    const v = sp[k];
-    if (typeof v === "string") return v;
-    if (Array.isArray(v)) return v.join(",");
-    return "";
-}
 function isBasicCompatible(sp: Record<string, string | string[] | undefined>) {
     const usedKeys = Object.entries(sp)
-        .filter(([_, v]) => (Array.isArray(v) ? v.join("") : v)?.toString().trim())
+        .filter(([k, v]) => {
+            if (["limit", "offset", "match_mode", "igdb_match_mode", "show_filters", "__reset", "__ts"].includes(k)) return false;
+            return (Array.isArray(v) ? v.join("") : v)?.toString().trim();
+        })
         .map(([k]) => k);
 
     const allowed = new Set([
@@ -114,8 +194,9 @@ function isBasicCompatible(sp: Record<string, string | string[] | undefined>) {
         "offset",
     ]);
 
-    return usedKeys.every((k) => allowed.has(k));
+    return usedKeys.length > 0 && usedKeys.every((k) => allowed.has(k));
 }
+
 async function runBasicFallback(
     sp: Record<string, string | string[] | undefined>
 ): Promise<GameLike[]> {
@@ -145,74 +226,68 @@ async function runBasicFallback(
     }
 
     const url = `${API_BASE_URL}/search/basic${qs.toString() ? `?${qs.toString()}` : ""}`;
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url, {cache: "no-store"});
     if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
     const data = await res.json();
     const list: unknown = (Array.isArray(data) ? data : (data as any)?.results ?? []) as unknown;
     return Array.isArray(list) ? (list as GameLike[]) : [];
 }
+
 /** ------------------------------------------- */
 
 /** Fetch options */
 async function fetchPlatforms(): Promise<Option[]> {
-    const res = await fetch(`${API_BASE_URL}/platforms/`, { cache: "no-store" });
+    const res = await fetch(`${API_BASE_URL}/platforms/`, {cache: "no-store"});
     if (!res.ok) throw new Error(`GET /platforms/ -> ${res.status}`);
     const arr = (await res.json()) as Named[];
-    return arr.map((p) => ({ id: p.id, name: p.name })).sort((a, b) => a.name.localeCompare(b.name));
+    return arr.map((p) => ({id: p.id, name: p.name})).sort((a, b) => a.name.localeCompare(b.name));
 }
+
 async function fetchGenres(): Promise<Option[]> {
-    const res = await fetch(`${API_BASE_URL}/genres/`, { cache: "no-store" });
+    const res = await fetch(`${API_BASE_URL}/genres/`, {cache: "no-store"});
     if (!res.ok) throw new Error(`GET /genres/ -> ${res.status}`);
     const arr = (await res.json()) as Array<Named | Record<string, any>>;
     return arr
-        .map((g: any) => ({ id: Number(g.id), name: String(g.name || "") }))
+        .map((g: any) => ({id: Number(g.id), name: String(g.name || "")}))
         .filter((g) => Number.isFinite(g.id) && g.name)
         .sort((a, b) => a.name.localeCompare(b.name));
 }
+
 async function fetchPerspectives(): Promise<Option[]> {
-    const res = await fetch(`${API_BASE_URL}/perspectives/`, { cache: "no-store" });
+    const res = await fetch(`${API_BASE_URL}/perspectives/`, {cache: "no-store"});
     if (!res.ok) throw new Error(`GET /perspectives/ -> ${res.status}`);
     const arr = (await res.json()) as Array<Record<string, any>>;
     return arr
-        .map((p) => ({ id: Number(p.id), name: String(p.name || "") }))
+        .map((p) => ({id: Number(p.id), name: String(p.name || "")}))
         .filter((p) => Number.isFinite(p.id) && p.name)
         .sort((a, b) => a.name.localeCompare(b.name));
 }
+
 async function fetchModes(): Promise<Option[]> {
-    const res = await fetch(`${API_BASE_URL}/modes/`, { cache: "no-store" });
+    const res = await fetch(`${API_BASE_URL}/modes/`, {cache: "no-store"});
     if (!res.ok) throw new Error(`GET /modes/ -> ${res.status}`);
     const arr = (await res.json()) as Array<Named>;
-    return arr.map((m) => ({ id: m.id, name: m.name })).sort((a, b) => a.name.localeCompare(b.name));
+    return arr.map((m) => ({id: m.id, name: m.name})).sort((a, b) => a.name.localeCompare(b.name));
 }
+
 async function fetchCollections(): Promise<Option[]> {
-    const res = await fetch(`${API_BASE_URL}/collections/`, { cache: "no-store" });
+    const res = await fetch(`${API_BASE_URL}/collections/`, {cache: "no-store"});
     if (!res.ok) throw new Error(`GET /collections/ -> ${res.status}`);
     const arr = (await res.json()) as Array<Named>;
-    return arr.map((c) => ({ id: c.id, name: c.name })).sort((a, b) => a.name.localeCompare(b.name));
+    return arr.map((c) => ({id: c.id, name: c.name})).sort((a, b) => a.name.localeCompare(b.name));
 }
+
 async function fetchCompanies(): Promise<Option[]> {
-    const res = await fetch(`${API_BASE_URL}/company/`, { cache: "no-store" });
+    const res = await fetch(`${API_BASE_URL}/company/`, {cache: "no-store"});
     if (!res.ok) throw new Error(`GET /company/ -> ${res.status}`);
     const arr = (await res.json()) as Array<Record<string, any>>;
     const mapped = arr
-        .map((c) => ({ id: Number(c.id), name: String(c.name || "") }))
+        .map((c) => ({id: Number(c.id), name: String(c.name || "")}))
         .filter((c) => Number.isFinite(c.id) && c.name);
     return mapped.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Helpers */
-function get(sp: Record<string, string | string[] | undefined>, k: string, def = "") {
-    return typeof sp[k] === "string" ? (sp[k] as string) : def;
-}
-function parseIdsCSV(csv: string): Array<number | string> {
-    return csv
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .map((s) => (Number.isNaN(Number(s)) ? s : Number(s)));
-}
-
-/** Build a UrlObject to this page with patched search params (for pagination) */
+/** Build a UrlObject to this page with patched search params (for pagination/buttons) */
 function hrefWith(
     sp: Record<string, string | string[] | undefined>,
     patch: Record<string, string>
@@ -225,7 +300,7 @@ function hrefWith(
     }
     // Apply patch (offset/limit etc.)
     for (const [k, v] of Object.entries(patch)) query[k] = v;
-    return { pathname: "/search/advanced", query };
+    return {pathname: "/search/advanced", query};
 }
 
 export default async function AdvancedSearchPage({
@@ -234,9 +309,9 @@ export default async function AdvancedSearchPage({
     searchParams?: Record<string, string | string[] | undefined>;
 }) {
     const sp = searchParams ?? {};
-    let results: GameLike[] = [];
-    let error: string | null = null;
-    let usedFallback = false;
+
+    // server-side understanding of whether filters are used
+    const meaningful = hasMeaningfulFilters(sp);
 
     // Parse limit/offset for pagination (server-side)
     const parsedLimit = Math.max(1, Number(get(sp, "limit", "50")) || 50);
@@ -259,11 +334,12 @@ export default async function AdvancedSearchPage({
         fetchCompanies(),
     ]);
 
-    const hasAnyParam = Object.values(sp).some((v) =>
-        (Array.isArray(v) ? v.join("") : v)?.toString().trim()
-    );
+    // Run search only if meaningful filters are present
+    let results: GameLike[] = [];
+    let error: string | null = null;
+    let usedFallback = false;
 
-    if (hasAnyParam) {
+    if (meaningful) {
         try {
             results = await runAdvancedSearch(sp);
         } catch (e: unknown) {
@@ -288,62 +364,89 @@ export default async function AdvancedSearchPage({
     const modeDefaultIds = parseIdsCSV(getCSV(sp, "mode_ids"));
     const tagDefaultIds = parseIdsCSV(getCSV(sp, "tag_ids"));
     const igdbTagDefaultIds = parseIdsCSV(getCSV(sp, "igdb_tag_ids"));
-    const collectionDefaultId = get(sp, "collection_id");
-    const companyDefaultId = get(sp, "company_id"); // API supports single company_id
+    const collectionDefaultId = firstId(sp, "collection_id");
+    const companyDefaultId = firstId(sp, "company_id");
     const locationDefaultId = get(sp, "location_id"); // preselect in picker if present
 
-    // NEW: match modes (default 'any')
+    // Match modes (default 'any' in UI—ignored if default)
     const tagMatch = get(sp, "match_mode") || "any";
     const igdbTagMatch = get(sp, "igdb_match_mode") || "any";
+
+    // Filters toggle
+    const forceShowFilters = get(sp, "show_filters") === "1";
+    const openFilters = forceShowFilters || !meaningful;
 
     // Pagination booleans
     const canPrev = parsedOffset > 0;
     const canNext = results.length === parsedLimit; // heuristic (no total from API)
 
     return (
-        <div style={{ padding: 16 }}>
+        <div style={{padding: 16}}>
             {/* Breadcrumb */}
-            <div style={{ marginBottom: 12 }}>
-                <Link href={{ pathname: "/" }} style={{ color: "#a0c4ff", textDecoration: "none" }}>
+            <div style={{marginBottom: 12}}>
+                <Link href={{pathname: "/"}} style={{color: "#a0c4ff", textDecoration: "none"}}>
                     ← Home
                 </Link>
             </div>
 
-            <h1 style={{ fontSize: 24, margin: "0 0 8px 0" }}>Search</h1>
+            <h1 style={{fontSize: 24, margin: "0 0 8px 0"}}>Search</h1>
 
             {/* Basic / Advanced toggle directly under title */}
-            <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-                <Link href={{ pathname: "/search" }} style={toggleInactive}>
+            <div style={{display: "flex", gap: 6, marginBottom: 12}}>
+                <Link href={{pathname: "/search"}} style={toggleInactive}>
                     Basic
                 </Link>
-                <Link href={{ pathname: "/search/advanced" }} style={toggleActive} aria-current="page">
+                <Link href={{pathname: "/search/advanced"}} style={toggleActive} aria-current="page">
                     Advanced
                 </Link>
             </div>
 
-            <details open={!hasAnyParam} style={detailsWrap}>
+            <details id="filters" open={openFilters} style={detailsWrap}>
                 <summary style={summaryBar}>
                     <span>Filters</span>
-                    <span style={{ opacity: 0.8, fontSize: 12 }}>
-            {hasAnyParam ? "Click to show filters" : "Click to hide filters"}
-          </span>
+                    <span style={{opacity: 0.8, fontSize: 12}}>
+                        {openFilters ? "Click to hide filters" : "Click to show filters"}
+                    </span>
                 </summary>
 
-                <form method="GET" action="/search/advanced" style={{ display: "grid", gap: 12, marginBottom: 16 }}>
+                <form method="GET" action="/search/advanced" style={{display: "grid", gap: 12, marginBottom: 16}}>
                     {/* Row 1 — Name | Year (exact) */}
-                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 200px" }}>
-                        <LabeledInput label="Name" name="name" defaultValue={get(sp, "name")} placeholder="partial name…" />
-                        <LabeledInput label="Year (exact)" name="year" type="number" defaultValue={get(sp, "year")} placeholder="1998" short />
+                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "1fr 200px"}}>
+                        <label style={{display: "grid", gap: 6}}>
+                            <span style={{opacity: 0.85}}>Name</span>
+                            {/* Plain input + datalist suggestions powered by /api/suggest/names */}
+                            <input
+                                id="adv-name"
+                                name="name"
+                                defaultValue={get(sp, "name")}
+                                placeholder="partial name…"
+                                autoComplete="off"
+                                list="adv-name-suggest"
+                                style={{
+                                    background: "#1a1a1a",
+                                    color: "#eaeaea",
+                                    border: "1px solid #2b2b2b",
+                                    borderRadius: 8,
+                                    padding: "10px 12px",
+                                    outline: "none",
+                                }}
+                            />
+                            <datalist id="adv-name-suggest"/>
+                        </label>
+                        <LabeledInput label="Year (exact)" name="year" type="number" defaultValue={get(sp, "year")}
+                                      placeholder="1998" short/>
                     </div>
 
                     {/* Row 2 — Year from | Year to */}
-                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "200px 200px" }}>
-                        <LabeledInput label="Year from" name="year_min" type="number" defaultValue={get(sp, "year_min")} placeholder="1990" short />
-                        <LabeledInput label="Year to" name="year_max" type="number" defaultValue={get(sp, "year_max")} placeholder="2005" short />
+                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "200px 200px"}}>
+                        <LabeledInput label="Year from" name="year_min" type="number" defaultValue={get(sp, "year_min")}
+                                      placeholder="1990" short/>
+                        <LabeledInput label="Year to" name="year_max" type="number" defaultValue={get(sp, "year_max")}
+                                      placeholder="2005" short/>
                     </div>
 
                     {/* Row 3 — Platform | Genre */}
-                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr" }}>
+                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr"}}>
                         <MultiSelectDropdown
                             label="Platform"
                             name="platform_ids"
@@ -363,7 +466,7 @@ export default async function AdvancedSearchPage({
                     </div>
 
                     {/* Row 4 — Player Perspective | Mode */}
-                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr" }}>
+                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr"}}>
                         <MultiSelectDropdown
                             label="Player Perspective"
                             name="perspective_ids"
@@ -382,8 +485,8 @@ export default async function AdvancedSearchPage({
                         />
                     </div>
 
-                    {/* Row 5 — Collection | Company */}
-                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr" }}>
+                    {/* Row 5 — Collection | Company (single-select) */}
+                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr"}}>
                         <MultiSelectDropdown
                             label="Collection"
                             name="collection_id"
@@ -405,24 +508,28 @@ export default async function AdvancedSearchPage({
                     </div>
 
                     {/* Row 6 — Tags | IGDB Tags */}
-                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr" }}>
-                        <TagChipsAutocomplete label="Tags" name="tag_ids" suggestKind="tags" defaultSelectedIds={tagDefaultIds} />
-                        <TagChipsAutocomplete label="IGDB Tags" name="igdb_tag_ids" suggestKind="igdb_tags" defaultSelectedIds={igdbTagDefaultIds} />
+                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr"}}>
+                        <TagChipsAutocomplete label="Tags" name="tag_ids" suggestKind="tags"
+                                              defaultSelectedIds={tagDefaultIds}/>
+                        <TagChipsAutocomplete label="IGDB Tags" name="igdb_tag_ids" suggestKind="igdb_tags"
+                                              defaultSelectedIds={igdbTagDefaultIds}/>
                     </div>
 
                     {/* Row 6.1 — Tag match modes */}
-                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "200px 200px" }}>
-                        <label style={{ display: "grid", gap: 6 }}>
-                            <span style={{ opacity: 0.85 }}>Tag match</span>
+                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "200px 200px"}}>
+                        <label style={{display: "grid", gap: 6}}>
+                            <span style={{opacity: 0.85}}>Tag match</span>
                             <select name="match_mode" defaultValue={tagMatch} style={selectStyle}>
+                                <option value="">Default (Any)</option>
                                 <option value="any">Any</option>
                                 <option value="all">All</option>
                                 <option value="exact">Exact</option>
                             </select>
                         </label>
-                        <label style={{ display: "grid", gap: 6 }}>
-                            <span style={{ opacity: 0.85 }}>IGDB Tag match</span>
+                        <label style={{display: "grid", gap: 6}}>
+                            <span style={{opacity: 0.85}}>IGDB Tag match</span>
                             <select name="igdb_match_mode" defaultValue={igdbTagMatch} style={selectStyle}>
+                                <option value="">Default (Any)</option>
                                 <option value="any">Any</option>
                                 <option value="all">All</option>
                                 <option value="exact">Exact</option>
@@ -440,8 +547,8 @@ export default async function AdvancedSearchPage({
                     </div>
 
                     {/* Row 8 — Include Custom Games */}
-                    <div style={{ display: "grid", gap: 6, maxWidth: 360 }}>
-                        <label style={{ opacity: 0.85 }}>Include Custom Games</label>
+                    <div style={{display: "grid", gap: 6, maxWidth: 360}}>
+                        <label style={{opacity: 0.85}}>Include Custom Games</label>
                         <select name="include_manual" defaultValue={get(sp, "include_manual")} style={selectStyle}>
                             <option value="">Default (Yes)</option>
                             <option value="false">No</option>
@@ -450,13 +557,15 @@ export default async function AdvancedSearchPage({
                     </div>
 
                     {/* Row 9 — Limit | Offset */}
-                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "200px 200px" }}>
-                        <LabeledInput label="Limit" name="limit" type="number" defaultValue={get(sp, "limit", String(parsedLimit))} placeholder="50" short />
-                        <LabeledInput label="Offset" name="offset" type="number" defaultValue={get(sp, "offset", String(parsedOffset))} placeholder="0" short />
+                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "200px 200px"}}>
+                        <LabeledInput label="Limit" name="limit" type="number" defaultValue={get(sp, "limit", "50")}
+                                      placeholder="50" short/>
+                        <LabeledInput label="Offset" name="offset" type="number" defaultValue={get(sp, "offset", "0")}
+                                      placeholder="0" short/>
                     </div>
 
                     {/* Buttons */}
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{display: "flex", gap: 8}}>
                         <button
                             type="submit"
                             style={{
@@ -471,9 +580,10 @@ export default async function AdvancedSearchPage({
                         >
                             Search
                         </button>
-                        <Link href={{ pathname: "/search/advanced" }} style={btn}>
+                        {/* Hard reset — navigate to clean URL */}
+                        <a href="/search/advanced" style={btn}>
                             Reset
-                        </Link>
+                        </a>
                     </div>
                 </form>
             </details>
@@ -505,18 +615,23 @@ export default async function AdvancedSearchPage({
                     }}
                 >
                     Failed to search.
-                    <div style={{ marginTop: 6, fontSize: 12, opacity: 0.9 }}>{error}</div>
+                    <div style={{marginTop: 6, fontSize: 12, opacity: 0.9}}>{error}</div>
                 </div>
             ) : null}
 
-            {!hasAnyParam ? (
-                <p style={{ opacity: 0.8 }}>Use the filters above. Collections/Companies are single-select to match the API.</p>
+            {/* Back to filters link when results are shown */}
+            {meaningful && (results.length > 0 || !error) ? (
+                <div style={{marginBottom: 8}}>
+                    <Link href={hrefWith(sp, {show_filters: "1"})} style={{color: "#a0c4ff", textDecoration: "none"}}>
+                        ↑ Back to filters
+                    </Link>
+                </div>
             ) : null}
 
             {/* Results */}
             {results.length ? (
                 <>
-                    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                    <ul style={{listStyle: "none", padding: 0, margin: 0}}>
                         {results.map((g) => (
                             <li
                                 key={g.id}
@@ -530,22 +645,24 @@ export default async function AdvancedSearchPage({
                             >
                                 {/* Cover with hover card (56×56, robust placeholder) */}
                                 <GameHoverCard gameId={g.id}>
-                                    <Link href={`/games/${g.id}`} style={{ display: "inline-block", flexShrink: 0 }}>
-                                        <CoverThumb name={g.name} coverUrl={g.cover_url ?? undefined} width={56} height={56} />
+                                    <Link href={`/games/${g.id}`} style={{display: "inline-block", flexShrink: 0}}>
+                                        <CoverThumb name={g.name} coverUrl={g.cover_url ?? undefined} width={56}
+                                                    height={56}/>
                                     </Link>
                                 </GameHoverCard>
 
                                 {/* Info */}
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%" }}>
+                                <div style={{display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%"}}>
                                     <div>
-                                        <Link href={`/games/${g.id}`} style={{ color: "#fff", textDecoration: "none", fontWeight: 600 }}>
+                                        <Link href={`/games/${g.id}`}
+                                              style={{color: "#fff", textDecoration: "none", fontWeight: 600}}>
                                             {g.name}
                                         </Link>
-                                        <div style={{ fontSize: 12, opacity: 0.8 }}>
+                                        <div style={{fontSize: 12, opacity: 0.8}}>
                                             Platforms: {(g.platforms ?? []).map((p) => p.name).join(", ") || "—"}
                                         </div>
                                     </div>
-                                    <div style={{ textAlign: "right", fontSize: 12, opacity: 0.9 }}>
+                                    <div style={{textAlign: "right", fontSize: 12, opacity: 0.9}}>
                                         <div>Year: {toYearLabel(g.release_date)}</div>
                                         <div>Rating: {g.rating ?? "—"}</div>
                                     </div>
@@ -555,20 +672,26 @@ export default async function AdvancedSearchPage({
                     </ul>
 
                     {/* Pagination */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
-            <span style={{ opacity: 0.8, fontSize: 12 }}>
-              Showing {parsedOffset + 1}–{parsedOffset + results.length}
-            </span>
-                        <div style={{ flex: 1 }} />
+                    <div style={{display: "flex", alignItems: "center", gap: 8, marginTop: 12}}>
+                        <span style={{opacity: 0.8, fontSize: 12}}>
+                            Showing {parsedOffset + 1}–{parsedOffset + results.length}
+                        </span>
+                        <div style={{flex: 1}}/>
                         <Link
-                            href={hrefWith(sp, { offset: String(Math.max(0, parsedOffset - parsedLimit)), limit: String(parsedLimit) })}
+                            href={hrefWith(sp, {
+                                offset: String(Math.max(0, parsedOffset - parsedLimit)),
+                                limit: String(parsedLimit)
+                            })}
                             aria-disabled={!canPrev}
                             style={canPrev ? btn : btnDisabled}
                         >
                             ← Prev
                         </Link>
                         <Link
-                            href={hrefWith(sp, { offset: String(parsedOffset + parsedLimit), limit: String(parsedLimit) })}
+                            href={hrefWith(sp, {
+                                offset: String(parsedOffset + parsedLimit),
+                                limit: String(parsedLimit)
+                            })}
                             aria-disabled={!canNext}
                             style={canNext ? btn : btnDisabled}
                         >
@@ -576,9 +699,66 @@ export default async function AdvancedSearchPage({
                         </Link>
                     </div>
                 </>
-            ) : hasAnyParam && !error ? (
-                <p style={{ opacity: 0.8 }}>No results.</p>
+            ) : meaningful && !error ? (
+                <p style={{opacity: 0.8}}>No results.</p>
             ) : null}
+
+            {/* Inline script: name suggestions via /api/suggest/names into datalist */}
+            <script
+                // eslint-disable-next-line react/no-danger
+                dangerouslySetInnerHTML={{
+                    __html: `
+(function(){
+  const input = document.getElementById('adv-name');
+  const list = document.getElementById('adv-name-suggest');
+  if (!input || !list) return;
+
+  let ac = null;
+  let t = null;
+
+  function clearList(){
+    while(list.firstChild) list.removeChild(list.firstChild);
+  }
+
+  input.addEventListener('input', function(){
+    const q = (input.value || '').trim();
+    if (t) clearTimeout(t);
+
+    if (q.length < 2) {
+      if (ac) ac.abort();
+      clearList();
+      return;
+    }
+
+    t = setTimeout(async function(){
+      try{
+        if (ac) ac.abort();
+        ac = new AbortController();
+
+        const res = await fetch('/api/suggest/names?q=' + encodeURIComponent(q), {
+          cache: 'no-store',
+          signal: ac.signal
+        });
+
+        if (!res.ok) { clearList(); return; }
+
+        const arr = await res.json();
+        clearList();
+        if (Array.isArray(arr)) {
+          for (let i=0; i<Math.min(arr.length, 10); i++) {
+            const opt = document.createElement('option');
+            opt.value = String(arr[i]);
+            list.appendChild(opt);
+          }
+        }
+      } catch(e) {
+        // ignore
+      }
+    }, 150);
+  });
+})();`,
+                }}
+            />
         </div>
     );
 }
@@ -586,10 +766,10 @@ export default async function AdvancedSearchPage({
 function LabeledInput(
     props: React.InputHTMLAttributes<HTMLInputElement> & { label: string; short?: boolean }
 ) {
-    const { label, short, style, ...inputProps } = props;
+    const {label, short, style, ...inputProps} = props;
     return (
-        <label style={{ display: "grid", gap: 6 }}>
-            <span style={{ opacity: 0.85 }}>{label}</span>
+        <label style={{display: "grid", gap: 6}}>
+            <span style={{opacity: 0.85}}>{label}</span>
             <input
                 {...inputProps}
                 style={{
@@ -599,7 +779,7 @@ function LabeledInput(
                     borderRadius: 8,
                     padding: "10px 12px",
                     outline: "none",
-                    ...(short ? { maxWidth: 160 } : null),
+                    ...(short ? {maxWidth: 160} : null),
                     ...style,
                 }}
             />
@@ -645,7 +825,7 @@ const btn: React.CSSProperties = {
     borderRadius: 8,
     fontSize: 13,
 };
-const btnDisabled: React.CSSProperties = { ...btn, opacity: 0.5, pointerEvents: "none" };
+const btnDisabled: React.CSSProperties = {...btn, opacity: 0.5, pointerEvents: "none"};
 
 const toggleBase: React.CSSProperties = {
     textDecoration: "none",

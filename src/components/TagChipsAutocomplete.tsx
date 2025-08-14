@@ -7,38 +7,38 @@ type SuggestKind = "tags" | "igdb_tags";
 
 export default function TagChipsAutocomplete({
                                                  label = "Tags",
-                                                 name = "tag_ids",
+                                                 name = "tag_ids",               // e.g. "tag_ids" or "igdb_tag_ids"
                                                  suggestKind,
                                                  defaultSelectedIds = []
                                              }: {
     label?: string;
-    name?: string; // hidden input name: "tag_ids" or "igdb_tag_ids"
+    name?: string;
     suggestKind: SuggestKind;
     defaultSelectedIds?: Array<number | string>;
 }) {
+    // --- UI state
     const [query, setQuery] = useState("");
     const [open, setOpen] = useState(false);
     const [highlight, setHighlight] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Existing tags (from suggestions / ids) and NEW free-text tags
     const [options, setOptions] = useState<Chip[]>([]);
-    const [selected, setSelected] = useState<Chip[]>([]);
+    const [selectedExisting, setSelectedExisting] = useState<Chip[]>([]);
+    const [newNames, setNewNames] = useState<string[]>([]);
 
     const inputRef = useRef<HTMLInputElement | null>(null);
     const rootRef = useRef<HTMLDivElement | null>(null);
 
-    /* ------------------------------------------------------
-       Clear when the containing <form> is reset.
-       Listen at document level (capture phase) so we never miss it.
-    -------------------------------------------------------*/
+    // ---------- Clear when parent <form> .reset() is called ----------
     useEffect(() => {
         function onReset(ev: Event) {
             const form = ev.target as HTMLFormElement | null;
             if (!form || !rootRef.current) return;
-            if (!form.contains(rootRef.current)) return; // not our form
-            // Clear internal state so chips disappear and hidden input empties
-            setSelected([]);
+            if (!form.contains(rootRef.current)) return;
+            setSelectedExisting([]);
+            setNewNames([]);
             setOptions([]);
             setQuery("");
             setOpen(false);
@@ -49,11 +49,7 @@ export default function TagChipsAutocomplete({
         return () => document.removeEventListener("reset", onReset, true);
     }, []);
 
-    /* ----------------------------------------------------------------
-       Rehydrate from IDs found in the URL on first render
-       - IGDB TAGS: /api/proxy/igdb/tags/{id}
-       - TAGS:      /api/proxy/tags/{id}
-    ------------------------------------------------------------------*/
+    // ---------- Rehydrate from IDs in defaultSelectedIds ----------
     useEffect(() => {
         const ids = (defaultSelectedIds ?? [])
             .flatMap((raw) => {
@@ -68,12 +64,10 @@ export default function TagChipsAutocomplete({
         if (!ids.length) return;
 
         let cancelled = false;
-
         (async () => {
             try {
                 const base =
                     suggestKind === "igdb_tags" ? "/api/proxy/igdb/tags" : "/api/proxy/tags";
-
                 const results = await Promise.all(
                     ids.map(async (id) => {
                         try {
@@ -84,18 +78,17 @@ export default function TagChipsAutocomplete({
                                 return { id: data.id, name: data.name } as Chip;
                             }
                         } catch {
-                            // ignore this id
+                            /* ignore */
                         }
                         return null;
                     })
                 );
-
                 const chips = results.filter(Boolean) as Chip[];
                 if (!cancelled && chips.length) {
-                    setSelected((prev) => mergeChipsReplace(prev, chips));
+                    setSelectedExisting((prev) => mergeChipsReplace(prev, chips));
                 }
             } catch {
-                // ignore
+                /* ignore */
             }
         })();
 
@@ -103,28 +96,23 @@ export default function TagChipsAutocomplete({
             cancelled = true;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // run once on mount
+    }, []); // mount once
 
-    /* ------------------------------------------------------
-       Debounced suggestions via our proxy:
-       /api/suggest/{tags|igdb_tags}?full=1&q=
-    -------------------------------------------------------*/
+    // ---------- Debounced suggestions ----------
     useEffect(() => {
-        if (query.trim().length < 2) {
+        const q = query.trim();
+        if (q.length < 2) {
             setOptions([]);
             setOpen(false);
             setError(null);
             setLoading(false);
             return;
         }
-
         const handle = setTimeout(async () => {
             setLoading(true);
             setError(null);
             try {
-                const url = `/api/suggest/${encodeURIComponent(suggestKind)}?full=1&q=${encodeURIComponent(
-                    query.trim()
-                )}`;
+                const url = `/api/suggest/${encodeURIComponent(suggestKind)}?full=1&q=${encodeURIComponent(q)}`;
                 const res = await fetch(url, { cache: "no-store" });
                 if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
                 const arr = (await res.json()) as Array<{ id: number | string; name: string }>;
@@ -135,9 +123,8 @@ export default function TagChipsAutocomplete({
                     const nameStr = String((it as any).name || "");
                     if (Number.isFinite(idNum) && nameStr) mapped.push({ id: idNum, name: nameStr });
                 }
-
                 setOptions(mapped);
-                setOpen(mapped.length > 0);
+                setOpen(mapped.length > 0 || q.length >= 2); // keep open so we can show "Add “q”"
                 setHighlight(0);
             } catch (e) {
                 setError(e instanceof Error ? e.message : "Failed to fetch suggestions");
@@ -147,16 +134,34 @@ export default function TagChipsAutocomplete({
                 setLoading(false);
             }
         }, 180);
-
         return () => clearTimeout(handle);
     }, [query, suggestKind]);
 
-    /* ------------------------------------------------------
-       Chip selection / removal
-    -------------------------------------------------------*/
-    const onSelect = useCallback((chip: Chip) => {
+    // ---------- Helpers to check duplicates ----------
+    const lowerSetExisting = useMemo(
+        () => new Set(selectedExisting.map((c) => c.name.toLowerCase())),
+        [selectedExisting]
+    );
+    const lowerSetNew = useMemo(
+        () => new Set(newNames.map((n) => n.toLowerCase())),
+        [newNames]
+    );
+
+    // Should we show the "Add “query”" row?
+    const canCreateFromQuery = useMemo(() => {
+        const q = query.trim();
+        if (q.length < 2) return false;
+        const l = q.toLowerCase();
+        if (lowerSetExisting.has(l) || lowerSetNew.has(l)) return false;
+        // also hide if an option has the exact same name
+        if (options.some((o) => o.name.toLowerCase() === l)) return false;
+        return true;
+    }, [query, lowerSetExisting, lowerSetNew, options]);
+
+    // ---------- Select / remove ----------
+    const onSelectExisting = useCallback((chip: Chip) => {
         if (!Number.isFinite(chip.id) || chip.id <= 0) return;
-        setSelected((prev) => {
+        setSelectedExisting((prev) => {
             if (prev.some((c) => c.id === chip.id)) return prev;
             return [...prev, chip];
         });
@@ -167,46 +172,110 @@ export default function TagChipsAutocomplete({
         inputRef.current?.focus();
     }, []);
 
-    const onRemove = useCallback((id: number) => {
-        setSelected((prev) => prev.filter((c) => c.id !== id));
+    const onCreateNew = useCallback((raw: string) => {
+        const t = raw.trim();
+        if (t.length < 2) return;
+        const l = t.toLowerCase();
+        if (lowerSetExisting.has(l) || lowerSetNew.has(l)) return;
+        setNewNames((prev) => [...prev, t]);
+        setQuery("");
+        setOpen(false);
+        setOptions([]);
+        setHighlight(0);
+        inputRef.current?.focus();
+    }, [lowerSetExisting, lowerSetNew]);
+
+    const onRemoveExisting = useCallback((id: number) => {
+        setSelectedExisting((prev) => prev.filter((c) => c.id !== id));
+    }, []);
+    const onRemoveNew = useCallback((name: string) => {
+        setNewNames((prev) => prev.filter((n) => n !== name));
     }, []);
 
-    const hiddenValue = useMemo(() => selected.map((c) => c.id).join(","), [selected]);
+    // ---------- Hidden input values ----------
+    const csvIds = useMemo(
+        () => selectedExisting.map((c) => c.id).join(","),
+        [selectedExisting]
+    );
+    const mixedJson = useMemo(() => {
+        const mixed = [...selectedExisting.map((c) => c.id as number | string), ...newNames];
+        try {
+            return JSON.stringify(mixed);
+        } catch {
+            return "[]";
+        }
+    }, [selectedExisting, newNames]);
 
+    // ---------- Keyboard ----------
     function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-        if (!open || !options.length) return;
+        const hasOpts = options.length > 0 || canCreateFromQuery;
+        if (!open || !hasOpts) return;
+
         if (e.key === "ArrowDown") {
             e.preventDefault();
-            setHighlight((h) => Math.min(h + 1, options.length - 1));
+            const listLen = options.length + (canCreateFromQuery ? 1 : 0);
+            setHighlight((h) => Math.min(h + 1, listLen - 1));
         } else if (e.key === "ArrowUp") {
             e.preventDefault();
             setHighlight((h) => Math.max(h - 1, 0));
         } else if (e.key === "Enter") {
             e.preventDefault();
-            onSelect(options[highlight]);
+            const createRowIndex = 0; // we place "Add" at the top when shown
+            if (canCreateFromQuery && highlight === createRowIndex) {
+                onCreateNew(query);
+            } else {
+                const idx = highlight - (canCreateFromQuery ? 1 : 0);
+                if (idx >= 0 && idx < options.length) onSelectExisting(options[idx]);
+            }
         } else if (e.key === "Escape") {
             setOpen(false);
+        } else if (e.key === "," /* quick add on comma */) {
+            const q = query.trim();
+            if (q.length >= 2 && canCreateFromQuery) {
+                e.preventDefault();
+                onCreateNew(q);
+            }
         }
     }
 
+    // ---------- Render ----------
     return (
         <div ref={rootRef} style={{ display: "grid", gap: 6, position: "relative" }}>
             <label style={{ opacity: 0.85 }}>{label}</label>
 
-            {/* Hidden input submits IDs */}
-            <input type="hidden" name={name} value={hiddenValue} />
+            {/* Back-compat numeric IDs CSV */}
+            <input type="hidden" name={name} value={csvIds} />
+            {/* New: mixed array (numbers + strings) JSON, e.g. tag_ids_mix */}
+            <input type="hidden" name={`${name}_mix`} value={mixedJson} />
 
             <div style={boxStyle}>
-                {/* Chips */}
+                {/* Chips (existing + new) */}
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {selected.map((c) => (
-                        <span key={c.id} style={chipStyle} title={`${c.name}`}>
+                    {selectedExisting.map((c) => (
+                        <span key={`id-${c.id}`} style={chipStyle} title={`${c.name}`}>
               {c.name}
                             <button
                                 type="button"
-                                onClick={() => onRemove(c.id)}
+                                onClick={() => onRemoveExisting(c.id)}
                                 style={chipXBtn}
                                 aria-label={`Remove ${c.name}`}
+                            >
+                ×
+              </button>
+            </span>
+                    ))}
+                    {newNames.map((n) => (
+                        <span
+                            key={`new-${n}`}
+                            style={{ ...chipStyle, background: "#234232", borderColor: "#2e7d32", color: "#d1fadf" }}
+                            title={`${n} (new)`}
+                        >
+              {n}
+                            <button
+                                type="button"
+                                onClick={() => onRemoveNew(n)}
+                                style={chipXBtn}
+                                aria-label={`Remove ${n}`}
                             >
                 ×
               </button>
@@ -219,7 +288,7 @@ export default function TagChipsAutocomplete({
                     ref={inputRef}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    onFocus={() => setOpen(options.length > 0)}
+                    onFocus={() => setOpen(true)}
                     onKeyDown={onKeyDown}
                     placeholder="Type to add…"
                     autoComplete="off"
@@ -228,23 +297,45 @@ export default function TagChipsAutocomplete({
             </div>
 
             {/* Dropdown */}
-            {open && options.length > 0 ? (
+            {open && (options.length > 0 || canCreateFromQuery) ? (
                 <ul style={menuStyle} role="listbox">
+                    {canCreateFromQuery ? (
+                        <li
+                            key="__create__"
+                            style={{
+                                ...menuItemStyle,
+                                fontStyle: "italic",
+                                background: highlight === 0 ? "#263043" : "transparent",
+                            }}
+                            onMouseEnter={() => setHighlight(0)}
+                            onMouseDown={(e) => {
+                                e.preventDefault();
+                                onCreateNew(query);
+                            }}
+                        >
+                            Add “{query.trim()}”
+                        </li>
+                    ) : null}
+
                     {options.map((opt, idx) => {
-                        const isSel = selected.some((s) => s.id === opt.id);
+                        const offset = canCreateFromQuery ? 1 : 0;
+                        const hi = highlight === idx + offset;
+                        const isSel =
+                            selectedExisting.some((s) => s.id === opt.id) ||
+                            newNames.some((n) => n.toLowerCase() === opt.name.toLowerCase());
                         return (
                             <li
                                 key={`${opt.id}-${idx}`}
                                 style={{
                                     ...menuItemStyle,
-                                    background: idx === highlight ? "#263043" : "transparent",
+                                    background: hi ? "#263043" : "transparent",
                                     opacity: isSel ? 0.5 : 1,
-                                    cursor: isSel ? "not-allowed" : "pointer"
+                                    cursor: isSel ? "not-allowed" : "pointer",
                                 }}
-                                onMouseEnter={() => setHighlight(idx)}
+                                onMouseEnter={() => setHighlight(idx + offset)}
                                 onMouseDown={(e) => {
                                     e.preventDefault();
-                                    if (!isSel) onSelect(opt);
+                                    if (!isSel) onSelectExisting(opt);
                                 }}
                             >
                                 {opt.name}
@@ -262,9 +353,7 @@ export default function TagChipsAutocomplete({
 }
 
 /* ---------- utils ---------- */
-
 function mergeChipsReplace(prev: Chip[], next: Chip[]): Chip[] {
-    // Replace any existing chip with same id; otherwise append
     const byId = new Map<number, Chip>();
     for (const p of prev) byId.set(p.id, p);
     for (const n of next) byId.set(n.id, n);
@@ -272,7 +361,6 @@ function mergeChipsReplace(prev: Chip[], next: Chip[]): Chip[] {
 }
 
 /* ---------- styles ---------- */
-
 const boxStyle: React.CSSProperties = {
     background: "#1a1a1a",
     border: "1px solid #2b2b2b",
@@ -280,7 +368,7 @@ const boxStyle: React.CSSProperties = {
     padding: 6,
     minHeight: 44,
     display: "grid",
-    alignItems: "center"
+    alignItems: "center",
 };
 
 const inputStyle: React.CSSProperties = {
@@ -289,7 +377,7 @@ const inputStyle: React.CSSProperties = {
     border: "none",
     outline: "none",
     padding: "6px 8px",
-    width: "100%"
+    width: "100%",
 };
 
 const chipStyle: React.CSSProperties = {
@@ -301,7 +389,7 @@ const chipStyle: React.CSSProperties = {
     border: "1px solid #3b82f6",
     borderRadius: 999,
     padding: "4px 8px",
-    fontSize: 12
+    fontSize: 12,
 };
 
 const chipXBtn: React.CSSProperties = {
@@ -310,7 +398,7 @@ const chipXBtn: React.CSSProperties = {
     border: "none",
     cursor: "pointer",
     fontSize: 14,
-    lineHeight: 1
+    lineHeight: 1,
 };
 
 const menuStyle: React.CSSProperties = {
@@ -326,10 +414,10 @@ const menuStyle: React.CSSProperties = {
     listStyle: "none",
     maxHeight: 260,
     overflowY: "auto",
-    zIndex: 30
+    zIndex: 30,
 };
 
 const menuItemStyle: React.CSSProperties = {
     padding: "8px 10px",
-    borderRadius: 6
+    borderRadius: 6,
 };

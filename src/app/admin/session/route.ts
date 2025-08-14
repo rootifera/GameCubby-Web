@@ -1,3 +1,4 @@
+// src/app/admin/session/route.ts
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
@@ -25,7 +26,11 @@ function decodeJwtPayload(token: string): JwtPayload | null {
 }
 
 export async function GET() {
-    const token = cookies().get("__gcub_a")?.value || "";
+    // Accept either cookie name
+    const token =
+        cookies().get("__gcub_a")?.value ||
+        cookies().get("gc_at")?.value ||
+        "";
 
     if (!token) {
         return NextResponse.json(
@@ -36,7 +41,6 @@ export async function GET() {
 
     const payload = decodeJwtPayload(token);
     const nowSec = Math.floor(Date.now() / 1000);
-
     const isExpired = payload?.exp ? payload.exp <= nowSec : false;
     const authenticated = Boolean(payload && !isExpired);
 
@@ -44,6 +48,7 @@ export async function GET() {
         {
             authenticated,
             ...(authenticated && payload?.username ? { username: payload.username } : {}),
+            ...(authenticated && payload?.role ? { role: payload.role } : {}),
         },
         { status: 200, headers: { "Cache-Control": "no-store" } }
     );

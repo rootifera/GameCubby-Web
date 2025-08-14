@@ -3,10 +3,39 @@
 import { useEffect, useRef, useState } from "react";
 
 type Props = {
+    /** Field name to submit under (Advanced uses "name", Basic keeps "q") */
+    name?: string;
+    /** Initial value */
     defaultValue?: string;
+
+    /**
+     * If set to a path (e.g. "/search"), the component will navigate to
+     * `${onSelectNavigateTo}?<name>=value` on submit or when a suggestion is chosen.
+     * If null, it will NOT navigate (useful for Advanced where parent form handles submit).
+     *
+     * Default: "/search"  (Basic behavior)
+     */
+    onSelectNavigateTo?: string | null;
+
+    /**
+     * Wrap the input in its own <form>. Basic = true (POSTs to /search),
+     * Advanced = false (parent form controls submission).
+     *
+     * Default: true
+     */
+    wrapWithForm?: boolean;
+
+    /** Placeholder text */
+    placeholder?: string;
 };
 
-export default function SearchBox({ defaultValue = "" }: Props) {
+export default function SearchBox({
+                                      name = "q",
+                                      defaultValue = "",
+                                      onSelectNavigateTo = "/search",
+                                      wrapWithForm = true,
+                                      placeholder = "Search games…",
+                                  }: Props) {
     const [q, setQ] = useState(defaultValue);
     const [open, setOpen] = useState(false);
     const [items, setItems] = useState<string[]>([]);
@@ -68,10 +97,23 @@ export default function SearchBox({ defaultValue = "" }: Props) {
         return () => document.removeEventListener("mousedown", onDocClick);
     }, []);
 
+    function navigateTo(path: string, value: string) {
+        const u = new URL(path, window.location.origin);
+        u.searchParams.set(name, value);
+        window.location.href = u.toString();
+    }
+
     function onSubmit(e: React.FormEvent<HTMLFormElement>) {
         if (!q.trim()) {
             e.preventDefault();
+            return;
         }
+        if (onSelectNavigateTo) {
+            // basic behavior: navigate to /search?<name>=q
+            e.preventDefault();
+            navigateTo(onSelectNavigateTo, q.trim());
+        }
+        // else: advanced mode, let parent form submit naturally
     }
 
     function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -86,43 +128,54 @@ export default function SearchBox({ defaultValue = "" }: Props) {
         } else if (e.key === "Enter") {
             if (highlight >= 0 && highlight < items.length) {
                 e.preventDefault();
-                const chosen = items[highlight];
-                // navigate to /search?q=<chosen>
-                window.location.href = `/search?q=${encodeURIComponent(chosen)}`;
+                const chosen = items[highlight].trim();
+                setQ(chosen);
+                setOpen(false);
+                if (onSelectNavigateTo) {
+                    navigateTo(onSelectNavigateTo, chosen);
+                } else {
+                    // advanced mode: just set the value in input; parent form will submit
+                    inputRef.current?.form?.requestSubmit();
+                }
             }
         } else if (e.key === "Escape") {
             setOpen(false);
         }
     }
 
-    function choose(name: string) {
-        // fill input and navigate
-        setQ(name);
-        window.location.href = `/search?q=${encodeURIComponent(name)}`;
+    function choose(nameVal: string) {
+        const chosen = nameVal.trim();
+        setQ(chosen);
+        setOpen(false);
+        if (onSelectNavigateTo) {
+            navigateTo(onSelectNavigateTo, chosen);
+        } else {
+            // advanced mode: keep focus, no navigation
+            inputRef.current?.focus();
+        }
     }
 
-    return (
-        <div ref={wrapRef} style={{ position: "relative" }}>
-            <form action="/search" method="GET" onSubmit={onSubmit}>
-                <input
-                    ref={inputRef}
-                    name="q"
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                    onKeyDown={onKeyDown}
-                    placeholder="Search games…"
-                    autoComplete="off"
-                    style={{
-                        width: "100%",
-                        background: "#1a1a1a",
-                        color: "#eaeaea",
-                        border: "1px solid #2b2b2b",
-                        borderRadius: 8,
-                        padding: "10px 12px",
-                        outline: "none",
-                    }}
-                />
-            </form>
+    const InputEl = (
+        <>
+            {/* keep a real input bound to the parent form name */}
+            <input
+                ref={inputRef}
+                name={name}
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={onKeyDown}
+                placeholder={placeholder}
+                autoComplete="off"
+                style={{
+                    width: "100%",
+                    background: "#1a1a1a",
+                    color: "#eaeaea",
+                    border: "1px solid #2b2b2b",
+                    borderRadius: 8,
+                    padding: "10px 12px",
+                    outline: "none",
+                }}
+            />
 
             {open && items.length > 0 ? (
                 <ul
@@ -142,15 +195,15 @@ export default function SearchBox({ defaultValue = "" }: Props) {
                         overflowY: "auto",
                     }}
                 >
-                    {items.map((name, idx) => {
+                    {items.map((nameOpt, idx) => {
                         const active = idx === highlight;
                         return (
-                            <li key={`${name}-${idx}`}>
+                            <li key={`${nameOpt}-${idx}`}>
                                 <button
                                     type="button"
                                     onMouseEnter={() => setHighlight(idx)}
                                     onMouseLeave={() => setHighlight(-1)}
-                                    onClick={() => choose(name)}
+                                    onClick={() => choose(nameOpt)}
                                     style={{
                                         display: "block",
                                         width: "100%",
@@ -163,13 +216,25 @@ export default function SearchBox({ defaultValue = "" }: Props) {
                                         cursor: "pointer",
                                     }}
                                 >
-                                    {name}
+                                    {nameOpt}
                                 </button>
                             </li>
                         );
                     })}
                 </ul>
             ) : null}
+        </>
+    );
+
+    return (
+        <div ref={wrapRef} style={{ position: "relative" }}>
+            {wrapWithForm ? (
+                <form action={onSelectNavigateTo ?? undefined} method="GET" onSubmit={onSubmit}>
+                    {InputEl}
+                </form>
+            ) : (
+                InputEl
+            )}
         </div>
     );
 }

@@ -1,5 +1,5 @@
+// src/app/api/admin/lookups/[kind]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
@@ -14,17 +14,15 @@ const MAP: Record<string, string> = {
     tags: "/tags/",
 };
 
-export async function GET(req: NextRequest, { params }: { params: { kind: string } }) {
+export async function GET(
+    req: NextRequest,
+    { params }: { params: { kind: string } }
+) {
     const kind = params.kind?.toLowerCase();
-    const upstreamPath = MAP[kind];
+    const upstreamPath = kind && MAP[kind];
+
     if (!upstreamPath) {
         return NextResponse.json({ detail: "Unknown lookup kind" }, { status: 404 });
-    }
-
-    // Require admin cookie so these lookups are only available in admin UI.
-    const gcAt = cookies().get("gc_at")?.value;
-    if (!gcAt) {
-        return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
     }
 
     const controller = new AbortController();
@@ -36,10 +34,8 @@ export async function GET(req: NextRequest, { params }: { params: { kind: string
             method: "GET",
             cache: "no-store",
             signal: controller.signal,
-            headers: {
-                // Most of these endpoints don’t require auth, but include it so we’re consistent.
-                Authorization: `Bearer ${gcAt}`,
-            },
+            // IMPORTANT: these lookups are public per OpenAPI; do NOT send Authorization
+            headers: {},
         });
 
         const text = await res.text();
