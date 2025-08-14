@@ -1,0 +1,48 @@
+/* Panels & layout helpers (optional classes) */
+.contentPanel {}
+
+/* Section headings */
+.sectionTitle {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    opacity: 0.75;
+    margin: 4px 0 6px 4px;
+}
+
+/* Group container */
+.group {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+/* Divider line between sections */
+.divider {
+    height: 1px;
+    background: #1f1f1f;
+    margin: 8px 0;
+}
+
+/* Links */
+.navLink {
+    display: block;
+    padding: 8px 10px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #eaeaea;
+    border: 1px solid transparent;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+/* Hover effect */
+.navLink:hover {
+    background: #181818;
+    border-color: #333;
+}
+
+/* Active (selected) link */
+.active {
+    background: #1f1f1f;
+    border-color: #444;
+}
