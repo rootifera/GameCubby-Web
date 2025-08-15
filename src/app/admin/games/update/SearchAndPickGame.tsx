@@ -98,7 +98,7 @@ function SingleSelectDropdown({
         borderRadius: 8,
         padding: "8px 10px",
         outline: "none",
-    };
+};
 
     const btnStyle: React.CSSProperties = {
         ...base,
@@ -245,6 +245,9 @@ export default function SearchAndPickGame({
     const [matchMode, setMatchMode] = useState<"any" | "all" | "exact">("any");
     const [size, setSize] = useState(20);
 
+    // force remount for TagChipsAutocomplete on reset
+    const [resetKey, setResetKey] = useState(0);
+
     // Data
     const [platforms] = useState<Named[]>(Array.isArray(initialPlatforms) ? initialPlatforms : []);
     const [results, setResults] = useState<GameListItem[] | null>(null);
@@ -274,9 +277,9 @@ export default function SearchAndPickGame({
             input.removeEventListener("change", updateFromInput);
             mo.disconnect();
         };
-    }, [tagsHostRef.current]);
+    }, [tagsHostRef.current, resetKey]);
 
-    // Reset everything (including TagChipsAutocomplete hidden input)
+    // Reset everything (including Tags) — remount the tags widget
     function resetAll() {
         setQ("");
         setYear("");
@@ -284,11 +287,13 @@ export default function SearchAndPickGame({
         setMatchMode("any");
         setSize(20);
         setTagCsv("");
+        setResetKey((k) => k + 1); // 🔁 force TagChipsAutocomplete to remount and clear its internal state
+
+        // Also clear the hidden input immediately (for good measure)
         const host = tagsHostRef.current;
         const input = host?.querySelector('input[name="tag_ids"]') as HTMLInputElement | null;
         if (input) {
             input.value = "";
-            // notify the component that value changed
             input.dispatchEvent(new Event("input", { bubbles: true }));
             input.dispatchEvent(new Event("change", { bubbles: true }));
         }
@@ -398,7 +403,7 @@ export default function SearchAndPickGame({
 
                     <SingleSelectDropdown
                         label="Platform"
-                        options={platforms}
+                        options={initialPlatforms}
                         value={platformId}
                         onChange={setPlatformId}
                         placeholder="Any"
@@ -408,7 +413,7 @@ export default function SearchAndPickGame({
 
                 <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 160px" }}>
                     {/* Tags — uses existing component; we read its hidden input value */}
-                    <div ref={tagsHostRef}>
+                    <div ref={tagsHostRef} key={resetKey}>
                         <TagChipsAutocomplete
                             label="Tags"
                             name="tag_ids"
@@ -477,7 +482,7 @@ export default function SearchAndPickGame({
                                 background: "#0f0f0f",
                             }}
                         >
-                            {/* cover with hover card (same behavior as site search) */}
+                            {/* cover with hover card */}
                             <GameHoverCard gameId={g.id}>
                                 <Link href={`/games/${g.id}`} style={{ display: "inline-block", flexShrink: 0 }}>
                                     <CoverThumb
