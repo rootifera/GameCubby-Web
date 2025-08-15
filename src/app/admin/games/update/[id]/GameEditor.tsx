@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { IdName, Game } from "./page";
 import MultiSelectDropdown from "@/components/MultiSelectDropdown";
 import LocationTreePicker from "@/components/LocationTreePicker";
@@ -119,13 +118,11 @@ export default function GameEditor({
     initialData: Game;
     lookups: Lookups;
 }) {
-    const router = useRouter();
-
     const isCustom = initialData.igdb_id === 0;
     const isIGDB = !isCustom;
 
-    // nonce to force child inputs to re-mount on reset/refresh
-    const [nonce, setNonce] = useState(0);
+    // force child inputs to re-mount if we ever need to (not used by the hard reload path)
+    const [nonce] = useState(0);
 
     // Basic fields
     const [name, setName] = useState(initialData.name ?? "");
@@ -146,8 +143,9 @@ export default function GameEditor({
         typeof initialData.condition === "number" ? initialData.condition : ""
     );
 
-    // Refs to read hidden inputs
+    // Refs
     const formRef = useRef<HTMLFormElement | null>(null);
+    const navigatingRef = useRef(false); // ← prevents overlay from being cleared before reload
 
     // Location preselect: last item in location_path
     const initialLocationId = useMemo(() => {
@@ -240,7 +238,6 @@ export default function GameEditor({
 
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [savedOk, setSavedOk] = useState(false);
 
     // Prefer tag_ids_mix JSON if present, else fallback to CSV
     function readMixedTagIds(fd: FormData, baseName: string): Array<number | string> {
@@ -276,7 +273,7 @@ export default function GameEditor({
         return csvToIdsOrStrings(csv);
     }
 
-    // Poll until GET reflects the POSTed changes
+    // Poll until GET reflects the PUT changes
     async function waitForFreshData(
         id: number,
         expected: {
@@ -375,7 +372,6 @@ export default function GameEditor({
 
         setSaving(true);
         setError(null);
-        setSavedOk(false);
 
         const fd = new FormData(formRef.current);
 
@@ -408,15 +404,9 @@ export default function GameEditor({
                 // IGDB-linked: allowed fields
                 payload = {
                     condition:
-                        typeof condition === "number"
-                            ? condition
-                            : condition === ""
-                                ? 0
-                                : Number(condition),
-                    location_id:
-                        Number.isFinite(location_id) && location_id > 0 ? location_id : 0,
-                    order:
-                        typeof order === "number" ? order : order === "" ? 0 : Number(order),
+                        typeof condition === "number" ? condition : condition === "" ? 0 : Number(condition),
+                    location_id: Number.isFinite(location_id) && location_id > 0 ? location_id : 0,
+                    order: typeof order === "number" ? order : order === "" ? 0 : Number(order),
                     platform_ids,
                     tag_ids,
                 };
@@ -428,25 +418,16 @@ export default function GameEditor({
                     release_date: releaseYear === "" ? 0 : Number(releaseYear),
                     cover_url: (coverUrl || "").trim(),
                     condition:
-                        typeof condition === "number"
-                            ? condition
-                            : condition === ""
-                                ? 0
-                                : Number(condition),
-                    location_id:
-                        Number.isFinite(location_id) && location_id > 0 ? location_id : 0,
-                    order:
-                        typeof order === "number" ? order : order === "" ? 0 : Number(order),
+                        typeof condition === "number" ? condition : condition === "" ? 0 : Number(condition),
+                    location_id: Number.isFinite(location_id) && location_id > 0 ? location_id : 0,
+                    order: typeof order === "number" ? order : order === "" ? 0 : Number(order),
                     mode_ids,
                     platform_ids,
                     genre_ids,
                     player_perspective_ids,
                     rating: rating === "" ? 0 : Number(rating),
                     tag_ids,
-                    collection_id:
-                        Number.isFinite(collection_id) && collection_id > 0
-                            ? collection_id
-                            : 0,
+                    collection_id: Number.isFinite(collection_id) && collection_id > 0 ? collection_id : 0,
                     company_ids,
                 };
             }
@@ -475,25 +456,25 @@ export default function GameEditor({
             // Extra beat for any caches
             await sleep(300);
 
-            // HARD refresh (avoids Next RouteImpl typing issues and ensures fresh server data)
+            // HARD refresh and keep overlay visible until navigation begins
+            navigatingRef.current = true;
             const url = `${window.location.pathname}?_=${Date.now()}`;
             window.location.replace(url);
-
-            setSavedOk(true);
-            setNonce((n) => n + 1);
+            return;
         } catch (err: any) {
             setError(err?.message ?? "Failed to save changes");
         } finally {
-            await sleep(250);
-            setSaving(false);
+            // Only clear the overlay if we are NOT navigating away
+            if (!navigatingRef.current) {
+                await sleep(250);
+                setSaving(false);
+            }
         }
     }
 
     function resetForm() {
-        // Same hard refresh as after save
         const url = `${window.location.pathname}?_=${Date.now()}`;
         window.location.replace(url);
-        setNonce((n) => n + 1);
     }
 
     /* ---------- UI ---------- */
@@ -705,7 +686,7 @@ export default function GameEditor({
 
                     {/* Perspectives */}
                     <div key={`persp-${nonce}`} style={{ marginBottom: 10 }}>
-                        < MultiSelectDropdown
+                        <MultiSelectDropdown
                             label="Player perspectives"
                             name="player_perspective_ids"
                             options={lookups.perspectives}
@@ -751,7 +732,6 @@ export default function GameEditor({
 
                 {/* ----- actions ----- */}
                 {error && <div style={{ color: "#ff6666", marginBottom: 8 }}>{error}</div>}
-                {savedOk && <div style={{ color: "#66ff99", marginBottom: 8 }}>Saved.</div>}
 
                 <div style={{ display: "flex", gap: 8 }}>
                     <button type="submit" style={!saving ? btn : btnDisabled} disabled={saving}>
