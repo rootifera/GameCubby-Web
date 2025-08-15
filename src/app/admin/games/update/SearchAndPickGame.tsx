@@ -3,6 +3,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import TagChipsAutocomplete from "@/components/TagChipsAutocomplete";
+import CoverThumb from "@/components/CoverThumb";
+import GameHoverCard from "@/components/GameHoverCard";
 
 /* ------------ types ------------ */
 type Named = { id: number; name: string };
@@ -274,6 +276,24 @@ export default function SearchAndPickGame({
         };
     }, [tagsHostRef.current]);
 
+    // Reset everything (including TagChipsAutocomplete hidden input)
+    function resetAll() {
+        setQ("");
+        setYear("");
+        setPlatformId("");
+        setMatchMode("any");
+        setSize(20);
+        setTagCsv("");
+        const host = tagsHostRef.current;
+        const input = host?.querySelector('input[name="tag_ids"]') as HTMLInputElement | null;
+        if (input) {
+            input.value = "";
+            // notify the component that value changed
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+    }
+
     // Run search with debounce when filters change
     useEffect(() => {
         const hasAny = q.trim() || year.trim() || platformId.trim() || tagCsv.trim();
@@ -298,7 +318,6 @@ export default function SearchAndPickGame({
                     page: 1,
                 });
 
-                // Use the proxy that hits your working /search/basic upstream
                 const url = `/api/proxy/search/basic?${qs}`;
                 const res = await fetch(url, {
                     method: "GET",
@@ -347,6 +366,13 @@ export default function SearchAndPickGame({
         whiteSpace: "nowrap",
     };
 
+    const ghostBtn: React.CSSProperties = {
+        ...btn,
+        background: "#151515",
+        border: "1px solid #2b2b2b",
+        color: "#d8d8d8",
+    };
+
     return (
         <div>
             {/* Filters — Basic Search with single-select platform */}
@@ -371,7 +397,7 @@ export default function SearchAndPickGame({
                     </label>
 
                     <SingleSelectDropdown
-                        label="Platforms"
+                        label="Platform"
                         options={platforms}
                         value={platformId}
                         onChange={setPlatformId}
@@ -405,6 +431,13 @@ export default function SearchAndPickGame({
                             <option value="exact">Exact</option>
                         </select>
                     </label>
+                </div>
+
+                {/* Reset row */}
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <button type="button" onClick={resetAll} style={ghostBtn}>
+                        Reset
+                    </button>
                 </div>
 
                 <label style={{ display: "grid", gap: 6, maxWidth: 160 }}>
@@ -444,36 +477,18 @@ export default function SearchAndPickGame({
                                 background: "#0f0f0f",
                             }}
                         >
-                            {/* cover */}
-                            {g.cover_url ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                    src={g.cover_url}
-                                    alt={g.name}
-                                    style={{
-                                        width: 48,
-                                        height: 64,
-                                        objectFit: "cover",
-                                        borderRadius: 6,
-                                        border: "1px solid #262626",
-                                    }}
-                                />
-                            ) : (
-                                <div
-                                    style={{
-                                        width: 48,
-                                        height: 64,
-                                        borderRadius: 6,
-                                        border: "1px solid #262626",
-                                        display: "grid",
-                                        placeItems: "center",
-                                        opacity: 0.6,
-                                        fontSize: 11,
-                                    }}
-                                >
-                                    No cover
-                                </div>
-                            )}
+                            {/* cover with hover card (same behavior as site search) */}
+                            <GameHoverCard gameId={g.id}>
+                                <Link href={`/games/${g.id}`} style={{ display: "inline-block", flexShrink: 0 }}>
+                                    <CoverThumb
+                                        name={g.name}
+                                        coverUrl={g.cover_url ?? undefined}
+                                        width={48}
+                                        height={64}
+                                        rounded
+                                    />
+                                </Link>
+                            </GameHoverCard>
 
                             {/* info */}
                             <div style={{ minWidth: 0 }}>
