@@ -37,7 +37,7 @@ const menu: MenuGroup[] = [
         section: "Backup & Export",
         items: [
             { label: "Export Game Data", href: "/admin/export/games" },
-            { label: "Backup Database", href: "/admin/export/backup" },
+            { label: "Backup Database", href: "/admin/backup/database" },
         ],
     },
     {
