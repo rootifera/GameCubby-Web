@@ -24,19 +24,13 @@ const menu: MenuGroup[] = [
     {
         section: "File Management",
         items: [
-            { label: "Download", href: "/admin/files/download" },
-            { label: "Upload", href: "/admin/files/upload" },
-            { label: "Delete", href: "/admin/files/delete" },
-            { label: "Update File Labels", href: "/admin/files/labels" },
-            { label: "Sync", href: "/admin/files/sync" },
+            { label: "File Manager", href: "/admin/files/manager" },
         ],
     },
     {
         section: "Location Management",
         items: [
-            { label: "View", href: "/admin/locations" },
-            { label: "Add", href: "/admin/locations/add" },
-            { label: "Delete", href: "/admin/locations/delete" },
+            { label: "Location Manager", href: "/admin/locations/manager" },
         ],
     },
     {
@@ -65,12 +59,11 @@ export default function Sidebar() {
                     <div className={styles.sectionTitle}>{group.section}</div>
                     <div className={styles.group}>
                         {group.items.map((item) => {
-                            // Exact match highlight; easy to switch to "startsWith" if you prefer.
                             const active = pathname === item.href;
                             return (
                                 <Link
                                     key={item.href}
-                                    href={item.href}
+                                    href={{ pathname: item.href }}
                                     className={`${styles.navLink} ${active ? styles.active : ""}`}
                                 >
                                     {item.label}
@@ -83,7 +76,7 @@ export default function Sidebar() {
             ))}
 
             <div style={{ marginTop: 12 }}>
-                <Link href="/admin/logout" className={styles.navLink}>
+                <Link href={{ pathname: "/admin/logout" }} className={styles.navLink}>
                     Log out
                 </Link>
             </div>
