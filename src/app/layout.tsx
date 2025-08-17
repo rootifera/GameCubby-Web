@@ -32,6 +32,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 zIndex: 10,
             }}
         >
+            {/* absolutely pin API status to the FAR RIGHT of the header */}
+            <div
+                style={{
+                    position: "absolute",
+                    right: 20,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 16, // fixed width so it never shifts layout
+                    height: 16,
+                }}
+            >
+                <ApiStatus />
+            </div>
+
             <nav
                 style={{
                     maxWidth: 1100,
@@ -60,8 +77,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {/* spacer */}
                 <div style={{ flex: 1 }} />
 
-                {/* API status dot, then auth actions (Login / Admin Panel + Logout on far right) */}
-                <ApiStatus />
+                {/* Auth actions on the right end of the container */}
                 <AuthActions />
             </nav>
         </header>
@@ -81,7 +97,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 color: "#9a9a9a",
             }}
         >
-            <div style={{ maxWidth: 1100, margin: "0 auto" }}>GameCubby Web UI — early scaffold</div>
+            <div style={{ maxWidth: 1100, margin: "0 auto" }}>GameCubby Web UI</div>
         </footer>
         </body>
         </html>

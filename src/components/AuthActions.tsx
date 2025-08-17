@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function AuthActions() {
-    const [authed, setAuthed] = useState<boolean | null>(null); // null = unknown (loading)
+    const [authed, setAuthed] = useState<boolean | null>(null);
     const [checking, setChecking] = useState(false);
 
     async function check() {
@@ -14,19 +14,16 @@ export default function AuthActions() {
             const data = (await res.json()) as { authed?: boolean };
             setAuthed(Boolean(data?.authed));
         } catch {
-            setAuthed(null);
+            // keep last-known state to avoid flicker
         } finally {
             setChecking(false);
         }
     }
 
     useEffect(() => {
-        // initial
-        void check();
-        // refresh when tab gains focus
+        void check(); // initial
         const onFocus = () => void check();
         window.addEventListener("focus", onFocus);
-        // periodic light refresh
         const id = setInterval(check, 30000);
         return () => {
             window.removeEventListener("focus", onFocus);
@@ -36,10 +33,7 @@ export default function AuthActions() {
 
     return (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {/* While loading, keep layout stable */}
-            {authed === null || checking ? (
-                <span style={{ opacity: 0.6, fontSize: 12 }}>Checking…</span>
-            ) : authed ? (
+            {authed ? (
                 <>
                     <Link href="/admin" style={btnPrimary}>Admin Panel</Link>
                     <Link href="/admin/logout" style={btnGhost}>Logout</Link>
@@ -47,11 +41,11 @@ export default function AuthActions() {
             ) : (
                 <Link href="/admin/login" style={btnPrimary}>Login</Link>
             )}
+            {/* no “refreshing” text; background checks happen silently */}
         </div>
     );
 }
 
-/* ---- tiny header button styles to match your UI ---- */
 const btnPrimary: React.CSSProperties = {
     background: "#1e293b",
     color: "#fff",
