@@ -381,22 +381,26 @@ export default async function AdvancedSearchPage({
     const canNext = results.length === parsedLimit; // heuristic (no total from API)
 
     return (
-        <div style={{padding: 16}}>
-            {/* Breadcrumb */}
-            <div style={{marginBottom: 12}}>
-                <Link href={{pathname: "/"}} style={{color: "#a0c4ff", textDecoration: "none"}}>
-                    ← Home
-                </Link>
+        <div>
+            {/* Top header (match /games & basic search) */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                <h1 style={{ fontSize: 24, margin: 0 }}>Search</h1>
             </div>
 
-            <h1 style={{fontSize: 24, margin: "0 0 8px 0"}}>Search</h1>
-
-            {/* Basic / Advanced toggle directly under title */}
-            <div style={{display: "flex", gap: 6, marginBottom: 12}}>
-                <Link href={{pathname: "/search"}} style={toggleInactive}>
+            {/* Basic / Advanced toggle below header (consistent spacing) */}
+            <div
+                style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 8,
+                    alignItems: "center",
+                    marginBottom: 12,
+                }}
+            >
+                <Link href={{ pathname: "/search" }} style={toggleInactive}>
                     Basic
                 </Link>
-                <Link href={{pathname: "/search/advanced"}} style={toggleActive} aria-current="page">
+                <Link href={{ pathname: "/search/advanced" }} style={toggleActive} aria-current="page">
                     Advanced
                 </Link>
             </div>
@@ -796,7 +800,7 @@ const selectStyle: React.CSSProperties = {
     outline: "none",
 };
 
-/* Shared styles (match Basic Search) */
+/* Shared styles (match Basic Search & Games) */
 const detailsWrap: React.CSSProperties = {
     border: "1px solid #222",
     borderRadius: 10,

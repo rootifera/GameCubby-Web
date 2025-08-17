@@ -177,18 +177,22 @@ export default async function BasicSearchPage({
     const end = (page - 1) * size + results.length;
 
     return (
-        <div style={{ padding: 16 }}>
-            {/* Breadcrumb */}
-            <div style={{ marginBottom: 12 }}>
-                <Link href={{ pathname: "/" }} style={{ color: "#a0c4ff", textDecoration: "none" }}>
-                    ← Home
-                </Link>
+        <div>
+            {/* Top header (match /games) */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                <h1 style={{ fontSize: 24, margin: 0 }}>Search</h1>
             </div>
 
-            <h1 style={{ fontSize: 24, margin: "0 0 8px 0" }}>Search</h1>
-
-            {/* Basic / Advanced toggle directly under title */}
-            <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+            {/* Basic / Advanced toggle below header (match /games bar spacing) */}
+            <div
+                style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 8,
+                    alignItems: "center",
+                    marginBottom: 12,
+                }}
+            >
                 <Link href={{ pathname: "/search" }} style={toggleActive} aria-current="page">
                     Basic
                 </Link>
@@ -197,7 +201,7 @@ export default async function BasicSearchPage({
                 </Link>
             </div>
 
-            {/* Search bar (tighter width like /games controls) */}
+            {/* Search bar (same width rhythm as /games controls) */}
             <div style={{ marginBottom: 16 }}>
                 <div style={{ maxWidth: 540, width: "100%" }}>
                     <SearchBox defaultValue={q || ""} />
