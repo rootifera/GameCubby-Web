@@ -428,7 +428,8 @@ export default function LocationManager() {
                         <div>
                             <div style={{ fontWeight: 700 }}>Delete Location</div>
                             <div style={{ fontSize: 12, opacity: 0.8 }}>
-                                Deletes the selected location. If the location has children or is in use, the API may reject the delete.
+                                <div>Deletes the selected location. If the location has children or is in use,</div>
+                                <div>the API will reject the delete.</div>
                             </div>
                         </div>
                         <button type="button" style={dangerBtn} onClick={() => void deleteSelected()} disabled={!selectedId}>
