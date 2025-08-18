@@ -102,8 +102,12 @@ export default async function HomePage() {
     const totalIssues = healthItems.reduce((sum, it) => sum + (it.value || 0), 0);
 
     return (
-        <main style={{ maxWidth: 1100, margin: "24px auto", padding: "0 16px" }}>
-            <h1 style={{ fontSize: 24, margin: "0 0 16px 0" }}>Overview</h1>
+        // Match /search container rhythm: no custom maxWidth or top margin here.
+        <div>
+            {/* Top header (match /search) */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                <h1 style={{ fontSize: 24, margin: 0 }}>Overview</h1>
+            </div>
 
             {error ? (
                 <div style={errBox}>
@@ -142,8 +146,8 @@ export default async function HomePage() {
                 <div style={panelHeaderRow}>
                     <h2 style={panelTitle}>Library Health</h2>
                     <span style={{ opacity: 0.7, fontSize: 12 }}>
-            {totalIssues === 0 ? "All good 🎉" : `${totalIssues} issue${totalIssues === 1 ? "" : "s"}`}
-          </span>
+                        {totalIssues === 0 ? "All good 🎉" : `${totalIssues} issue${totalIssues === 1 ? "" : "s"}`}
+                    </span>
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
                     {healthItems.map((h) => (
@@ -323,7 +327,7 @@ export default async function HomePage() {
                     )}
                 </div>
             </section>
-        </main>
+        </div>
     );
 }
 
@@ -351,8 +355,8 @@ function Badge({ label, muted }: { label: string; muted?: boolean }) {
                 whiteSpace: "nowrap",
             }}
         >
-      {label}
-    </span>
+            {label}
+        </span>
     );
 }
 
