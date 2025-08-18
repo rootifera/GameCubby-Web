@@ -116,217 +116,216 @@ export default async function HomePage() {
                 </div>
             ) : null}
 
-            {/* Stat cards */}
-            <section
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                    gap: 12,
-                    marginBottom: 16,
-                }}
-            >
-                <StatCard label="Total Games" value={totalGames} />
-                <StatCard label="Unique Titles" value={uniqueGames} />
-                <StatCard
-                    label="Release Range"
-                    value={
-                        oldest && newest
-                            ? `${oldest}–${newest}`
-                            : oldest
-                                ? `${oldest}–—`
-                                : newest
-                                    ? `—–${newest}`
-                                    : "—"
-                    }
-                />
-            </section>
-
-            {/* Health snapshot (all fields) */}
-            <section style={panel}>
-                <div style={panelHeaderRow}>
-                    <h2 style={panelTitle}>Library Health</h2>
-                    <span style={{ opacity: 0.7, fontSize: 12 }}>
-                        {totalIssues === 0 ? "All good 🎉" : `${totalIssues} issue${totalIssues === 1 ? "" : "s"}`}
-                    </span>
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-                    {healthItems.map((h) => (
-                        <Badge key={h.label} label={`${h.label}: ${h.value}`} muted={h.value === 0} />
-                    ))}
-                </div>
-            </section>
-
-            {/* Top Platforms (all returned) */}
-            <section style={panel}>
-                <div style={panelHeaderRow}>
-                    <h2 style={panelTitle}>Top Platforms</h2>
-                    <span style={{ opacity: 0.7, fontSize: 12 }}>count by platform</span>
-                </div>
-                {topPlatforms.length === 0 ? (
-                    <p style={{ opacity: 0.7, marginTop: 10 }}>No platform data yet.</p>
-                ) : (
-                    <SimpleList
-                        rows={topPlatforms.map((p) => ({
-                            left: p.name,
-                            right: `${p.count} ${p.count === 1 ? "game" : "games"}`,
-                            key: String(p.platform_id),
-                        }))}
+            {/* Consistent spacing wrapper for all sections */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {/* Stat cards */}
+                <section
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                        gap: 12,
+                    }}
+                >
+                    <StatCard label="Total Games" value={totalGames} />
+                    <StatCard label="Unique Titles" value={uniqueGames} />
+                    <StatCard
+                        label="Release Range"
+                        value={
+                            oldest && newest
+                                ? `${oldest}–${newest}`
+                                : oldest
+                                    ? `${oldest}–—`
+                                    : newest
+                                        ? `—–${newest}`
+                                        : "—"
+                        }
                     />
-                )}
-            </section>
+                </section>
 
-            {/* Two-up: Top Genres / Top Publishers (show everything) */}
-            <section
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 12,
-                    marginTop: 12,
-                }}
-            >
-                <div style={panel}>
+                {/* Health snapshot (all fields) */}
+                <section style={panel}>
                     <div style={panelHeaderRow}>
-                        <h2 style={panelTitle}>Top Genres</h2>
-                        <span style={{ opacity: 0.7, fontSize: 12 }}>count by genre</span>
+                        <h2 style={panelTitle}>Library Health</h2>
+                        <span style={{ opacity: 0.7, fontSize: 12 }}>
+                            {totalIssues === 0 ? "All good 🎉" : `${totalIssues} issue${totalIssues === 1 ? "" : "s"}`}
+                        </span>
                     </div>
-                    {topGenres.length ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                        {healthItems.map((h) => (
+                            <Badge key={h.label} label={`${h.label}: ${h.value}`} muted={h.value === 0} />
+                        ))}
+                    </div>
+                </section>
+
+                {/* Top Platforms (all returned) */}
+                <section style={panel}>
+                    <div style={panelHeaderRow}>
+                        <h2 style={panelTitle}>Top Platforms</h2>
+                        <span style={{ opacity: 0.7, fontSize: 12 }}>count by platform</span>
+                    </div>
+                    {topPlatforms.length === 0 ? (
+                        <p style={{ opacity: 0.7, marginTop: 10 }}>No platform data yet.</p>
+                    ) : (
                         <SimpleList
-                            rows={topGenres.map((g) => ({
-                                left: g.name,
-                                right: `${g.count}`,
-                                key: String(g.genre_id),
+                            rows={topPlatforms.map((p) => ({
+                                left: p.name,
+                                right: `${p.count} ${p.count === 1 ? "game" : "games"}`,
+                                key: String(p.platform_id),
                             }))}
                         />
-                    ) : (
-                        <p style={{ opacity: 0.7 }}>No genre data.</p>
                     )}
-                </div>
+                </section>
 
-                <div style={panel}>
-                    <div style={panelHeaderRow}>
-                        <h2 style={panelTitle}>Top Publishers</h2>
-                        <span style={{ opacity: 0.7, fontSize: 12 }}>count by publisher</span>
+                {/* Two-up: Top Genres / Top Publishers (show everything) */}
+                <section
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                        gap: 12,
+                    }}
+                >
+                    <div style={panel}>
+                        <div style={panelHeaderRow}>
+                            <h2 style={panelTitle}>Top Genres</h2>
+                            <span style={{ opacity: 0.7, fontSize: 12 }}>count by genre</span>
+                        </div>
+                        {topGenres.length ? (
+                            <SimpleList
+                                rows={topGenres.map((g) => ({
+                                    left: g.name,
+                                    right: `${g.count}`,
+                                    key: String(g.genre_id),
+                                }))}
+                            />
+                        ) : (
+                            <p style={{ opacity: 0.7, marginTop: 10 }}>No genre data.</p>
+                        )}
                     </div>
-                    {topPublishers.length ? (
-                        <SimpleList
-                            rows={topPublishers.map((c) => ({
-                                left: c.name,
-                                right: `${c.count}`,
-                                key: String(c.company_id),
-                            }))}
-                        />
-                    ) : (
-                        <p style={{ opacity: 0.7 }}>No publisher data.</p>
-                    )}
-                </div>
-            </section>
 
-            {/* Two-up: Top Developers / Top Years */}
-            <section
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 12,
-                    marginTop: 12,
-                }}
-            >
-                <div style={panel}>
-                    <div style={panelHeaderRow}>
-                        <h2 style={panelTitle}>Top Developers</h2>
-                        <span style={{ opacity: 0.7, fontSize: 12 }}>count by developer</span>
+                    <div style={panel}>
+                        <div style={panelHeaderRow}>
+                            <h2 style={panelTitle}>Top Publishers</h2>
+                            <span style={{ opacity: 0.7, fontSize: 12 }}>count by publisher</span>
+                        </div>
+                        {topPublishers.length ? (
+                            <SimpleList
+                                rows={topPublishers.map((c) => ({
+                                    left: c.name,
+                                    right: `${c.count}`,
+                                    key: String(c.company_id),
+                                }))}
+                            />
+                        ) : (
+                            <p style={{ opacity: 0.7, marginTop: 10 }}>No publisher data.</p>
+                        )}
                     </div>
-                    {topDevelopers.length ? (
-                        <SimpleList
-                            rows={topDevelopers.map((c) => ({
-                                left: c.name,
-                                right: `${c.count}`,
-                                key: String(c.company_id),
-                            }))}
-                        />
-                    ) : (
-                        <p style={{ opacity: 0.7 }}>No developer data.</p>
-                    )}
-                </div>
+                </section>
 
-                <div style={panel}>
-                    <div style={panelHeaderRow}>
-                        <h2 style={panelTitle}>Years with Most Games</h2>
-                        <span style={{ opacity: 0.7, fontSize: 12 }}>count by year</span>
+                {/* Two-up: Top Developers / Top Years */}
+                <section
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                        gap: 12,
+                    }}
+                >
+                    <div style={panel}>
+                        <div style={panelHeaderRow}>
+                            <h2 style={panelTitle}>Top Developers</h2>
+                            <span style={{ opacity: 0.7, fontSize: 12 }}>count by developer</span>
+                        </div>
+                        {topDevelopers.length ? (
+                            <SimpleList
+                                rows={topDevelopers.map((c) => ({
+                                    left: c.name,
+                                    right: `${c.count}`,
+                                    key: String(c.company_id),
+                                }))}
+                            />
+                        ) : (
+                            <p style={{ opacity: 0.7, marginTop: 10 }}>No developer data.</p>
+                        )}
                     </div>
-                    {topYears.length ? (
-                        <SimpleList
-                            rows={topYears.map((y) => ({
-                                left: String(y.year),
-                                right: `${y.count}`,
-                                key: String(y.year),
-                            }))}
-                        />
-                    ) : (
-                        <p style={{ opacity: 0.7 }}>No year data.</p>
-                    )}
-                </div>
-            </section>
 
-            {/* Highest / Lowest rated (all returned) */}
-            <section
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 12,
-                    marginTop: 12,
-                    marginBottom: 12,
-                }}
-            >
-                <div style={panel}>
-                    <div style={panelHeaderRow}>
-                        <h2 style={panelTitle}>Highest Rated</h2>
-                        <span style={{ opacity: 0.7, fontSize: 12 }}>rating (IGDB)</span>
+                    <div style={panel}>
+                        <div style={panelHeaderRow}>
+                            <h2 style={panelTitle}>Years with Most Games</h2>
+                            <span style={{ opacity: 0.7, fontSize: 12 }}>count by year</span>
+                        </div>
+                        {topYears.length ? (
+                            <SimpleList
+                                rows={topYears.map((y) => ({
+                                    left: String(y.year),
+                                    right: `${y.count}`,
+                                    key: String(y.year),
+                                }))}
+                            />
+                        ) : (
+                            <p style={{ opacity: 0.7, marginTop: 10 }}>No year data.</p>
+                        )}
                     </div>
-                    {highestRated.length ? (
-                        <ul style={listReset}>
-                            {highestRated.map((g) => (
-                                <li key={g.game_id} style={rowItem}>
-                                    <Link
-                                        href={`/games/${g.game_id}`}
-                                        style={{ color: "#eaeaea", textDecoration: "none" }}
-                                        title={`IGDB: ${g.igdb_id}`}
-                                    >
-                                        {g.name}
-                                    </Link>
-                                    <span style={{ opacity: 0.85 }}>{g.rating ?? "—"}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p style={{ opacity: 0.7 }}>No rating data.</p>
-                    )}
-                </div>
+                </section>
 
-                <div style={panel}>
-                    <div style={panelHeaderRow}>
-                        <h2 style={panelTitle}>Lowest Rated</h2>
-                        <span style={{ opacity: 0.7, fontSize: 12 }}>rating (IGDB)</span>
+                {/* Highest / Lowest rated (all returned) */}
+                <section
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                        gap: 12,
+                        marginBottom: 12,
+                    }}
+                >
+                    <div style={panel}>
+                        <div style={panelHeaderRow}>
+                            <h2 style={panelTitle}>Highest Rated</h2>
+                            <span style={{ opacity: 0.7, fontSize: 12 }}>rating (IGDB)</span>
+                        </div>
+                        {highestRated.length ? (
+                            <ul style={listReset}>
+                                {highestRated.map((g) => (
+                                    <li key={g.game_id} style={rowItem}>
+                                        <Link
+                                            href={`/games/${g.game_id}`}
+                                            style={{ color: "#eaeaea", textDecoration: "none" }}
+                                            title={`IGDB: ${g.igdb_id}`}
+                                        >
+                                            {g.name}
+                                        </Link>
+                                        <span style={{ opacity: 0.85 }}>{g.rating ?? "—"}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p style={{ opacity: 0.7, marginTop: 10 }}>No rating data.</p>
+                        )}
                     </div>
-                    {lowestRated.length ? (
-                        <ul style={listReset}>
-                            {lowestRated.map((g) => (
-                                <li key={g.game_id} style={rowItem}>
-                                    <Link
-                                        href={`/games/${g.game_id}`}
-                                        style={{ color: "#eaeaea", textDecoration: "none" }}
-                                        title={`IGDB: ${g.igdb_id}`}
-                                    >
-                                        {g.name}
-                                    </Link>
-                                    <span style={{ opacity: 0.85 }}>{g.rating ?? "—"}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p style={{ opacity: 0.7 }}>No rating data.</p>
-                    )}
-                </div>
-            </section>
+
+                    <div style={panel}>
+                        <div style={panelHeaderRow}>
+                            <h2 style={panelTitle}>Lowest Rated</h2>
+                            <span style={{ opacity: 0.7, fontSize: 12 }}>rating (IGDB)</span>
+                        </div>
+                        {lowestRated.length ? (
+                            <ul style={listReset}>
+                                {lowestRated.map((g) => (
+                                    <li key={g.game_id} style={rowItem}>
+                                        <Link
+                                            href={`/games/${g.game_id}`}
+                                            style={{ color: "#eaeaea", textDecoration: "none" }}
+                                            title={`IGDB: ${g.igdb_id}`}
+                                        >
+                                            {g.name}
+                                        </Link>
+                                        <span style={{ opacity: 0.85 }}>{g.rating ?? "—"}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p style={{ opacity: 0.7, marginTop: 10 }}>No rating data.</p>
+                        )}
+                    </div>
+                </section>
+            </div>
         </div>
     );
 }
