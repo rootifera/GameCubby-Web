@@ -5,13 +5,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./admin.module.css";
 
+type MenuItem = { label: string; href: string };
 type MenuGroup = {
     section: string;
-    items: { label: string; href: string }[];
+    items: MenuItem[];
 };
 
 const menu: MenuGroup[] = [
     { section: "Admin Home", items: [{ label: "Overview", href: "/admin" }] },
+
     {
         section: "Game Management",
         items: [
@@ -21,18 +23,17 @@ const menu: MenuGroup[] = [
             { label: "Sync & Refresh", href: "/admin/games/sync" },
         ],
     },
+
     {
         section: "File Management",
-        items: [
-            { label: "File Manager", href: "/admin/files/manager" },
-        ],
+        items: [{ label: "File Manager", href: "/admin/files/manager" }],
     },
+
     {
         section: "Location Management",
-        items: [
-            { label: "Location Manager", href: "/admin/locations/manager" },
-        ],
+        items: [{ label: "Location Manager", href: "/admin/locations/manager" }],
     },
+
     {
         section: "Backup & Export",
         items: [
@@ -40,6 +41,16 @@ const menu: MenuGroup[] = [
             { label: "Backup Database", href: "/admin/backup/database" },
         ],
     },
+
+    // NEW: Sentinel maintenance section
+    {
+        section: "Maintenance (Sentinel)",
+        items: [
+            { label: "Restore Database", href: "/admin/sentinel/restore" },
+            { label: "Backups", href: "/admin/sentinel/backups" },
+        ],
+    },
+
     {
         section: "Settings",
         items: [

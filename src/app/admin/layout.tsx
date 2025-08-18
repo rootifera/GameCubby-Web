@@ -2,6 +2,7 @@ import React from "react";
 import { cookies } from "next/headers";
 import Sidebar from "./Sidebar";
 import styles from "./admin.module.css";
+import { bootstrapOnce } from "../sentinel/bootstrapOnStart";
 
 export const metadata = {
     title: "Admin • GameCubby",
@@ -41,7 +42,10 @@ function isTokenValidNow(token: string): boolean {
     return payload.exp > now;
 }
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+    // Ensure maintenance DB user once per server process on first admin hit
+    await bootstrapOnce();
+
     // Server-side, no hydration race: validate the JWT, not just its presence
     const token = readAuthToken();
     const isAuthed = token ? isTokenValidNow(token) : false;
