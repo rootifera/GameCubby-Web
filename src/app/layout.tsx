@@ -6,11 +6,16 @@ import AuthActions from "@/components/AuthActions";
 export const metadata = {
     title: "GameCubby",
     description: "Game collection manager",
+    icons: { icon: "/favicon.ico" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
         <html lang="en">
+        <head>
+            <style>{`html{scrollbar-gutter:stable;}`}</style>
+            <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+        </head>
         <body
             style={{
                 margin: 0,

@@ -5,6 +5,7 @@ import TagChipsAutocomplete from "@/components/TagChipsAutocomplete";
 import LocationPicker from "@/components/LocationPicker";
 import CoverThumb from "@/components/CoverThumb";
 import GameHoverCard from "@/components/GameHoverCard";
+import SearchBox from "@/components/SearchBox";
 
 /** Minimal shape we render */
 type GameLike = {
@@ -68,6 +69,11 @@ function hasMeaningfulFilters(sp: Record<string, string | string[] | undefined>)
         "offset",
         "match_mode",        // default "any"
         "igdb_match_mode",   // default "any"
+        "platform_match_mode",
+        "genre_match_mode",
+        "mode_match_mode",
+        "perspective_match_mode",
+        "company_match_mode",
         "show_filters",
         "__reset",
         "__ts",
@@ -87,6 +93,7 @@ function hasMeaningfulFilters(sp: Record<string, string | string[] | undefined>)
         "igdb_tag_ids",
         "collection_id",
         "company_id",
+        "company_ids",
         "location_id",
         "include_manual",
     ];
@@ -122,6 +129,12 @@ function buildQuery(sp: Record<string, string | string[] | undefined>) {
         // tag match modes
         "match_mode",
         "igdb_match_mode",
+        // new match modes
+        "platform_match_mode",
+        "genre_match_mode",
+        "mode_match_mode",
+        "perspective_match_mode",
+        "company_match_mode",
     ] as const;
 
     for (const key of passthrough) {
@@ -132,8 +145,6 @@ function buildQuery(sp: Record<string, string | string[] | undefined>) {
     // Normalize single-value IDs (in case UI submits CSV for single-select)
     const collection = firstId(sp, "collection_id");
     if (collection) qs.set("collection_id", collection);
-    const company = firstId(sp, "company_id");
-    if (company) qs.set("company_id", company);
 
     // Repeated params
     const multi = [
@@ -143,6 +154,7 @@ function buildQuery(sp: Record<string, string | string[] | undefined>) {
         "mode_ids",
         "perspective_ids",
         "igdb_tag_ids",
+        "company_ids", // NEW
     ] as const;
 
     for (const key of multi) {
@@ -180,7 +192,12 @@ async function runAdvancedSearch(
 function isBasicCompatible(sp: Record<string, string | string[] | undefined>) {
     const usedKeys = Object.entries(sp)
         .filter(([k, v]) => {
-            if (["limit", "offset", "match_mode", "igdb_match_mode", "show_filters", "__reset", "__ts"].includes(k)) return false;
+            if ([
+                "limit", "offset",
+                "match_mode", "igdb_match_mode",
+                "platform_match_mode", "genre_match_mode", "mode_match_mode", "perspective_match_mode", "company_match_mode",
+                "show_filters", "__reset", "__ts"
+            ].includes(k)) return false;
             return (Array.isArray(v) ? v.join("") : v)?.toString().trim();
         })
         .map(([k]) => k);
@@ -365,12 +382,23 @@ export default async function AdvancedSearchPage({
     const tagDefaultIds = parseIdsCSV(getCSV(sp, "tag_ids"));
     const igdbTagDefaultIds = parseIdsCSV(getCSV(sp, "igdb_tag_ids"));
     const collectionDefaultId = firstId(sp, "collection_id");
-    const companyDefaultId = firstId(sp, "company_id");
+
+    // Company preselects: support both company_ids and (legacy) single company_id
+    const companyIdsCSV = [getCSV(sp, "company_ids"), get(sp, "company_id", "")]
+        .filter(Boolean)
+        .join(",");
+    const companyDefaultIds = parseIdsCSV(companyIdsCSV);
+
     const locationDefaultId = get(sp, "location_id"); // preselect in picker if present
 
     // Match modes (default 'any' in UI—ignored if default)
     const tagMatch = get(sp, "match_mode") || "any";
     const igdbTagMatch = get(sp, "igdb_match_mode") || "any";
+    const platformMatch = get(sp, "platform_match_mode") || "any";
+    const genreMatch = get(sp, "genre_match_mode") || "any";
+    const modeMatch = get(sp, "mode_match_mode") || "any";
+    const perspectiveMatch = get(sp, "perspective_match_mode") || "any";
+    const companyMatch = get(sp, "company_match_mode") || "any";
 
     // Filters toggle
     const forceShowFilters = get(sp, "show_filters") === "1";
@@ -418,24 +446,14 @@ export default async function AdvancedSearchPage({
                     <div style={{display: "grid", gap: 12, gridTemplateColumns: "1fr 200px"}}>
                         <label style={{display: "grid", gap: 6}}>
                             <span style={{opacity: 0.85}}>Name</span>
-                            {/* Plain input + datalist suggestions powered by /api/suggest/names */}
-                            <input
-                                id="adv-name"
+                            {/* Identical suggestions behavior as Basic, but no navigation & parent form handles submit */}
+                            <SearchBox
                                 name="name"
                                 defaultValue={get(sp, "name")}
+                                onSelectNavigateTo={null}
+                                wrapWithForm={false}
                                 placeholder="partial name…"
-                                autoComplete="off"
-                                list="adv-name-suggest"
-                                style={{
-                                    background: "#1a1a1a",
-                                    color: "#eaeaea",
-                                    border: "1px solid #2b2b2b",
-                                    borderRadius: 8,
-                                    padding: "10px 12px",
-                                    outline: "none",
-                                }}
                             />
-                            <datalist id="adv-name-suggest"/>
                         </label>
                         <LabeledInput label="Year (exact)" name="year" type="number" defaultValue={get(sp, "year")}
                                       placeholder="1998" short/>
@@ -469,6 +487,28 @@ export default async function AdvancedSearchPage({
                         />
                     </div>
 
+                    {/* Row 3.1 — Platform/Genre match modes */}
+                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "200px 200px"}}>
+                        <label style={{display: "grid", gap: 6}}>
+                            <span style={{opacity: 0.85}}>Platform match</span>
+                            <select name="platform_match_mode" defaultValue={platformMatch} style={selectStyle}>
+                                <option value="">Default (Any)</option>
+                                <option value="any">Any</option>
+                                <option value="all">All</option>
+                                <option value="exact">Exact</option>
+                            </select>
+                        </label>
+                        <label style={{display: "grid", gap: 6}}>
+                            <span style={{opacity: 0.85}}>Genre match</span>
+                            <select name="genre_match_mode" defaultValue={genreMatch} style={selectStyle}>
+                                <option value="">Default (Any)</option>
+                                <option value="any">Any</option>
+                                <option value="all">All</option>
+                                <option value="exact">Exact</option>
+                            </select>
+                        </label>
+                    </div>
+
                     {/* Row 4 — Player Perspective | Mode */}
                     <div style={{display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr"}}>
                         <MultiSelectDropdown
@@ -489,7 +529,29 @@ export default async function AdvancedSearchPage({
                         />
                     </div>
 
-                    {/* Row 5 — Collection | Company (single-select) */}
+                    {/* Row 4.1 — Perspective/Mode match modes */}
+                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "200px 200px"}}>
+                        <label style={{display: "grid", gap: 6}}>
+                            <span style={{opacity: 0.85}}>Perspective match</span>
+                            <select name="perspective_match_mode" defaultValue={perspectiveMatch} style={selectStyle}>
+                                <option value="">Default (Any)</option>
+                                <option value="any">Any</option>
+                                <option value="all">All</option>
+                                <option value="exact">Exact</option>
+                            </select>
+                        </label>
+                        <label style={{display: "grid", gap: 6}}>
+                            <span style={{opacity: 0.85}}>Mode match</span>
+                            <select name="mode_match_mode" defaultValue={modeMatch} style={selectStyle}>
+                                <option value="">Default (Any)</option>
+                                <option value="any">Any</option>
+                                <option value="all">All</option>
+                                <option value="exact">Exact</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    {/* Row 5 — Collection | Company (multi-select) */}
                     <div style={{display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr"}}>
                         <MultiSelectDropdown
                             label="Collection"
@@ -502,13 +564,26 @@ export default async function AdvancedSearchPage({
                         />
                         <MultiSelectDropdown
                             label="Company"
-                            name="company_id"
+                            name="company_ids"
                             options={companyOptions}
-                            defaultSelectedIds={companyDefaultId ? [companyDefaultId] : []}
-                            multiple={false}
-                            placeholder="Select a company…"
+                            defaultSelectedIds={companyDefaultIds}
+                            multiple
+                            placeholder="Select companies…"
                             compact
                         />
+                    </div>
+
+                    {/* Row 5.1 — Company match mode */}
+                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "200px 200px"}}>
+                        <label style={{display: "grid", gap: 6}}>
+                            <span style={{opacity: 0.85}}>Company match</span>
+                            <select name="company_match_mode" defaultValue={companyMatch} style={selectStyle}>
+                                <option value="">Default (Any)</option>
+                                <option value="any">Any</option>
+                                <option value="all">All</option>
+                                <option value="exact">Exact</option>
+                            </select>
+                        </label>
                     </div>
 
                     {/* Row 6 — Tags | IGDB Tags */}
@@ -706,63 +781,6 @@ export default async function AdvancedSearchPage({
             ) : meaningful && !error ? (
                 <p style={{opacity: 0.8}}>No results.</p>
             ) : null}
-
-            {/* Inline script: name suggestions via /api/suggest/names into datalist */}
-            <script
-                // eslint-disable-next-line react/no-danger
-                dangerouslySetInnerHTML={{
-                    __html: `
-(function(){
-  const input = document.getElementById('adv-name');
-  const list = document.getElementById('adv-name-suggest');
-  if (!input || !list) return;
-
-  let ac = null;
-  let t = null;
-
-  function clearList(){
-    while(list.firstChild) list.removeChild(list.firstChild);
-  }
-
-  input.addEventListener('input', function(){
-    const q = (input.value || '').trim();
-    if (t) clearTimeout(t);
-
-    if (q.length < 2) {
-      if (ac) ac.abort();
-      clearList();
-      return;
-    }
-
-    t = setTimeout(async function(){
-      try{
-        if (ac) ac.abort();
-        ac = new AbortController();
-
-        const res = await fetch('/api/suggest/names?q=' + encodeURIComponent(q), {
-          cache: 'no-store',
-          signal: ac.signal
-        });
-
-        if (!res.ok) { clearList(); return; }
-
-        const arr = await res.json();
-        clearList();
-        if (Array.isArray(arr)) {
-          for (let i=0; i<Math.min(arr.length, 10); i++) {
-            const opt = document.createElement('option');
-            opt.value = String(arr[i]);
-            list.appendChild(opt);
-          }
-        }
-      } catch(e) {
-        // ignore
-      }
-    }, 150);
-  });
-})();`,
-                }}
-            />
         </div>
     );
 }
