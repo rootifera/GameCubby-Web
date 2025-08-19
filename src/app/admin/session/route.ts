@@ -1,6 +1,6 @@
 // src/app/admin/session/route.ts
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { readToken, isJwtActive } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,11 +26,7 @@ function decodeJwtPayload(token: string): JwtPayload | null {
 }
 
 export async function GET() {
-    // Accept either cookie name
-    const token =
-        cookies().get("__gcub_a")?.value ||
-        cookies().get("gc_at")?.value ||
-        "";
+    const token = readToken();
 
     if (!token) {
         return NextResponse.json(
@@ -40,9 +36,7 @@ export async function GET() {
     }
 
     const payload = decodeJwtPayload(token);
-    const nowSec = Math.floor(Date.now() / 1000);
-    const isExpired = payload?.exp ? payload.exp <= nowSec : false;
-    const authenticated = Boolean(payload && !isExpired);
+    const authenticated = Boolean(payload && isJwtActive(token));
 
     return NextResponse.json(
         {

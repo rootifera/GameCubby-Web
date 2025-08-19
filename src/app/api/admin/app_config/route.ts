@@ -1,13 +1,9 @@
 // src/app/api/admin/app_config/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { readToken } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
-
-function readToken(): string {
-    return cookies().get("__gcub_a")?.value || cookies().get("gc_at")?.value || "";
-}
 
 // GET /api/admin/app_config  -> GET {API_BASE_URL}/app_config/
 export async function GET() {

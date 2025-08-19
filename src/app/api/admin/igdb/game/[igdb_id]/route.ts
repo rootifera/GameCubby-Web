@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { readToken } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
-
-function readToken(): string {
-    // Prefer the obscure cookie you’re actually setting, fall back to the older name.
-    return cookies().get("__gcub_a")?.value || cookies().get("gc_at")?.value || "";
-}
 
 export async function GET(
     _req: Request,

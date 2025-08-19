@@ -1,13 +1,9 @@
 // src/app/api/admin/locations/[location_id]/rename/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { readToken } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
-
-function readToken(): string {
-    return cookies().get("__gcub_a")?.value || cookies().get("gc_at")?.value || "";
-}
 
 /** PUT /api/admin/locations/:location_id/rename -> PUT {API_BASE_URL}/locations/:id/rename (bearer) */
 export async function PUT(req: NextRequest, { params }: { params: { location_id: string } }) {

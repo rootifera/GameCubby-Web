@@ -47,8 +47,8 @@ export async function GET() {
         name: NEW_COOKIE,
         value: "",
         httpOnly: true,
-        sameSite: "lax",
-        secure: isProd,
+        sameSite: "strict",
+        secure: true,
         path: "/",
         maxAge: 0,
     });
@@ -58,8 +58,8 @@ export async function GET() {
         name: LEGACY_COOKIE,
         value: "",
         httpOnly: true,
-        sameSite: "lax",
-        secure: isProd,
+        sameSite: "strict",
+        secure: true,
         path: "/",
         maxAge: 0,
     });

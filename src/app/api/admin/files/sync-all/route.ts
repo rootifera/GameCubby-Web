@@ -1,13 +1,9 @@
 // src/app/api/admin/files/sync-all/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { readToken } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
-
-function readToken(): string {
-    return cookies().get("__gcub_a")?.value || cookies().get("gc_at")?.value || "";
-}
 
 // POST /api/admin/files/sync-all  ->  POST {API_BASE_URL}/files/sync-all  (Bearer)
 export async function POST(_req: NextRequest) {

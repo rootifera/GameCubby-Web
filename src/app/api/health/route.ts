@@ -1,26 +1,9 @@
 // src/app/api/health/route.ts
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { readToken, isJwtActive } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
-
-/** Soft-validate JWT by decoding payload and checking exp (no signature check). */
-function isJwtActive(token: string): boolean {
-    try {
-        const [, payloadB64] = token.split(".");
-        if (!payloadB64) return false;
-        const b64 = payloadB64.replace(/-/g, "+").replace(/_/g, "/");
-        const pad = b64.length % 4 ? "=".repeat(4 - (b64.length % 4)) : "";
-        const json = Buffer.from(b64 + pad, "base64").toString("utf8");
-        const payload = JSON.parse(json) as { exp?: number };
-        if (typeof payload.exp !== "number") return true; // treat as active if no exp
-        const now = Math.floor(Date.now() / 1000);
-        return payload.exp > now;
-    } catch {
-        return false;
-    }
-}
 
 export async function GET() {
     // 1) API online check (same as before)
@@ -41,7 +24,7 @@ export async function GET() {
     }
 
     // 2) Auth status from HttpOnly cookie __gcub_a
-    const token = cookies().get("__gcub_a")?.value || "";
+    const token = readToken();
     const authed = token ? isJwtActive(token) : false;
 
     return NextResponse.json(

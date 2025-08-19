@@ -4,13 +4,10 @@ import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
+import { readTokenFromRequest } from "@/lib/auth";
+
 function readToken(req: NextRequest): string {
-    // Same cookies your Add flow uses
-    return (
-        req.cookies.get("__gcub_a")?.value ||
-        req.cookies.get("gc_at")?.value ||
-        ""
-    );
+    return readTokenFromRequest(req);
 }
 
 function baseHeaders(token?: string) {

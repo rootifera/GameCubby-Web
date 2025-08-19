@@ -1,6 +1,6 @@
 // src/app/api/proxy/games/[id]/files/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { readToken } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
@@ -15,10 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         const id = encodeURIComponent(params.id);
 
         // Pass token if present (endpoint is public, but token enables locked-down servers)
-        const token =
-            cookies().get("__gcub_a")?.value ||
-            cookies().get("gc_at")?.value ||
-            "";
+        const token = readToken();
 
         const headers: Record<string, string> = { Accept: "application/json" };
         if (token) headers.Authorization = `Bearer ${token}`;

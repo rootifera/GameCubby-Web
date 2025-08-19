@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { readToken } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-    // Accept either cookie name (some setups use __gcub_a)
-    const token =
-        cookies().get("gc_at")?.value ||
-        cookies().get("__gcub_a")?.value ||
-        null;
+    const token = readToken();
 
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });

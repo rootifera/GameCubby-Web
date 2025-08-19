@@ -1,13 +1,10 @@
 // src/app/api/admin/locations/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { readToken } from "@/lib/auth";
+import { validateString, validatePositiveInt } from "@/lib/validation";
 import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
-
-function readToken(): string {
-    return cookies().get("__gcub_a")?.value || cookies().get("gc_at")?.value || "";
-}
 
 /**
  * GET /api/admin/locations
@@ -67,30 +64,26 @@ export async function POST(req: NextRequest) {
         const ctype = req.headers.get("content-type") || "";
         if (ctype.includes("application/json")) {
             const body = await req.json().catch(() => ({} as any));
-            if (typeof body?.name === "string") name = body.name.trim();
-            if (typeof body?.parent_id === "number") parent_id = body.parent_id;
-            if (typeof body?.type === "string") type = body.type.trim();
+            name = validateString(body?.name, 1, 100) || "";
+            parent_id = typeof body?.parent_id === "number" ? validatePositiveInt(String(body.parent_id), 1, 999999) : undefined;
+            type = validateString(body?.type, 1, 50) || undefined;
         } else if (ctype.includes("application/x-www-form-urlencoded") || ctype.includes("multipart/form-data")) {
             const form = await req.formData();
             const n = form.get("name");
             const pid = form.get("parent_id");
             const t = form.get("type");
-            if (typeof n === "string") name = n.trim();
-            if (typeof pid === "string" && pid) {
-                const v = Number(pid);
-                if (Number.isFinite(v)) parent_id = v;
-            }
-            if (typeof t === "string") type = t.trim();
+            name = validateString(n, 1, 100) || "";
+            parent_id = validatePositiveInt(pid, 1, 999999);
+            type = validateString(t, 1, 50) || undefined;
         }
 
         // Fallback to query params of this proxy route
         const sp = req.nextUrl.searchParams;
-        if (!name && sp.get("name")) name = String(sp.get("name") || "").trim();
+        if (!name && sp.get("name")) name = validateString(sp.get("name"), 1, 100) || "";
         if (parent_id === undefined && sp.get("parent_id")) {
-            const v = Number(sp.get("parent_id"));
-            if (Number.isFinite(v)) parent_id = v;
+            parent_id = validatePositiveInt(sp.get("parent_id"), 1, 999999);
         }
-        if (!type && sp.get("type")) type = String(sp.get("type") || "").trim();
+        if (!type && sp.get("type")) type = validateString(sp.get("type"), 1, 50) || undefined;
     } catch {
         // ignore, we validate below
     }
