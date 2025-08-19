@@ -5,13 +5,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./admin.module.css";
 
+type MenuItem = { label: string; href: string };
 type MenuGroup = {
     section: string;
-    items: { label: string; href: string }[];
+    items: MenuItem[];
 };
 
 const menu: MenuGroup[] = [
     { section: "Admin Home", items: [{ label: "Overview", href: "/admin" }] },
+
     {
         section: "Game Management",
         items: [
@@ -21,25 +23,33 @@ const menu: MenuGroup[] = [
             { label: "Sync & Refresh", href: "/admin/games/sync" },
         ],
     },
+
     {
         section: "File Management",
-        items: [
-            { label: "File Manager", href: "/admin/files/manager" },
-        ],
+        items: [{ label: "File Manager", href: "/admin/files/manager" }],
     },
+
     {
         section: "Location Management",
+        items: [{ label: "Location Manager", href: "/admin/locations/manager" }],
+    },
+
+    {
+        section: "Export Data",
         items: [
-            { label: "Location Manager", href: "/admin/locations/manager" },
+            { label: "Export Game Data", href: "/admin/export/games" },
+
         ],
     },
     {
-        section: "Backup & Export",
+        section: "Database Maintenance",
         items: [
-            { label: "Export Game Data", href: "/admin/export/games" },
-            { label: "Backup Database", href: "/admin/backup/database" },
+            { label: "Restore Database", href: "/admin/sentinel/restore" },
+            { label: "Backup to Storage", href: "/admin/sentinel/backups" },
+            { label: "Backup and Download", href: "/admin/backup/database" },
         ],
     },
+
     {
         section: "Settings",
         items: [
