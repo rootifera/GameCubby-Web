@@ -35,19 +35,18 @@ const menu: MenuGroup[] = [
     },
 
     {
-        section: "Backup & Export",
+        section: "Export Data",
         items: [
             { label: "Export Game Data", href: "/admin/export/games" },
-            { label: "Backup Database", href: "/admin/backup/database" },
+
         ],
     },
-
-    // NEW: Sentinel maintenance section
     {
-        section: "Maintenance (Sentinel)",
+        section: "Database Maintenance",
         items: [
             { label: "Restore Database", href: "/admin/sentinel/restore" },
-            { label: "Backups", href: "/admin/sentinel/backups" },
+            { label: "Backup to Storage", href: "/admin/sentinel/backups" },
+            { label: "Backup and Download", href: "/admin/backup/database" },
         ],
     },
 
