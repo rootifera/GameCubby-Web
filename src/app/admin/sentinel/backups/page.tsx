@@ -29,8 +29,11 @@ type StatusResp = {
 export default function BackupsPage() {
     const [backups, setBackups] = React.useState<BackupFile[]>([]);
     const [loading, setLoading] = React.useState(false);
+
     const [ensuring, setEnsuring] = React.useState(false);
     const [ensureMsg, setEnsureMsg] = React.useState<string | null>(null);
+
+    const [starting, setStarting] = React.useState(false);
 
     const [jobStatus, setJobStatus] = React.useState<StatusResp | null>(null);
     const [polling, setPolling] = React.useState(false);
@@ -73,11 +76,21 @@ export default function BackupsPage() {
         }
     }, []);
 
-    React.useEffect(() => {
-        Promise.all([loadBackups(), loadStatusOnce()]).catch(() => {});
-    }, [loadBackups, loadStatusOnce]);
+    // Warm the POST route module (first request to a route in dev can compile it;
+    // a harmless GET returns 405, but ensures the file is loaded before the real POST).
+    const warmStartRoute = React.useCallback(async () => {
+        try {
+            await fetch("/api/sentinel/backups/start", { method: "GET", cache: "no-store" });
+        } catch {
+            /* ignore */
+        }
+    }, []);
 
-    // Poll job status + logs (reuses /restore endpoints for unified job/status/logs api)
+    React.useEffect(() => {
+        Promise.all([loadBackups(), loadStatusOnce(), warmStartRoute()]).catch(() => {});
+    }, [loadBackups, loadStatusOnce, warmStartRoute]);
+
+    // Poll job status + logs (unified endpoints)
     React.useEffect(() => {
         if (!polling) return;
         let cancelled = false;
@@ -94,7 +107,6 @@ export default function BackupsPage() {
                     if (typeof l.next_offset === "number") setLogOffset(l.next_offset);
                     if (l.eof && (s.status === "succeeded" || s.status === "failed")) {
                         setPolling(false);
-                        // refresh list if backup completed (new file expected)
                         if (s.status === "succeeded" && s.job?.kind === "backup") {
                             loadBackups().catch(() => {});
                         }
@@ -131,16 +143,38 @@ export default function BackupsPage() {
         setError(null);
         setLogText("");
         setLogOffset(0);
+        setStarting(true);
+
+        // Helper to POST start with JSON parse + error surfacing
+        const doStart = async () => {
+            const res = await fetch("/api/sentinel/backups/start", { method: "POST" });
+            const j = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                const msg = j?.error || `Failed: ${res.status}`;
+                const err = new Error(msg) as any;
+                err.status = res.status;
+                err.body = j;
+                throw err;
+            }
+            return j;
+        };
 
         try {
-            // Ensure the maintenance user first (best-effort)
-            await ensureMaintUser();
+            // Best-effort: ensure admin role exists
+            await ensureMaintUser().catch(() => {});
 
-            const res = await fetch("/api/sentinel/backups/start", { method: "POST" });
-            const j = await res.json();
-            if (!res.ok) throw new Error(j?.error || `Failed: ${res.status}`);
+            // Warm the route module, then try start; if it fails once (cold compile or race),
+            // wait briefly, warm again, and retry once.
+            await warmStartRoute();
+            let j: any;
+            try {
+                j = await doStart();
+            } catch (e1: any) {
+                await new Promise((r) => setTimeout(r, 200));
+                await warmStartRoute();
+                j = await doStart();
+            }
 
-            // Kick off unified status polling
             setJobStatus({
                 ok: true,
                 status: j.status,
@@ -159,6 +193,8 @@ export default function BackupsPage() {
             setPolling(true);
         } catch (e: any) {
             setError(e?.message || "Failed to start backup");
+        } finally {
+            setStarting(false);
         }
     };
 
@@ -168,9 +204,7 @@ export default function BackupsPage() {
         <div style={{ maxWidth: 980, margin: "24px auto", padding: "0 16px" }}>
             <h1 style={{ fontSize: 22, margin: 0, marginBottom: 12 }}>Backups</h1>
 
-            {error ? (
-                <div style={errBox}>{error}</div>
-            ) : null}
+            {error ? <div style={errBox}>{error}</div> : null}
 
             {/* Maintenance user ensure */}
             <div style={cardStyle}>
@@ -186,7 +220,7 @@ export default function BackupsPage() {
                 </p>
 
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                    <button onClick={ensureMaintUser} style={btnPrimary} disabled={ensuring || running}>
+                    <button onClick={ensureMaintUser} style={btnPrimary} disabled={ensuring || running || starting}>
                         {ensuring ? "Ensuring…" : "Ensure maintenance user"}
                     </button>
                     {ensureMsg ? <span style={{ opacity: 0.9 }}>{ensureMsg}</span> : null}
@@ -207,10 +241,10 @@ export default function BackupsPage() {
                 </p>
 
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button onClick={startBackup} style={btnPrimary} disabled={running}>
-                        {running ? "Backup running…" : "Start backup"}
+                    <button onClick={startBackup} style={btnPrimary} disabled={running || starting}>
+                        {starting ? "Starting…" : running ? "Backup running…" : "Start backup"}
                     </button>
-                    <button onClick={() => { setLogText(""); setLogOffset(0); }} style={btnSecondary}>
+                    <button onClick={() => { setLogText(""); setLogOffset(0); }} style={btnSecondary} disabled={starting}>
                         Clear logs
                     </button>
                 </div>

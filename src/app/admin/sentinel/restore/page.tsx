@@ -2,6 +2,8 @@
 
 import React from "react";
 
+/* ---------- types ---------- */
+
 type MaintStatus = {
     enabled: boolean;
     reason?: string | null;
@@ -35,10 +37,75 @@ type StatusResp = {
     };
 };
 
+/* ---------- small UI atoms ---------- */
+
+function Toggle({
+                    checked,
+                    onChange,
+                    disabled,
+                    labelOn = "ON",
+                    labelOff = "OFF",
+                }: {
+    checked: boolean;
+    onChange: (next: boolean) => void;
+    disabled?: boolean;
+    labelOn?: string;
+    labelOff?: string;
+}) {
+    return (
+        <button
+            onClick={() => !disabled && onChange(!checked)}
+            aria-pressed={checked}
+            aria-label="Toggle maintenance mode"
+            title="Toggle maintenance mode"
+            disabled={disabled}
+            style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: 4,
+                borderRadius: 999,
+                border: "1px solid #2b2b2b",
+                background: checked ? "#10243d" : "#151515",
+                cursor: disabled ? "not-allowed" : "pointer",
+                opacity: disabled ? 0.6 : 1,
+            }}
+        >
+      <span
+          style={{
+              width: 38,
+              height: 20,
+              background: checked ? "#3b82f6" : "#333",
+              borderRadius: 999,
+              position: "relative",
+              transition: "background 120ms ease",
+          }}
+      >
+        <span
+            style={{
+                position: "absolute",
+                top: 2,
+                left: checked ? 20 : 2,
+                width: 16,
+                height: 16,
+                borderRadius: "50%",
+                background: "#eaeaea",
+                transition: "left 120ms ease",
+            }}
+        />
+      </span>
+            <span style={{ fontSize: 12, opacity: 0.9 }}>{checked ? labelOn : labelOff}</span>
+        </button>
+    );
+}
+
+/* ---------- page ---------- */
+
 export default function RestorePage() {
     // maintenance
     const [maint, setMaint] = React.useState<MaintStatus | null>(null);
     const [loadingMaint, setLoadingMaint] = React.useState(false);
+    const [toggling, setToggling] = React.useState(false);
 
     // backups
     const [backups, setBackups] = React.useState<BackupFile[]>([]);
@@ -77,31 +144,39 @@ export default function RestorePage() {
     }, []);
 
     const enterMaint = React.useCallback(async () => {
-        setError(null);
-        try {
-            const res = await fetch("/api/sentinel/maintenance/enter", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-            });
-            const j = await res.json();
-            if (!res.ok) throw new Error(j?.error || `Failed: ${res.status}`);
-            await loadMaint();
-        } catch (e: any) {
-            setError(e?.message || "Failed to enter maintenance");
+        const res = await fetch("/api/sentinel/maintenance/enter", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason: "Manual toggle from Restore page" }),
+        });
+        if (!res.ok) {
+            const j = await res.json().catch(() => ({}));
+            throw new Error(j?.error || `Failed: ${res.status}`);
         }
-    }, [loadMaint]);
+    }, []);
 
     const exitMaint = React.useCallback(async () => {
+        const res = await fetch("/api/sentinel/maintenance/exit", { method: "POST" });
+        if (!res.ok) {
+            const j = await res.json().catch(() => ({}));
+            throw new Error(j?.error || `Failed: ${res.status}`);
+        }
+    }, []);
+
+    const onToggleMaint = async (next: boolean) => {
+        if (toggling) return;
         setError(null);
+        setToggling(true);
         try {
-            const res = await fetch("/api/sentinel/maintenance/exit", { method: "POST" });
-            const j = await res.json();
-            if (!res.ok) throw new Error(j?.error || `Failed: ${res.status}`);
+            if (next) await enterMaint();
+            else await exitMaint();
             await loadMaint();
         } catch (e: any) {
-            setError(e?.message || "Failed to exit maintenance");
+            setError(e?.message || "Failed to change maintenance mode");
+        } finally {
+            setToggling(false);
         }
-    }, [loadMaint]);
+    };
 
     const loadBackups = React.useCallback(async () => {
         setLoadingBackups(true);
@@ -214,10 +289,41 @@ export default function RestorePage() {
 
     const running = jobStatus?.status === "running";
     const finished = jobStatus?.status === "succeeded" || jobStatus?.status === "failed";
+    const maintOn = !!maint?.enabled;
 
     return (
         <div style={{ maxWidth: 980, margin: "24px auto", padding: "0 16px" }}>
             <h1 style={{ fontSize: 22, margin: 0, marginBottom: 12 }}>Restore Database</h1>
+
+            {/* Maintenance banner */}
+            {maintOn ? (
+                <div
+                    style={{
+                        background: "#1b2a20",
+                        border: "1px solid #2f5139",
+                        color: "#d4f1dd",
+                        padding: 10,
+                        borderRadius: 8,
+                        marginBottom: 12,
+                    }}
+                >
+                    <b>Maintenance mode is enabled.</b>{" "}
+                    {maint?.reason ? <span style={{ opacity: 0.9 }}>Reason: {maint.reason}</span> : null}
+                </div>
+            ) : (
+                <div
+                    style={{
+                        background: "#2a1b1b",
+                        border: "1px solid #51302f",
+                        color: "#f1d4d4",
+                        padding: 10,
+                        borderRadius: 8,
+                        marginBottom: 12,
+                    }}
+                >
+                    <b>Maintenance mode is disabled.</b> Enable it to safely restore.
+                </div>
+            )}
 
             {error ? (
                 <div
@@ -234,28 +340,27 @@ export default function RestorePage() {
                 </div>
             ) : null}
 
-            {/* Maintenance controls */}
+            {/* Maintenance controls with toggle */}
             <div style={cardStyle}>
                 <div style={rowHeader}>
                     <h2 style={h2}>Maintenance Mode</h2>
-                    <span style={{ opacity: 0.8, fontSize: 12 }}>
-            {loadingMaint ? "Checking…" : maint?.enabled ? "Enabled" : "Disabled"}
-          </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <Toggle
+                            checked={maintOn}
+                            onChange={onToggleMaint}
+                            disabled={loadingMaint || toggling || running}
+                            labelOn="Enabled"
+                            labelOff="Disabled"
+                        />
+                        <button onClick={loadMaint} style={btnSecondary} disabled={loadingMaint}>
+                            Refresh
+                        </button>
+                    </div>
                 </div>
 
                 <p style={{ opacity: 0.85, marginTop: 0 }}>
                     When enabled, the API and UI are restricted; only this page and Sentinel API endpoints remain accessible.
                 </p>
-
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button onClick={enterMaint} style={btnPrimary} disabled={maint?.enabled || loadingMaint || running}>
-                        Enable maintenance
-                    </button>
-                    <button onClick={exitMaint} style={btnSecondary} disabled={!maint?.enabled || loadingMaint || running}>
-                        Disable maintenance
-                    </button>
-                    <button onClick={loadMaint} style={btnSecondary}>Refresh status</button>
-                </div>
             </div>
 
             {/* Pick backup */}
@@ -336,7 +441,7 @@ export default function RestorePage() {
                             <button
                                 onClick={startRestore}
                                 style={btnPrimary}
-                                disabled={!maint?.enabled || !dumpPath || running}
+                                disabled={!maintOn || !dumpPath || running}
                             >
                                 Start restore
                             </button>
@@ -403,7 +508,12 @@ export default function RestorePage() {
                     <button onClick={() => { setLogText(""); setLogOffset(0); }} style={btnSecondary}>
                         Clear logs
                     </button>
-                    <button onClick={exitMaint} style={btnSecondary} disabled={!maint?.enabled || running || !finished}>
+                    <button
+                        onClick={() => onToggleMaint(false)}
+                        style={btnSecondary}
+                        disabled={!maintOn || running || !finished || toggling}
+                        title={!finished ? "Wait until job finishes" : "Disable maintenance"}
+                    >
                         Exit maintenance
                     </button>
                 </div>

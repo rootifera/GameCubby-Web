@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
 
-const COOKIE_NAME = "__gcub_a";
+const ADMIN_COOKIE = "__gcub_a";
+const MAINT_COOKIE = "__gc_maint";
 
 // Maintenance flag file (shared via ./storage:/storage)
 const DEFAULT_MAINT_PATH = "/storage/maintenance.json";
@@ -24,7 +25,7 @@ type MaintJson = {
 
 export async function POST(req: NextRequest) {
     // ---- Admin check (same cookie as /admin) ----
-    const token = req.cookies.get(COOKIE_NAME)?.value ?? "";
+    const token = req.cookies.get(ADMIN_COOKIE)?.value ?? "";
     if (!token) {
         return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
             "/admin/logout",
             "/admin/sentinel/restore",
             "/api/sentinel/",
+            "/api/health",
             "/_next/",
             "/favicon.ico",
             "/robots.txt",
@@ -73,8 +75,29 @@ export async function POST(req: NextRequest) {
     // ---- Write maintenance flag ----
     await fs.writeFile(MAINT_FILE, JSON.stringify(payload, null, 2), "utf8");
 
-    return NextResponse.json(
-        { ok: true, enabled: true, file: MAINT_FILE, allow, reason: payload.reason, by: payload.by, started_at: payload.started_at },
+    // ---- Respond + set cookie so middleware blocks immediately ----
+    const res = NextResponse.json(
+        {
+            ok: true,
+            enabled: true,
+            file: MAINT_FILE,
+            allow,
+            reason: payload.reason,
+            by: payload.by,
+            started_at: payload.started_at,
+        },
         { status: 200, headers: { "Cache-Control": "no-store" } }
     );
+
+    const secure = req.nextUrl.protocol === "https:";
+    res.cookies.set(MAINT_COOKIE, "1", {
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        secure,
+        // keep it around for a while; server-side status still the source of truth
+        maxAge: 60 * 60 * 12, // 12h
+    });
+
+    return res;
 }

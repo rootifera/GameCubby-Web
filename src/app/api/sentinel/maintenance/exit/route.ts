@@ -5,15 +5,18 @@ import path from "node:path";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const runtime = "nodejs";
 
-const COOKIE_NAME = "__gcub_a";
+const ADMIN_COOKIE = "__gcub_a";
+const MAINT_COOKIE = "__gc_maint";
+
 const DEFAULT_MAINT_PATH = "/storage/maintenance.json";
 const MAINT_FILE = process.env.GC_MAINT_FILE || DEFAULT_MAINT_PATH;
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://gamecubby-api:8000";
 
 export async function POST(req: NextRequest) {
     // Admin check (same cookie your /admin area uses)
-    const token = req.cookies.get(COOKIE_NAME)?.value ?? "";
+    const token = req.cookies.get(ADMIN_COOKIE)?.value ?? "";
     if (!token) {
         return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
@@ -57,7 +60,7 @@ export async function POST(req: NextRequest) {
 
     const ok = apiOk && fileCleared;
 
-    return NextResponse.json(
+    const res = NextResponse.json(
         {
             ok,
             enabled: false,
@@ -66,4 +69,16 @@ export async function POST(req: NextRequest) {
         },
         { status: ok ? 200 : 207, headers: { "Cache-Control": "no-store" } }
     );
+
+    // Clear the maintenance cookie so middleware stops blocking pages immediately
+    const secure = req.nextUrl.protocol === "https:";
+    res.cookies.set(MAINT_COOKIE, "", {
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        secure,
+        maxAge: 0,
+    });
+
+    return res;
 }
