@@ -6,6 +6,18 @@ import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
+/** Helper: normalize any value into number | undefined using validatePositiveInt */
+function numOrUndef(v: unknown, min = 1, max = 999_999): number | undefined {
+    const n = validatePositiveInt(v as any, min, max);
+    return typeof n === "number" ? n : undefined; // convert null → undefined
+}
+
+/** Helper: safely read a string field from FormData (ignores File) */
+function fdString(fd: FormData, key: string): string | undefined {
+    const v = fd.get(key);
+    return typeof v === "string" ? v : undefined;
+}
+
 /**
  * GET /api/admin/locations
  * Proxies to GET {API_BASE_URL}/locations/ (public)
@@ -61,27 +73,36 @@ export async function POST(req: NextRequest) {
     let type: string | undefined;
 
     try {
-        const ctype = req.headers.get("content-type") || "";
+        const ctype = (req.headers.get("content-type") || "").toLowerCase();
+
         if (ctype.includes("application/json")) {
             const body = await req.json().catch(() => ({} as any));
             name = validateString(body?.name, 1, 100) || "";
-            parent_id = typeof body?.parent_id === "number" ? validatePositiveInt(String(body.parent_id), 1, 999999) : undefined;
+            parent_id =
+                typeof body?.parent_id === "number"
+                    ? numOrUndef(String(body.parent_id), 1, 999_999)
+                    : numOrUndef(body?.parent_id, 1, 999_999);
             type = validateString(body?.type, 1, 50) || undefined;
-        } else if (ctype.includes("application/x-www-form-urlencoded") || ctype.includes("multipart/form-data")) {
+
+        } else if (
+            ctype.includes("application/x-www-form-urlencoded") ||
+            ctype.includes("multipart/form-data")
+        ) {
             const form = await req.formData();
-            const n = form.get("name");
-            const pid = form.get("parent_id");
-            const t = form.get("type");
-            name = validateString(n, 1, 100) || "";
-            parent_id = validatePositiveInt(pid, 1, 999999);
-            type = validateString(t, 1, 50) || undefined;
+            const n = fdString(form, "name");
+            const pid = fdString(form, "parent_id");
+            const t = fdString(form, "type");
+
+            name = validateString(n ?? null, 1, 100) || "";
+            parent_id = numOrUndef(pid, 1, 999_999);
+            type = validateString(t ?? null, 1, 50) || undefined;
         }
 
         // Fallback to query params of this proxy route
         const sp = req.nextUrl.searchParams;
         if (!name && sp.get("name")) name = validateString(sp.get("name"), 1, 100) || "";
         if (parent_id === undefined && sp.get("parent_id")) {
-            parent_id = validatePositiveInt(sp.get("parent_id"), 1, 999999);
+            parent_id = numOrUndef(sp.get("parent_id"), 1, 999_999);
         }
         if (!type && sp.get("type")) type = validateString(sp.get("type"), 1, 50) || undefined;
     } catch {
