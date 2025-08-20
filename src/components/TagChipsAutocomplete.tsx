@@ -295,7 +295,7 @@ export default function TagChipsAutocomplete({
                     onChange={(e) => setQuery(e.target.value)}
                     onFocus={() => setOpen(true)}
                     onKeyDown={onKeyDown}
-                    placeholder="Type to add…"
+                    placeholder={searchOnly ? "Type to search…" : "Type to add…"}
                     autoComplete="off"
                     style={inputStyle}
                 />
