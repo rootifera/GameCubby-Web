@@ -349,11 +349,51 @@ export default function LocationManager() {
                             </div>
                             <div>
                                 <div style={{ opacity: 0.8, fontSize: 12, marginBottom: 4 }}>Children</div>
-                                <div style={{ opacity: 0.9, fontSize: "14px" }}>
-                                    {children && children.length
-                                        ? children.map((c) => c.name).join(", ")
-                                        : "No direct children"}
-                                </div>
+                                {children && children.length > 0 ? (
+                                    <div style={{ 
+                                        background: "#0f0f0f", 
+                                        border: "1px solid #333", 
+                                        borderRadius: 6, 
+                                        padding: 8,
+                                        maxHeight: 120,
+                                        overflow: "auto"
+                                    }}>
+                                        <div style={{ display: "grid", gap: 4 }}>
+                                            {children.map((child) => (
+                                                <div 
+                                                    key={child.id}
+                                                    style={{
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        gap: 8,
+                                                        padding: "4px 6px",
+                                                        background: "#1a1a1a",
+                                                        borderRadius: 4,
+                                                        fontSize: "13px"
+                                                    }}
+                                                >
+                                                    <span style={{ opacity: 0.7 }}>▶</span>
+                                                    <span style={{ fontWeight: 500 }}>{child.name}</span>
+                                                    {child.type && (
+                                                        <span style={{ 
+                                                            opacity: 0.6, 
+                                                            fontSize: "11px",
+                                                            background: "#333",
+                                                            padding: "2px 6px",
+                                                            borderRadius: 3
+                                                        }}>
+                                                            {child.type}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div style={{ opacity: 0.9, fontSize: "14px", fontStyle: "italic" }}>
+                                        No direct children
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
