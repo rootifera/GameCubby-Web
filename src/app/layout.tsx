@@ -71,8 +71,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         textDecoration: "none",
                         color: "#fff",
                         letterSpacing: 0.3,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
                     }}
                 >
+                    <img 
+                        src="/favicon.ico" 
+                        alt="GameCubby Icon" 
+                        style={{
+                            width: 24,
+                            height: 24,
+                            objectFit: "contain"
+                        }}
+                    />
                     GameCubby
                 </Link>
 
