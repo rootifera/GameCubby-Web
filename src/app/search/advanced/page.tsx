@@ -6,6 +6,7 @@ import LocationTreePicker from "@/components/LocationTreePicker";
 import CoverThumb from "@/components/CoverThumb";
 import GameHoverCard from "@/components/GameHoverCard";
 import SearchBox from "@/components/SearchBox";
+import { ToggleButton } from "./ToggleButton";
 
 /** Minimal shape we render */
 type GameLike = {
@@ -436,27 +437,15 @@ export default async function AdvancedSearchPage({
             <details id="filters" open={openFilters} style={detailsWrap}>
                 <summary style={summaryBar}>
                     <span>Filters</span>
-                    <button 
-                        type="button" 
-                        style={{
-                            background: "#151515",
-                            color: "#d8d8d8",
-                            border: "1px solid #2b2b2b",
-                            padding: "6px 10px",
-                            borderRadius: 8,
-                            fontSize: 13,
-                            cursor: "pointer",
-                        }}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            const details = e.currentTarget.closest('details');
+                    <ToggleButton
+                        isOpen={openFilters}
+                        onToggle={() => {
+                            const details = document.getElementById("filters");
                             if (details) {
                                 details.open = !details.open;
                             }
                         }}
-                    >
-                        {openFilters ? "Click to hide filters" : "Click to show filters"}
-                    </button>
+                    />
                 </summary>
 
                 <form method="GET" action="/search/advanced" style={{display: "grid", gap: 16, padding: "16px", marginBottom: 16}}>
