@@ -439,12 +439,6 @@ export default async function AdvancedSearchPage({
                     <span>Filters</span>
                     <ToggleButton
                         isOpen={openFilters}
-                        onToggle={() => {
-                            const details = document.getElementById("filters") as HTMLDetailsElement;
-                            if (details) {
-                                details.open = !details.open;
-                            }
-                        }}
                     />
                 </summary>
 

@@ -1,6 +1,6 @@
 "use client";
 
-export function ToggleButton({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
+export function ToggleButton({ isOpen }: { isOpen: boolean }) {
     return (
         <button 
             type="button" 
@@ -15,7 +15,10 @@ export function ToggleButton({ isOpen, onToggle }: { isOpen: boolean; onToggle: 
             }}
             onClick={(e) => {
                 e.preventDefault();
-                onToggle();
+                const details = e.currentTarget.closest('details') as HTMLDetailsElement;
+                if (details) {
+                    details.open = !details.open;
+                }
             }}
         >
             {isOpen ? "Click to hide filters" : "Click to show filters"}
