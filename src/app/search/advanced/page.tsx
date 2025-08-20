@@ -2,7 +2,7 @@ import Link from "next/link";
 import {API_BASE_URL} from "@/lib/env";
 import MultiSelectDropdown, {type Option} from "@/components/MultiSelectDropdown";
 import TagChipsAutocomplete from "@/components/TagChipsAutocomplete";
-import LocationPicker from "@/components/LocationPicker";
+import LocationTreePicker from "@/components/LocationTreePicker";
 import CoverThumb from "@/components/CoverThumb";
 import GameHoverCard from "@/components/GameHoverCard";
 import SearchBox from "@/components/SearchBox";
@@ -619,7 +619,7 @@ export default async function AdvancedSearchPage({
 
                     {/* Row 8 — Location */}
                     <div>
-                        <LocationPicker
+                        <LocationTreePicker
                             label="Location"
                             name="location_id"
                             defaultSelectedId={locationDefaultId ? Number(locationDefaultId) : undefined}
