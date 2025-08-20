@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 
 /** API payload shape */
 type LocationNode = {
@@ -43,6 +43,57 @@ export default function LocationTreePicker({
     // Loading/error states per parent id
     const [loadingParents, setLoadingParents] = useState<Set<number | null>>(new Set());
     const [error, setError] = useState<string | null>(null);
+
+    // Ref for the tree container to enable autoscroll
+    const treeContainerRef = useRef<HTMLDivElement>(null);
+
+    // Improved auto-scroll to newly expanded nodes - prevents main window scrolling
+    const scrollToNode = (nodeId: number) => {
+        // Increased delay to ensure DOM is fully updated with children
+        setTimeout(() => {
+            if (treeContainerRef.current) {
+                const nodeElement = treeContainerRef.current.querySelector(`[data-node-id="${nodeId}"]`);
+                if (nodeElement) {
+                    // Calculate the scroll position within the tree container only
+                    const container = treeContainerRef.current;
+                    const containerRect = container.getBoundingClientRect();
+                    const nodeRect = nodeElement.getBoundingClientRect();
+                    
+                    // Calculate relative position within the container
+                    const relativeTop = nodeRect.top - containerRect.top;
+                    const containerHeight = container.clientHeight;
+                    
+                    // Only scroll if the node is not fully visible
+                    if (relativeTop < 0 || relativeTop + nodeRect.height > containerHeight) {
+                        // Smooth scroll within the container only
+                        const targetScrollTop = container.scrollTop + relativeTop - 20; // 20px padding
+                        container.scrollTo({
+                            top: targetScrollTop,
+                            behavior: 'smooth'
+                        });
+                    }
+                    
+                    // Additional scroll to show children if they exist
+                    const children = nodeElement.nextElementSibling;
+                    if (children) {
+                        setTimeout(() => {
+                            const childrenRect = children.getBoundingClientRect();
+                            const relativeChildrenBottom = childrenRect.bottom - containerRect.top;
+                            
+                            // Only scroll if children extend beyond container
+                            if (relativeChildrenBottom > containerHeight) {
+                                const targetScrollTop = container.scrollTop + relativeChildrenBottom - containerHeight + 20; // 20px padding
+                                container.scrollTo({
+                                    top: targetScrollTop,
+                                    behavior: 'smooth'
+                                });
+                            }
+                        }, 300);
+                    }
+                }
+            }
+        }, 200); // Increased delay for better reliability
+    };
 
     // Load top level on mount
     useEffect(() => {
@@ -208,6 +259,7 @@ export default function LocationTreePicker({
                     maxHeight: height,
                     overflow: "auto"
                 }}
+                ref={treeContainerRef}
             >
                 {error ? (
                     <div style={{ color: "#fca5a5", fontSize: 12 }}>{error}</div>
@@ -222,6 +274,7 @@ export default function LocationTreePicker({
                         onSelect={onSelect}
                         selectedId={selectedId}
                         depth={0}
+                        scrollToNode={scrollToNode}
                     />
                 )}
             </div>
@@ -241,6 +294,7 @@ function TreeLevel(props: {
     onSelect: (id: number) => void;
     selectedId?: number;
     depth: number;
+    scrollToNode: (nodeId: number) => void;
 }) {
     const {
         parentId,
@@ -251,7 +305,8 @@ function TreeLevel(props: {
         toggleExpand,
         onSelect,
         selectedId,
-        depth
+        depth,
+        scrollToNode
     } = props;
 
     const children = childrenMap.get(parentId);
@@ -283,6 +338,7 @@ function TreeLevel(props: {
                 return (
                     <li key={node.id} style={{ margin: 0 }}>
                         <div
+                            data-node-id={node.id}
                             style={{
                                 display: "flex",
                                 alignItems: "center",
@@ -302,6 +358,8 @@ function TreeLevel(props: {
                                     e.stopPropagation();
                                     if (!isExpanded) {
                                         await ensureChildren(node.id);
+                                        // Auto-scroll to newly expanded node
+                                        scrollToNode(node.id);
                                     }
                                     toggleExpand(node.id);
                                 }}
@@ -330,6 +388,7 @@ function TreeLevel(props: {
                                     fontWeight: isSelected ? 600 : 500
                                 }}
                                 title={node.name}
+                                data-node-id={node.id}
                             >
                                 {node.name}
                             </button>
@@ -347,6 +406,7 @@ function TreeLevel(props: {
                                 onSelect={onSelect}
                                 selectedId={selectedId}
                                 depth={depth + 1}
+                                scrollToNode={scrollToNode}
                             />
                         ) : null}
                     </li>

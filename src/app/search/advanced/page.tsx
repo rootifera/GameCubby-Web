@@ -443,7 +443,7 @@ export default async function AdvancedSearchPage({
 
                 <form method="GET" action="/search/advanced" style={{display: "grid", gap: 16, padding: "16px", marginBottom: 16}}>
                     {/* Row 1 — Name | Year (exact) */}
-                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "1fr 200px"}}>
+                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "300px 200px"}}>
                         <label style={{display: "grid", gap: 6}}>
                             <span style={{opacity: 0.85}}>Name</span>
                             {/* Identical suggestions behavior as Basic, but no navigation & parent form handles submit */}
@@ -543,8 +543,8 @@ export default async function AdvancedSearchPage({
                         </label>
                     </div>
 
-                    {/* Row 5 — Company Dropdown | Company match | Collection */}
-                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "1fr 200px 1fr"}}>
+                    {/* Row 5 — Company Dropdown | Company match */}
+                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "1fr 200px"}}>
                         <MultiSelectDropdown
                             label="Company"
                             name="company_ids"
@@ -562,6 +562,10 @@ export default async function AdvancedSearchPage({
                                 <option value="exact">Exact</option>
                             </select>
                         </label>
+                    </div>
+
+                    {/* Row 6 — Collection (full width) */}
+                    <div>
                         <MultiSelectDropdown
                             label="Collection"
                             name="collection_id"
@@ -573,7 +577,7 @@ export default async function AdvancedSearchPage({
                         />
                     </div>
 
-                    {/* Row 6 — Tags | IGDB Tags */}
+                    {/* Row 7 — Tags | IGDB Tags */}
                     <div style={{display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr"}}>
                         <TagChipsAutocomplete 
                             label="Tags" 
@@ -591,8 +595,8 @@ export default async function AdvancedSearchPage({
                         />
                     </div>
 
-                    {/* Row 6.1 — Tag match modes */}
-                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "200px 200px"}}>
+                    {/* Row 7.1 — Tag match modes (aligned with tags above) */}
+                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr"}}>
                         <label style={{display: "grid", gap: 6}}>
                             <span style={{opacity: 0.85}}>Tag match</span>
                             <select name="match_mode" defaultValue={tagMatch} style={selectStyle}>
@@ -613,7 +617,7 @@ export default async function AdvancedSearchPage({
                         </label>
                     </div>
 
-                    {/* Row 7 — Location */}
+                    {/* Row 8 — Location */}
                     <div>
                         <LocationPicker
                             label="Location"
@@ -622,7 +626,7 @@ export default async function AdvancedSearchPage({
                         />
                     </div>
 
-                    {/* Row 8 — Include Custom Games */}
+                    {/* Row 9 — Include Custom Games */}
                     <div style={{display: "grid", gap: 6, maxWidth: 360}}>
                         <label style={{opacity: 0.85}}>Include Custom Games</label>
                         <select name="include_manual" defaultValue={get(sp, "include_manual")} style={selectStyle}>
@@ -632,8 +636,8 @@ export default async function AdvancedSearchPage({
                         </select>
                     </div>
 
-                    {/* Row 9 — Limit | Offset */}
-                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "200px 200px"}}>
+                    {/* Row 10 — Limit | Offset (narrower, positioned under Include Custom Games) */}
+                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "160px 160px"}}>
                         <LabeledInput label="Limit" name="limit" type="number" defaultValue={get(sp, "limit", "50")}
                                       placeholder="50" short/>
                         <LabeledInput label="Offset" name="offset" type="number" defaultValue={get(sp, "offset", "0")}
