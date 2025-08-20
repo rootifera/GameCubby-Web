@@ -436,14 +436,32 @@ export default async function AdvancedSearchPage({
             <details id="filters" open={openFilters} style={detailsWrap}>
                 <summary style={summaryBar}>
                     <span>Filters</span>
-                    <span style={{opacity: 0.8, fontSize: 12}}>
+                    <button 
+                        type="button" 
+                        style={{
+                            background: "#151515",
+                            color: "#d8d8d8",
+                            border: "1px solid #2b2b2b",
+                            padding: "6px 10px",
+                            borderRadius: 8,
+                            fontSize: 13,
+                            cursor: "pointer",
+                        }}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            const details = e.currentTarget.closest('details');
+                            if (details) {
+                                details.open = !details.open;
+                            }
+                        }}
+                    >
                         {openFilters ? "Click to hide filters" : "Click to show filters"}
-                    </span>
+                    </button>
                 </summary>
 
                 <form method="GET" action="/search/advanced" style={{display: "grid", gap: 16, padding: "16px", marginBottom: 16}}>
-                    {/* Row 1 — Name | Year (exact) */}
-                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "300px 200px"}}>
+                    {/* Row 1 — Name | Year (exact) - aligned with Platform row */}
+                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "1fr 200px"}}>
                         <label style={{display: "grid", gap: 6}}>
                             <span style={{opacity: 0.85}}>Name</span>
                             {/* Identical suggestions behavior as Basic, but no navigation & parent form handles submit */}
@@ -637,7 +655,7 @@ export default async function AdvancedSearchPage({
                     </div>
 
                     {/* Row 10 — Limit | Offset (narrower, positioned under Include Custom Games) */}
-                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "160px 160px"}}>
+                    <div style={{display: "grid", gap: 24, gridTemplateColumns: "160px 160px"}}>
                         <LabeledInput label="Limit" name="limit" type="number" defaultValue={get(sp, "limit", "50")}
                                       placeholder="50" short/>
                         <LabeledInput label="Offset" name="offset" type="number" defaultValue={get(sp, "offset", "0")}
