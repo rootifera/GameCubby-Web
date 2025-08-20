@@ -444,7 +444,7 @@ export default async function AdvancedSearchPage({
 
                 <form method="GET" action="/search/advanced" style={{display: "grid", gap: 16, padding: "16px", marginBottom: 16}}>
                     {/* Row 1 — Name | Year (exact) - aligned with Platform row */}
-                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "400px 200px"}}>
+                    <div style={{display: "grid", gap: 24, gridTemplateColumns: "300px 200px"}}>
                         <label style={{display: "grid", gap: 6}}>
                             <span style={{opacity: 0.85}}>Name</span>
                             {/* Identical suggestions behavior as Basic, but no navigation & parent form handles submit */}
