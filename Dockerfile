@@ -46,6 +46,7 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/next.config.mjs ./
 COPY --from=builder /app/tsconfig.json ./
+COPY --from=builder /app/src/web-version.json ./src/web-version.json
 
 # Create storage directories
 RUN mkdir -p /storage/backups/logs /storage/backups/prerestore

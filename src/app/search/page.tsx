@@ -204,7 +204,8 @@ export default async function BasicSearchPage({
             {/* Search bar (same width rhythm as /games controls) */}
             <div style={{ marginBottom: 16 }}>
                 <div style={{ maxWidth: 540, width: "100%" }}>
-                    <SearchBox defaultValue={q || ""} />
+                    {/* CHANGED: do not repopulate from URL */}
+                    <SearchBox defaultValue="" />
                 </div>
             </div>
 

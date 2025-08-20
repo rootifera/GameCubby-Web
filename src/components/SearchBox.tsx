@@ -112,6 +112,7 @@ export default function SearchBox({
             // basic behavior: navigate to /search?<name>=q
             e.preventDefault();
             navigateTo(onSelectNavigateTo, q.trim());
+            setQ("");
         }
         // else: advanced mode, let parent form submit naturally
     }

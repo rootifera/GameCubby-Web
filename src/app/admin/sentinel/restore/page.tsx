@@ -29,9 +29,9 @@ type StatusResp = {
         started_at: string;
         finished_at: string | null;
         log_file: string;
-        dump_path?: string;     // restore
+        dump_path?: string; // restore
         pre_dump_file?: string | null;
-        backup_file?: string;   // backup
+        backup_file?: string; // backup
         pruned?: number;
         error: string | null;
     };
@@ -54,6 +54,7 @@ function Toggle({
 }) {
     return (
         <button
+            type="button"
             onClick={() => !disabled && onChange(!checked)}
             aria-pressed={checked}
             aria-label="Toggle maintenance mode"
@@ -94,7 +95,9 @@ function Toggle({
             }}
         />
       </span>
-            <span style={{ fontSize: 12, opacity: 0.9 }}>{checked ? labelOn : labelOff}</span>
+            <span style={{ fontSize: 12, opacity: 0.9, color: "#fff" }}>
+        {checked ? labelOn : labelOff}
+      </span>
         </button>
     );
 }
@@ -128,14 +131,22 @@ export default function RestorePage() {
         if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
         return `${(n / (1024 * 1024 * 1024)).toFixed(1)} GB`;
     };
-    const fmtDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleString() : "—");
+    const fmtDate = (iso?: string | null) =>
+        iso ? new Date(iso).toLocaleString() : "—";
 
     const loadMaint = React.useCallback(async () => {
         setLoadingMaint(true);
         try {
-            const res = await fetch("/api/sentinel/maintenance/status", { cache: "no-store" });
+            const res = await fetch("/api/sentinel/maintenance/status", {
+                cache: "no-store",
+            });
             const j = await res.json();
-            setMaint({ enabled: !!j.enabled, reason: j.reason, by: j.by, started_at: j.started_at });
+            setMaint({
+                enabled: !!j.enabled,
+                reason: j.reason,
+                by: j.by,
+                started_at: j.started_at,
+            });
         } catch {
             /* ignore */
         } finally {
@@ -156,7 +167,9 @@ export default function RestorePage() {
     }, []);
 
     const exitMaint = React.useCallback(async () => {
-        const res = await fetch("/api/sentinel/maintenance/exit", { method: "POST" });
+        const res = await fetch("/api/sentinel/maintenance/exit", {
+            method: "POST",
+        });
         if (!res.ok) {
             const j = await res.json().catch(() => ({}));
             throw new Error(j?.error || `Failed: ${res.status}`);
@@ -181,21 +194,28 @@ export default function RestorePage() {
     const loadBackups = React.useCallback(async () => {
         setLoadingBackups(true);
         try {
-            const res = await fetch("/api/sentinel/backups/list", { cache: "no-store" });
+            const res = await fetch("/api/sentinel/backups/list", {
+                cache: "no-store",
+            });
             const j = await res.json();
             const files: BackupFile[] = Array.isArray(j.files) ? j.files : [];
             setBackups(files);
-            if (!dumpPath && files.length) setDumpPath(files[0].abspath);
+            if (files.length) {
+                // default to first file if none selected
+                setDumpPath((prev) => prev || files[0].abspath);
+            }
         } catch (e: any) {
             setError(e?.message || "Failed to load backups");
         } finally {
             setLoadingBackups(false);
         }
-    }, [dumpPath]);
+    }, []);
 
     const loadStatusOnce = React.useCallback(async () => {
         try {
-            const res = await fetch("/api/sentinel/restore/status", { cache: "no-store" });
+            const res = await fetch("/api/sentinel/restore/status", {
+                cache: "no-store",
+            });
             const j: StatusResp = await res.json();
             setJobStatus(j);
             if (j.status === "running") setPolling(true);
@@ -215,11 +235,16 @@ export default function RestorePage() {
 
         const tick = async () => {
             try {
-                const sRes = await fetch("/api/sentinel/restore/status", { cache: "no-store" });
+                const sRes = await fetch("/api/sentinel/restore/status", {
+                    cache: "no-store",
+                });
                 const s: StatusResp = await sRes.json();
                 if (!cancelled) setJobStatus(s);
 
-                const lRes = await fetch(`/api/sentinel/restore/logs?offset=${logOffset}`, { cache: "no-store" });
+                const lRes = await fetch(
+                    `/api/sentinel/restore/logs?offset=${logOffset}`,
+                    { cache: "no-store" }
+                );
                 const l = await lRes.json();
                 if (!cancelled) {
                     if (l.chunk) setLogText((t) => t + l.chunk);
@@ -244,6 +269,7 @@ export default function RestorePage() {
 
     const startRestore = async () => {
         setError(null);
+        // Clear logs FIRST (only when starting restore)
         setLogText("");
         setLogOffset(0);
 
@@ -288,7 +314,6 @@ export default function RestorePage() {
     };
 
     const running = jobStatus?.status === "running";
-    const finished = jobStatus?.status === "succeeded" || jobStatus?.status === "failed";
     const maintOn = !!maint?.enabled;
 
     return (
@@ -308,7 +333,9 @@ export default function RestorePage() {
                     }}
                 >
                     <b>Maintenance mode is enabled.</b>{" "}
-                    {maint?.reason ? <span style={{ opacity: 0.9 }}>Reason: {maint.reason}</span> : null}
+                    {maint?.reason ? (
+                        <span style={{ opacity: 0.9 }}>Reason: {maint.reason}</span>
+                    ) : null}
                 </div>
             ) : (
                 <div
@@ -352,14 +379,22 @@ export default function RestorePage() {
                             labelOn="Enabled"
                             labelOff="Disabled"
                         />
-                        <button onClick={loadMaint} style={btnSecondary} disabled={loadingMaint}>
-                            Refresh
+                        <button
+                            type="button"
+                            onClick={loadMaint}
+                            style={btnSecondary}
+                            disabled={loadingMaint}
+                            aria-busy={loadingMaint}
+                            title={loadingMaint ? "Refreshing…" : "Refresh"}
+                        >
+                            {loadingMaint ? "Refreshing…" : "Refresh"}
                         </button>
                     </div>
                 </div>
 
                 <p style={{ opacity: 0.85, marginTop: 0 }}>
-                    When enabled, the API and UI are restricted; only this page and Sentinel API endpoints remain accessible.
+                    When enabled, the API and UI are restricted; only this page and Sentinel API endpoints
+                    remain accessible.
                 </p>
             </div>
 
@@ -367,8 +402,25 @@ export default function RestorePage() {
             <div style={cardStyle}>
                 <div style={rowHeader}>
                     <h2 style={h2}>Select Backup</h2>
-                    <button onClick={loadBackups} style={btnSecondary} disabled={loadingBackups}>
-                        Reload
+                    <button
+                        type="button"
+                        onClick={loadBackups}
+                        style={{
+                            ...btnSecondary,
+                            ...(loadingBackups
+                                ? {
+                                    background: "#1e293b",
+                                    borderColor: "#3b82f6",
+                                    opacity: 0.9,
+                                    cursor: "wait",
+                                }
+                                : null),
+                        }}
+                        disabled={loadingBackups}
+                        aria-busy={loadingBackups}
+                        title={loadingBackups ? "Reloading…" : "Reload list"}
+                    >
+                        {loadingBackups ? "Reloading…" : "Reload"}
                     </button>
                 </div>
 
@@ -380,7 +432,9 @@ export default function RestorePage() {
                     <div style={{ display: "grid", gap: 10 }}>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 220px", gap: 12 }}>
                             <label style={{ display: "grid", gap: 6 }}>
-                                <span style={{ opacity: 0.85 }}>Backup file (absolute path inside container)</span>
+                <span style={{ opacity: 0.85 }}>
+                  Backup file (absolute path inside container)
+                </span>
                                 <input
                                     value={dumpPath}
                                     onChange={(e) => setDumpPath(e.currentTarget.value)}
@@ -398,8 +452,25 @@ export default function RestorePage() {
                             </label>
                         </div>
 
-                        <div style={{ maxHeight: 300, overflow: "auto", border: "1px solid #222", borderRadius: 8 }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, padding: "8px 10px", opacity: 0.8, fontSize: 12, borderBottom: "1px solid #1f1f1f" }}>
+                        <div
+                            style={{
+                                maxHeight: 300,
+                                overflow: "auto",
+                                border: "1px solid #222",
+                                borderRadius: 8,
+                            }}
+                        >
+                            <div
+                                style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "1fr auto auto",
+                                    gap: 8,
+                                    padding: "8px 10px",
+                                    opacity: 0.8,
+                                    fontSize: 12,
+                                    borderBottom: "1px solid #1f1f1f",
+                                }}
+                            >
                                 <div>File</div>
                                 <div>Size</div>
                                 <div>Modified</div>
@@ -408,6 +479,7 @@ export default function RestorePage() {
                                 const selected = dumpPath === f.abspath;
                                 return (
                                     <button
+                                        type="button"
                                         key={f.abspath}
                                         onClick={() => setDumpPath(f.abspath)}
                                         style={{
@@ -439,14 +511,12 @@ export default function RestorePage() {
 
                         <div style={{ display: "flex", gap: 8 }}>
                             <button
+                                type="button"
                                 onClick={startRestore}
                                 style={btnPrimary}
                                 disabled={!maintOn || !dumpPath || running}
                             >
                                 Start restore
-                            </button>
-                            <button onClick={() => { setLogText(""); setLogOffset(0); }} style={btnSecondary}>
-                                Clear logs
                             </button>
                         </div>
                     </div>
@@ -458,22 +528,32 @@ export default function RestorePage() {
                 <div style={rowHeader}>
                     <h2 style={h2}>Status</h2>
                     <span style={{ opacity: 0.8, fontSize: 12 }}>
-            {jobStatus?.status ? `Current: ${jobStatus.status}${jobStatus.phase ? ` · ${jobStatus.phase}` : ""}` : "Idle"}
+            {jobStatus?.status
+                ? `Current: ${jobStatus.status}${
+                    jobStatus.phase ? ` · ${jobStatus.phase}` : ""
+                }`
+                : "Idle"}
           </span>
                 </div>
 
                 {jobStatus?.job ? (
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                         <div className="muted">Job ID</div>
-                        <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{jobStatus.job.id}</div>
+                        <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+                            {jobStatus.job.id}
+                        </div>
                         <div className="muted">Started</div>
                         <div>{fmtDate(jobStatus.job.started_at)}</div>
                         <div className="muted">Finished</div>
                         <div>{fmtDate(jobStatus.job.finished_at)}</div>
                         <div className="muted">Dump file</div>
-                        <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{jobStatus.job.dump_path || "—"}</div>
+                        <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+                            {jobStatus.job.dump_path || "—"}
+                        </div>
                         <div className="muted">Pre-restore snapshot</div>
-                        <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{jobStatus.job.pre_dump_file || "—"}</div>
+                        <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+                            {jobStatus.job.pre_dump_file || "—"}
+                        </div>
                         <div className="muted">Error</div>
                         <div style={{ color: "#fca5a5" }}>{jobStatus.job.error || "—"}</div>
                     </div>
@@ -488,6 +568,7 @@ export default function RestorePage() {
                         readOnly
                         style={{
                             width: "100%",
+                            maxWidth: "100%",
                             minHeight: 260,
                             background: "#0f0f0f",
                             color: "#eaeaea",
@@ -497,25 +578,11 @@ export default function RestorePage() {
                             fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
                             fontSize: 12,
                             whiteSpace: "pre-wrap",
+                            boxSizing: "border-box",
+                            overflowX: "hidden",
+                            display: "block",
                         }}
                     />
-                </div>
-
-                <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button onClick={() => setPolling(true)} style={btnSecondary} disabled={running}>
-                        {running ? "Polling…" : "Poll status"}
-                    </button>
-                    <button onClick={() => { setLogText(""); setLogOffset(0); }} style={btnSecondary}>
-                        Clear logs
-                    </button>
-                    <button
-                        onClick={() => onToggleMaint(false)}
-                        style={btnSecondary}
-                        disabled={!maintOn || running || !finished || toggling}
-                        title={!finished ? "Wait until job finishes" : "Disable maintenance"}
-                    >
-                        Exit maintenance
-                    </button>
                 </div>
             </div>
 
