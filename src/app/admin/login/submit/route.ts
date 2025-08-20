@@ -66,8 +66,8 @@ export async function POST(req: NextRequest) {
             name: NEW_COOKIE,
             value: token,
             httpOnly: true,
-            sameSite: "lax",
-            secure: isProd,
+            sameSite: "strict",
+            secure: true,
             path: "/",
             maxAge: ONE_WEEK,
         });
@@ -75,8 +75,8 @@ export async function POST(req: NextRequest) {
             name: LEGACY_COOKIE,
             value: token,
             httpOnly: true,
-            sameSite: "lax",
-            secure: isProd,
+            sameSite: "strict",
+            secure: true,
             path: "/",
             maxAge: ONE_WEEK,
         });

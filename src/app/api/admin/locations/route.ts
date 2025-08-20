@@ -1,12 +1,21 @@
 // src/app/api/admin/locations/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { readToken } from "@/lib/auth";
+import { validateString, validatePositiveInt } from "@/lib/validation";
 import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
-function readToken(): string {
-    return cookies().get("__gcub_a")?.value || cookies().get("gc_at")?.value || "";
+/** Helper: normalize any value into number | undefined using validatePositiveInt */
+function numOrUndef(v: unknown, min = 1, max = 999_999): number | undefined {
+    const n = validatePositiveInt(v as any, min, max);
+    return typeof n === "number" ? n : undefined; // convert null → undefined
+}
+
+/** Helper: safely read a string field from FormData (ignores File) */
+function fdString(fd: FormData, key: string): string | undefined {
+    const v = fd.get(key);
+    return typeof v === "string" ? v : undefined;
 }
 
 /**
@@ -64,33 +73,38 @@ export async function POST(req: NextRequest) {
     let type: string | undefined;
 
     try {
-        const ctype = req.headers.get("content-type") || "";
+        const ctype = (req.headers.get("content-type") || "").toLowerCase();
+
         if (ctype.includes("application/json")) {
             const body = await req.json().catch(() => ({} as any));
-            if (typeof body?.name === "string") name = body.name.trim();
-            if (typeof body?.parent_id === "number") parent_id = body.parent_id;
-            if (typeof body?.type === "string") type = body.type.trim();
-        } else if (ctype.includes("application/x-www-form-urlencoded") || ctype.includes("multipart/form-data")) {
+            name = validateString(body?.name, 1, 100) || "";
+            parent_id =
+                typeof body?.parent_id === "number"
+                    ? numOrUndef(String(body.parent_id), 1, 999_999)
+                    : numOrUndef(body?.parent_id, 1, 999_999);
+            type = validateString(body?.type, 1, 50) || undefined;
+
+        } else if (
+            ctype.includes("application/x-www-form-urlencoded") ||
+            ctype.includes("multipart/form-data")
+        ) {
             const form = await req.formData();
-            const n = form.get("name");
-            const pid = form.get("parent_id");
-            const t = form.get("type");
-            if (typeof n === "string") name = n.trim();
-            if (typeof pid === "string" && pid) {
-                const v = Number(pid);
-                if (Number.isFinite(v)) parent_id = v;
-            }
-            if (typeof t === "string") type = t.trim();
+            const n = fdString(form, "name");
+            const pid = fdString(form, "parent_id");
+            const t = fdString(form, "type");
+
+            name = validateString(n ?? null, 1, 100) || "";
+            parent_id = numOrUndef(pid, 1, 999_999);
+            type = validateString(t ?? null, 1, 50) || undefined;
         }
 
         // Fallback to query params of this proxy route
         const sp = req.nextUrl.searchParams;
-        if (!name && sp.get("name")) name = String(sp.get("name") || "").trim();
+        if (!name && sp.get("name")) name = validateString(sp.get("name"), 1, 100) || "";
         if (parent_id === undefined && sp.get("parent_id")) {
-            const v = Number(sp.get("parent_id"));
-            if (Number.isFinite(v)) parent_id = v;
+            parent_id = numOrUndef(sp.get("parent_id"), 1, 999_999);
         }
-        if (!type && sp.get("type")) type = String(sp.get("type") || "").trim();
+        if (!type && sp.get("type")) type = validateString(sp.get("type"), 1, 50) || undefined;
     } catch {
         // ignore, we validate below
     }

@@ -181,7 +181,6 @@ export default async function AdminGameEditorPage({ params }: { params: { id: st
                         </div>
 
                         {/* Client form */}
-                        {/* @ts-expect-error Server/Client boundary satisfied by default export */}
                         <GameEditor initialData={game} lookups={lookups} />
                     </>
                 ) : (

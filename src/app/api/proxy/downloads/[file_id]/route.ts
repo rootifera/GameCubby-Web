@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { readToken } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
@@ -24,9 +24,11 @@ export async function GET(
     ctx: { params: { file_id: string } }
 ) {
     const fileId = (ctx.params.file_id || "").trim();
-    if (!fileId) {
+    
+    // Validate file ID format to prevent path traversal
+    if (!fileId || !/^[a-zA-Z0-9\-_\.]+$/.test(fileId)) {
         return new NextResponse(
-            errorHtml("Missing file", "No file id was provided."),
+            errorHtml("Invalid file ID", "The provided file ID contains invalid characters."),
             {
                 status: 400,
                 headers: {
@@ -38,10 +40,7 @@ export async function GET(
     }
 
     // Pass admin token if present so admins can always download even if public is disabled
-    const token =
-        cookies().get("__gcub_a")?.value ||
-        cookies().get("gc_at")?.value ||
-        "";
+    const token = readToken();
     const headers: Record<string, string> = {};
     if (token) headers["Authorization"] = `Bearer ${token}`;
 

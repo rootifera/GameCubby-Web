@@ -1,6 +1,6 @@
 // src/app/api/admin/games/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { readToken } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
@@ -36,11 +36,7 @@ export async function GET() {
 
 // POST /games/ — REQUIRES bearer per OpenAPI
 export async function POST(req: NextRequest) {
-    // Accept either cookie name
-    const token =
-        cookies().get("__gcub_a")?.value ||
-        cookies().get("gc_at")?.value ||
-        "";
+    const token = readToken();
 
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });

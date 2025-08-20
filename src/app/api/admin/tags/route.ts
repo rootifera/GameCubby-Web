@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { readToken } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const name = (searchParams.get("name") || "").trim();
-    const gcAt = cookies().get("gc_at")?.value;
+    const token = readToken();
 
     if (!name) return NextResponse.json({ error: "Missing name" }, { status: 400 });
 
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
             {
                 method: "POST",
                 cache: "no-store",
-                headers: gcAt ? { Authorization: `Bearer ${gcAt}` } : undefined,
+                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             }
         );
 

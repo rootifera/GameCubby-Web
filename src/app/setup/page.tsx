@@ -197,7 +197,7 @@ export default async function SetupPage({
                                 <label style={labelStyle}>
                                     <span>Enable Public Downloads</span>
                                     <select
-                                        name="enable_public_downloads"
+                                        name="public_downloads_enabled"
                                         defaultValue="false"
                                         style={inputStyle}
                                     >
