@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 
 /** API payload shape */
 type LocationNode = {
@@ -43,6 +43,9 @@ export default function LocationTreePicker({
     // Loading/error states per parent id
     const [loadingParents, setLoadingParents] = useState<Set<number | null>>(new Set());
     const [error, setError] = useState<string | null>(null);
+    
+    // Ref for auto-scrolling
+    const treeContainerRef = useRef<HTMLDivElement>(null);
 
     // Load top level on mount
     useEffect(() => {
@@ -154,6 +157,22 @@ export default function LocationTreePicker({
         setSelectedId(undefined);
     }
 
+    // Auto-scroll to newly expanded nodes
+    const scrollToNode = (nodeId: number) => {
+        setTimeout(() => {
+            if (treeContainerRef.current) {
+                const nodeElement = treeContainerRef.current.querySelector(`[data-node-id="${nodeId}"]`);
+                if (nodeElement) {
+                    nodeElement.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'nearest',
+                        inline: 'nearest'
+                    });
+                }
+            }
+        }, 100); // Small delay to ensure DOM is updated
+    };
+
     // Build breadcrumb for selectedId
     const breadcrumb = useMemo(() => {
         if (!selectedId) return "";
@@ -181,7 +200,7 @@ export default function LocationTreePicker({
 
     return (
         <div style={{ display: "grid", gap: 8 }}>
-            <label style={{ opacity: 0.85 }}>{label}</label>
+            <label style={{ opacity: 0.85, wordWrap: "break-word", overflowWrap: "break-word" }}>{label}</label>
 
             {/* hidden input for form GET submit */}
             <input type="hidden" name={name} value={selectedId ?? ""} />
@@ -189,7 +208,9 @@ export default function LocationTreePicker({
             {/* breadcrumb + clear */}
             <div style={crumbBarStyle}>
                 <div style={crumbTextWrapStyle} title={breadcrumb}>
-                    <span style={{ opacity: 0.9 }}>{breadcrumb || "No location selected"}</span>
+                    <span style={{ opacity: 0.9, wordWrap: "break-word", overflowWrap: "break-word" }}>
+                        {breadcrumb || "No location selected"}
+                    </span>
                 </div>
                 {selectedId ? (
                     <button type="button" onClick={onClear} style={btnSecondary} title="Clear selection">
@@ -200,6 +221,7 @@ export default function LocationTreePicker({
 
             {/* Tree panel */}
             <div
+                ref={treeContainerRef}
                 style={{
                     background: "#141414",
                     border: "1px solid #2b2b2b",
@@ -222,6 +244,7 @@ export default function LocationTreePicker({
                         onSelect={onSelect}
                         selectedId={selectedId}
                         depth={0}
+                        scrollToNode={scrollToNode}
                     />
                 )}
             </div>
@@ -241,6 +264,7 @@ function TreeLevel(props: {
     onSelect: (id: number) => void;
     selectedId?: number;
     depth: number;
+    scrollToNode: (nodeId: number) => void;
 }) {
     const {
         parentId,
@@ -251,7 +275,8 @@ function TreeLevel(props: {
         toggleExpand,
         onSelect,
         selectedId,
-        depth
+        depth,
+        scrollToNode
     } = props;
 
     const children = childrenMap.get(parentId);
@@ -283,6 +308,7 @@ function TreeLevel(props: {
                 return (
                     <li key={node.id} style={{ margin: 0 }}>
                         <div
+                            data-node-id={node.id}
                             style={{
                                 display: "flex",
                                 alignItems: "center",
@@ -302,6 +328,8 @@ function TreeLevel(props: {
                                     e.stopPropagation();
                                     if (!isExpanded) {
                                         await ensureChildren(node.id);
+                                        // Auto-scroll to newly expanded node
+                                        scrollToNode(node.id);
                                     }
                                     toggleExpand(node.id);
                                 }}
@@ -347,6 +375,7 @@ function TreeLevel(props: {
                                 onSelect={onSelect}
                                 selectedId={selectedId}
                                 depth={depth + 1}
+                                scrollToNode={scrollToNode}
                             />
                         ) : null}
                     </li>
@@ -390,9 +419,8 @@ const crumbBarStyle: React.CSSProperties = {
 
 const crumbTextWrapStyle: React.CSSProperties = {
     flex: 1,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis"
+    wordWrap: "break-word",
+    overflowWrap: "break-word"
 };
 
 const chevronBtn: React.CSSProperties = {
