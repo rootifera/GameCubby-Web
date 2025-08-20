@@ -22,9 +22,6 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends postgresql-client ca-certificates tzdata tini && \
     rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
 # Set environment variables
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -51,14 +48,7 @@ COPY --from=builder /app/next.config.mjs ./
 COPY --from=builder /app/tsconfig.json ./
 
 # Create storage directories
-RUN mkdir -p /storage/backups/logs /storage/backups/prerestore && \
-    chown -R appuser:appuser /storage
-
-# Change ownership of app directory
-RUN chown -R appuser:appuser /app
-
-# Switch to non-root user
-USER appuser
+RUN mkdir -p /storage/backups/logs /storage/backups/prerestore
 
 EXPOSE 3000
 
