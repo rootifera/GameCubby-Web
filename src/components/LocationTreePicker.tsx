@@ -157,29 +157,47 @@ export default function LocationTreePicker({
         setSelectedId(undefined);
     }
 
-    // Improved auto-scroll to newly expanded nodes
+    // Improved auto-scroll to newly expanded nodes - prevents main window scrolling
     const scrollToNode = (nodeId: number) => {
         // Increased delay to ensure DOM is fully updated with children
         setTimeout(() => {
             if (treeContainerRef.current) {
                 const nodeElement = treeContainerRef.current.querySelector(`[data-node-id="${nodeId}"]`);
                 if (nodeElement) {
-                    // Scroll to show the expanded node and its children
-                    nodeElement.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'start',
-                        inline: 'nearest'
-                    });
+                    // Calculate the scroll position within the tree container only
+                    const container = treeContainerRef.current;
+                    const containerRect = container.getBoundingClientRect();
+                    const nodeRect = nodeElement.getBoundingClientRect();
+                    
+                    // Calculate relative position within the container
+                    const relativeTop = nodeRect.top - containerRect.top;
+                    const containerHeight = container.clientHeight;
+                    
+                    // Only scroll if the node is not fully visible
+                    if (relativeTop < 0 || relativeTop + nodeRect.height > containerHeight) {
+                        // Smooth scroll within the container only
+                        const targetScrollTop = container.scrollTop + relativeTop - 20; // 20px padding
+                        container.scrollTo({
+                            top: targetScrollTop,
+                            behavior: 'smooth'
+                        });
+                    }
                     
                     // Additional scroll to show children if they exist
                     const children = nodeElement.nextElementSibling;
                     if (children) {
                         setTimeout(() => {
-                            children.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'end',
-                                inline: 'nearest'
-                            });
+                            const childrenRect = children.getBoundingClientRect();
+                            const relativeChildrenBottom = childrenRect.bottom - containerRect.top;
+                            
+                            // Only scroll if children extend beyond container
+                            if (relativeChildrenBottom > containerHeight) {
+                                const targetScrollTop = container.scrollTop + relativeChildrenBottom - containerHeight + 20; // 20px padding
+                                container.scrollTo({
+                                    top: targetScrollTop,
+                                    behavior: 'smooth'
+                                });
+                            }
                         }, 300);
                     }
                 }
