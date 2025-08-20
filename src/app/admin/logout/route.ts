@@ -1,10 +1,19 @@
 // src/app/admin/logout/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const NEW_COOKIE = "__gcub_a";
 const LEGACY_COOKIE = "gc_at";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+    // Check if this is a real logout request or an automatic RSC call
+    const isRscRequest = req.nextUrl.searchParams.has('_rsc');
+    const userAgent = req.headers.get('user-agent') || '';
+    
+    // If this is an RSC request or doesn't look like a real logout, don't clear cookies
+    if (isRscRequest || userAgent.includes('Next.js') || userAgent.includes('RSC')) {
+        return new NextResponse('OK', { status: 200 });
+    }
+
     const isProd = process.env.NODE_ENV === "production";
 
     // Small HTML that pings /api/health immediately, then redirects.
