@@ -441,9 +441,9 @@ export default async function AdvancedSearchPage({
                     </span>
                 </summary>
 
-                <form method="GET" action="/search/advanced" style={{display: "grid", gap: 12, marginBottom: 16}}>
+                <form method="GET" action="/search/advanced" style={{display: "grid", gap: 16, padding: "16px", marginBottom: 16}}>
                     {/* Row 1 — Name | Year (exact) */}
-                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "1fr 200px"}}>
+                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "1fr 200px"}}>
                         <label style={{display: "grid", gap: 6}}>
                             <span style={{opacity: 0.85}}>Name</span>
                             {/* Identical suggestions behavior as Basic, but no navigation & parent form handles submit */}
@@ -460,15 +460,15 @@ export default async function AdvancedSearchPage({
                     </div>
 
                     {/* Row 2 — Year from | Year to */}
-                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "200px 200px"}}>
+                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "200px 200px"}}>
                         <LabeledInput label="Year from" name="year_min" type="number" defaultValue={get(sp, "year_min")}
                                       placeholder="1990" short/>
                         <LabeledInput label="Year to" name="year_max" type="number" defaultValue={get(sp, "year_max")}
                                       placeholder="2005" short/>
                     </div>
 
-                    {/* Row 3 — Platform | Genre */}
-                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr"}}>
+                    {/* Row 3 — Platform Dropdown | Platform match | Genre | Genre match */}
+                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "1fr 200px 1fr 200px"}}>
                         <MultiSelectDropdown
                             label="Platform"
                             name="platform_ids"
@@ -477,18 +477,6 @@ export default async function AdvancedSearchPage({
                             multiple
                             placeholder="Select platforms…"
                         />
-                        <MultiSelectDropdown
-                            label="Genre"
-                            name="genre_ids"
-                            options={genreOptions}
-                            defaultSelectedIds={genreDefaultIds}
-                            multiple
-                            placeholder="Select genres…"
-                        />
-                    </div>
-
-                    {/* Row 3.1 — Platform/Genre match modes */}
-                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "200px 200px"}}>
                         <label style={{display: "grid", gap: 6}}>
                             <span style={{opacity: 0.85}}>Platform match</span>
                             <select name="platform_match_mode" defaultValue={platformMatch} style={selectStyle}>
@@ -498,6 +486,14 @@ export default async function AdvancedSearchPage({
                                 <option value="exact">Exact</option>
                             </select>
                         </label>
+                        <MultiSelectDropdown
+                            label="Genre"
+                            name="genre_ids"
+                            options={genreOptions}
+                            defaultSelectedIds={genreDefaultIds}
+                            multiple
+                            placeholder="Select genres…"
+                        />
                         <label style={{display: "grid", gap: 6}}>
                             <span style={{opacity: 0.85}}>Genre match</span>
                             <select name="genre_match_mode" defaultValue={genreMatch} style={selectStyle}>
@@ -509,8 +505,8 @@ export default async function AdvancedSearchPage({
                         </label>
                     </div>
 
-                    {/* Row 4 — Player Perspective | Mode */}
-                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr"}}>
+                    {/* Row 4 — Player Perspective Dropdown | Player Perspective Match | Mode | Mode Match */}
+                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "1fr 200px 1fr 200px"}}>
                         <MultiSelectDropdown
                             label="Player Perspective"
                             name="perspective_ids"
@@ -519,6 +515,15 @@ export default async function AdvancedSearchPage({
                             multiple
                             placeholder="Select perspectives…"
                         />
+                        <label style={{display: "grid", gap: 6}}>
+                            <span style={{opacity: 0.85}}>Player Perspective Match</span>
+                            <select name="perspective_match_mode" defaultValue={perspectiveMatch} style={selectStyle}>
+                                <option value="">Default (Any)</option>
+                                <option value="any">Any</option>
+                                <option value="all">All</option>
+                                <option value="exact">Exact</option>
+                            </select>
+                        </label>
                         <MultiSelectDropdown
                             label="Mode"
                             name="mode_ids"
@@ -527,21 +532,8 @@ export default async function AdvancedSearchPage({
                             multiple
                             placeholder="Select modes…"
                         />
-                    </div>
-
-                    {/* Row 4.1 — Perspective/Mode match modes */}
-                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "200px 200px"}}>
                         <label style={{display: "grid", gap: 6}}>
-                            <span style={{opacity: 0.85}}>Perspective match</span>
-                            <select name="perspective_match_mode" defaultValue={perspectiveMatch} style={selectStyle}>
-                                <option value="">Default (Any)</option>
-                                <option value="any">Any</option>
-                                <option value="all">All</option>
-                                <option value="exact">Exact</option>
-                            </select>
-                        </label>
-                        <label style={{display: "grid", gap: 6}}>
-                            <span style={{opacity: 0.85}}>Mode match</span>
+                            <span style={{opacity: 0.85}}>Mode Match</span>
                             <select name="mode_match_mode" defaultValue={modeMatch} style={selectStyle}>
                                 <option value="">Default (Any)</option>
                                 <option value="any">Any</option>
@@ -551,17 +543,8 @@ export default async function AdvancedSearchPage({
                         </label>
                     </div>
 
-                    {/* Row 5 — Collection | Company (multi-select) */}
-                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr"}}>
-                        <MultiSelectDropdown
-                            label="Collection"
-                            name="collection_id"
-                            options={collectionOptions}
-                            defaultSelectedIds={collectionDefaultId ? [collectionDefaultId] : []}
-                            multiple={false}
-                            placeholder="Select a collection…"
-                            compact
-                        />
+                    {/* Row 5 — Company Dropdown | Company match | Collection */}
+                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "1fr 200px 1fr"}}>
                         <MultiSelectDropdown
                             label="Company"
                             name="company_ids"
@@ -569,12 +552,7 @@ export default async function AdvancedSearchPage({
                             defaultSelectedIds={companyDefaultIds}
                             multiple
                             placeholder="Select companies…"
-                            compact
                         />
-                    </div>
-
-                    {/* Row 5.1 — Company match mode */}
-                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "200px 200px"}}>
                         <label style={{display: "grid", gap: 6}}>
                             <span style={{opacity: 0.85}}>Company match</span>
                             <select name="company_match_mode" defaultValue={companyMatch} style={selectStyle}>
@@ -584,18 +562,37 @@ export default async function AdvancedSearchPage({
                                 <option value="exact">Exact</option>
                             </select>
                         </label>
+                        <MultiSelectDropdown
+                            label="Collection"
+                            name="collection_id"
+                            options={collectionOptions}
+                            defaultSelectedIds={collectionDefaultId ? [collectionDefaultId] : []}
+                            multiple={false}
+                            placeholder="Select a collection…"
+                            compact
+                        />
                     </div>
 
                     {/* Row 6 — Tags | IGDB Tags */}
-                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr"}}>
-                        <TagChipsAutocomplete label="Tags" name="tag_ids" suggestKind="tags"
-                                              defaultSelectedIds={tagDefaultIds}/>
-                        <TagChipsAutocomplete label="IGDB Tags" name="igdb_tag_ids" suggestKind="igdb_tags"
-                                              defaultSelectedIds={igdbTagDefaultIds}/>
+                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr"}}>
+                        <TagChipsAutocomplete 
+                            label="Tags" 
+                            name="tag_ids" 
+                            suggestKind="tags"
+                            defaultSelectedIds={tagDefaultIds}
+                            searchOnly={true}
+                        />
+                        <TagChipsAutocomplete 
+                            label="IGDB Tags" 
+                            name="igdb_tag_ids" 
+                            suggestKind="igdb_tags"
+                            defaultSelectedIds={igdbTagDefaultIds}
+                            searchOnly={true}
+                        />
                     </div>
 
                     {/* Row 6.1 — Tag match modes */}
-                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "200px 200px"}}>
+                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "200px 200px"}}>
                         <label style={{display: "grid", gap: 6}}>
                             <span style={{opacity: 0.85}}>Tag match</span>
                             <select name="match_mode" defaultValue={tagMatch} style={selectStyle}>
@@ -636,7 +633,7 @@ export default async function AdvancedSearchPage({
                     </div>
 
                     {/* Row 9 — Limit | Offset */}
-                    <div style={{display: "grid", gap: 12, gridTemplateColumns: "200px 200px"}}>
+                    <div style={{display: "grid", gap: 16, gridTemplateColumns: "200px 200px"}}>
                         <LabeledInput label="Limit" name="limit" type="number" defaultValue={get(sp, "limit", "50")}
                                       placeholder="50" short/>
                         <LabeledInput label="Offset" name="offset" type="number" defaultValue={get(sp, "offset", "0")}
