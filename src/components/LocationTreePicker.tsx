@@ -157,20 +157,34 @@ export default function LocationTreePicker({
         setSelectedId(undefined);
     }
 
-    // Auto-scroll to newly expanded nodes
+    // Improved auto-scroll to newly expanded nodes
     const scrollToNode = (nodeId: number) => {
+        // Increased delay to ensure DOM is fully updated with children
         setTimeout(() => {
             if (treeContainerRef.current) {
                 const nodeElement = treeContainerRef.current.querySelector(`[data-node-id="${nodeId}"]`);
                 if (nodeElement) {
+                    // Scroll to show the expanded node and its children
                     nodeElement.scrollIntoView({ 
                         behavior: 'smooth', 
-                        block: 'nearest',
+                        block: 'start',
                         inline: 'nearest'
                     });
+                    
+                    // Additional scroll to show children if they exist
+                    const children = nodeElement.nextElementSibling;
+                    if (children) {
+                        setTimeout(() => {
+                            children.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'end',
+                                inline: 'nearest'
+                            });
+                        }, 300);
+                    }
                 }
             }
-        }, 100); // Small delay to ensure DOM is updated
+        }, 200); // Increased delay for better reliability
     };
 
     // Build breadcrumb for selectedId
@@ -312,12 +326,27 @@ function TreeLevel(props: {
                             style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: 6,
-                                padding: "4px 6px",
-                                marginLeft: depth * 14,
-                                borderRadius: 6,
+                                gap: 8,
+                                padding: "6px 8px",
+                                marginLeft: depth * 16,
+                                borderRadius: 8,
                                 background: isSelected ? "#1e293b" : "transparent",
-                                border: isSelected ? "1px solid #334155" : "1px solid transparent"
+                                border: isSelected ? "1px solid #334155" : "1px solid transparent",
+                                transition: "all 0.15s ease-in-out",
+                                cursor: "pointer",
+                                position: "relative"
+                            }}
+                            onMouseEnter={(e) => {
+                                if (!isSelected) {
+                                    e.currentTarget.style.background = "#1a1a1a";
+                                    e.currentTarget.style.borderColor = "#404040";
+                                }
+                            }}
+                            onMouseLeave={(e) => {
+                                if (!isSelected) {
+                                    e.currentTarget.style.background = "transparent";
+                                    e.currentTarget.style.borderColor = "transparent";
+                                }
                             }}
                         >
                             {/* expand/collapse toggle */}
@@ -336,7 +365,7 @@ function TreeLevel(props: {
                                 style={chevronBtn}
                                 title={isExpanded ? "Collapse" : "Expand"}
                             >
-                                {isExpanded ? "▾" : "▸"}
+                                {isExpanded ? "▼" : "▶"}
                             </button>
 
                             {/* select radio */}
@@ -403,7 +432,8 @@ const btnSecondary: React.CSSProperties = {
     borderRadius: 8,
     padding: "8px 12px",
     height: 36,
-    cursor: "pointer"
+    cursor: "pointer",
+    transition: "all 0.15s ease-in-out"
 };
 
 const crumbBarStyle: React.CSSProperties = {
@@ -433,7 +463,9 @@ const chevronBtn: React.CSSProperties = {
     lineHeight: "20px",
     textAlign: "center" as const,
     cursor: "pointer",
-    padding: 0
+    padding: 0,
+    transition: "all 0.15s ease-in-out",
+    fontSize: "10px"
 };
 
 const nodeBtn: React.CSSProperties = {
@@ -443,5 +475,6 @@ const nodeBtn: React.CSSProperties = {
     padding: "2px 4px",
     cursor: "pointer",
     textAlign: "left" as const,
-    flex: 1
+    flex: 1,
+    transition: "all 0.15s ease-in-out"
 };
