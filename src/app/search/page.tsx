@@ -1,11 +1,10 @@
-"use client";
-
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
 import SearchBox from "@/components/SearchBox";
 import TagChipsAutocomplete from "@/components/TagChipsAutocomplete";
 import CoverThumb from "@/components/CoverThumb";
 import GameHoverCard from "@/components/GameHoverCard";
+import { ToggleButton } from "./ToggleButton";
 
 /* ------------ types ------------ */
 
@@ -215,19 +214,7 @@ export default async function BasicSearchPage({
             <details style={detailsWrap}>
                 <summary style={summaryBar}>
                     <span>Additional parameters</span>
-                    <button 
-                        type="button" 
-                        style={toggleButtonStyle}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            const details = e.currentTarget.closest('details');
-                            if (details) {
-                                details.open = !details.open;
-                            }
-                        }}
-                    >
-                        Toggle
-                    </button>
+                    <ToggleButton />
                 </summary>
 
                 <form method="GET" action="/search" style={{ display: "grid", gap: 16, padding: "16px", marginBottom: 12 }}>
@@ -535,14 +522,4 @@ const toggleInactive: React.CSSProperties = {
     ...toggleBase,
     background: "#151515",
     color: "#d8d8d8",
-};
-
-const toggleButtonStyle: React.CSSProperties = {
-    ...toggleBase,
-    background: "#151515",
-    color: "#d8d8d8",
-    border: "1px solid #2b2b2b",
-    padding: "6px 10px",
-    borderRadius: 8,
-    fontSize: 13,
 };
