@@ -9,12 +9,14 @@ export default function TagChipsAutocomplete({
                                                  label = "Tags",
                                                  name = "tag_ids",               // e.g. "tag_ids" or "igdb_tag_ids"
                                                  suggestKind,
-                                                 defaultSelectedIds = []
+                                                 defaultSelectedIds = [],
+                                                 searchOnly = false
                                              }: {
     label?: string;
     name?: string;
     suggestKind: SuggestKind;
     defaultSelectedIds?: Array<number | string>;
+    searchOnly?: boolean;
 }) {
     // --- UI state
     const [query, setQuery] = useState("");
@@ -149,6 +151,7 @@ export default function TagChipsAutocomplete({
 
     // Should we show the "Add “query”" row?
     const canCreateFromQuery = useMemo(() => {
+        if (searchOnly) return false; // Disable tag creation in search mode
         const q = query.trim();
         if (q.length < 2) return false;
         const l = q.toLowerCase();
@@ -156,7 +159,7 @@ export default function TagChipsAutocomplete({
         // also hide if an option has the exact same name
         if (options.some((o) => o.name.toLowerCase() === l)) return false;
         return true;
-    }, [query, lowerSetExisting, lowerSetNew, options]);
+    }, [query, lowerSetExisting, lowerSetNew, options, searchOnly]);
 
     // ---------- Select / remove ----------
     const onSelectExisting = useCallback((chip: Chip) => {
@@ -173,6 +176,7 @@ export default function TagChipsAutocomplete({
     }, []);
 
     const onCreateNew = useCallback((raw: string) => {
+        if (searchOnly) return; // Disable tag creation in search mode
         const t = raw.trim();
         if (t.length < 2) return;
         const l = t.toLowerCase();
@@ -183,7 +187,7 @@ export default function TagChipsAutocomplete({
         setOptions([]);
         setHighlight(0);
         inputRef.current?.focus();
-    }, [lowerSetExisting, lowerSetNew]);
+    }, [lowerSetExisting, lowerSetNew, searchOnly]);
 
     const onRemoveExisting = useCallback((id: number) => {
         setSelectedExisting((prev) => prev.filter((c) => c.id !== id));
@@ -198,13 +202,13 @@ export default function TagChipsAutocomplete({
         [selectedExisting]
     );
     const mixedJson = useMemo(() => {
-        const mixed = [...selectedExisting.map((c) => c.id as number | string), ...newNames];
+        const mixed = [...selectedExisting.map((c) => c.id as number | string), ...(searchOnly ? [] : newNames)];
         try {
             return JSON.stringify(mixed);
         } catch {
             return "[]";
         }
-    }, [selectedExisting, newNames]);
+    }, [selectedExisting, newNames, searchOnly]);
 
     // ---------- Keyboard ----------
     function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -230,6 +234,7 @@ export default function TagChipsAutocomplete({
         } else if (e.key === "Escape") {
             setOpen(false);
         } else if (e.key === "," /* quick add on comma */) {
+            if (searchOnly) return; // Disable tag creation in search mode
             const q = query.trim();
             if (q.length >= 2 && canCreateFromQuery) {
                 e.preventDefault();
@@ -264,7 +269,7 @@ export default function TagChipsAutocomplete({
               </button>
             </span>
                     ))}
-                    {newNames.map((n) => (
+                    {!searchOnly && newNames.map((n) => (
                         <span
                             key={`new-${n}`}
                             style={{ ...chipStyle, background: "#234232", borderColor: "#2e7d32", color: "#d1fadf" }}
@@ -365,8 +370,8 @@ const boxStyle: React.CSSProperties = {
     background: "#1a1a1a",
     border: "1px solid #2b2b2b",
     borderRadius: 8,
-    padding: 6,
-    minHeight: 44,
+    padding: 8,
+    minHeight: 60,
     display: "grid",
     alignItems: "center",
 };
@@ -376,8 +381,9 @@ const inputStyle: React.CSSProperties = {
     color: "#eaeaea",
     border: "none",
     outline: "none",
-    padding: "6px 8px",
+    padding: "8px 10px",
     width: "100%",
+    minHeight: "24px",
 };
 
 const chipStyle: React.CSSProperties = {
