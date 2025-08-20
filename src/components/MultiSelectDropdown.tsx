@@ -184,7 +184,9 @@ export default function MultiSelectDropdown({
                         borderRadius: 8,
                         padding: 8,
                         zIndex: 50,
-                        boxShadow: "0 8px 20px rgba(0,0,0,0.35)"
+                        boxShadow: "0 8px 20px rgba(0,0,0,0.35)",
+                        maxWidth: "100%",
+                        overflow: "hidden"
                     }}
                 >
                     <input
@@ -195,6 +197,8 @@ export default function MultiSelectDropdown({
                         autoFocus
                         style={{
                             width: "100%",
+                            maxWidth: "100%",
+                            boxSizing: "border-box" as const,
                             background: "#1a1a1a",
                             color: "#eaeaea",
                             border: "1px solid #2b2b2b",

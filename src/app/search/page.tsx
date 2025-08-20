@@ -4,6 +4,7 @@ import SearchBox from "@/components/SearchBox";
 import TagChipsAutocomplete from "@/components/TagChipsAutocomplete";
 import CoverThumb from "@/components/CoverThumb";
 import GameHoverCard from "@/components/GameHoverCard";
+import { ToggleButton } from "./ToggleButton";
 
 /* ------------ types ------------ */
 
@@ -213,15 +214,15 @@ export default async function BasicSearchPage({
             <details style={detailsWrap}>
                 <summary style={summaryBar}>
                     <span>Additional parameters</span>
-                    <span style={{ opacity: 0.8, fontSize: 12 }}>Toggle</span>
+                    <ToggleButton />
                 </summary>
 
-                <form method="GET" action="/search" style={{ display: "grid", gap: 12, marginBottom: 12 }}>
+                <form method="GET" action="/search" style={{ display: "grid", gap: 16, padding: "16px", marginBottom: 12 }}>
                     {/* Keep q sticky */}
                     <input type="hidden" name="q" value={q} />
 
                     {/* Row 1 — Year + Platform */}
-                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "200px 1fr" }}>
+                    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "200px 1fr" }}>
                         <label style={{ display: "grid", gap: 6 }}>
                             <span style={{ opacity: 0.85 }}>Year (exact)</span>
                             <input
@@ -250,12 +251,13 @@ export default async function BasicSearchPage({
                     </div>
 
                     {/* Row 2 — Tags + Match mode */}
-                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 200px" }}>
+                    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 200px" }}>
                         <TagChipsAutocomplete
                             label="Tags"
                             name="tag_ids"
                             suggestKind="tags"
                             defaultSelectedIds={parseIdsCSV(tagCsv)}
+                            searchOnly={true}
                         />
                         <label style={{ display: "grid", gap: 6 }}>
                             <span style={{ opacity: 0.85 }}>Tag match</span>
@@ -457,7 +459,7 @@ const inputShort: React.CSSProperties = {
     color: "#eaeaea",
     border: "1px solid #2b2b2b",
     borderRadius: 8,
-    padding: "10px 12px",
+    padding: "12px 16px",
     outline: "none",
     maxWidth: 200,
 };
@@ -467,7 +469,7 @@ const selectStyle: React.CSSProperties = {
     color: "#eaeaea",
     border: "1px solid #2b2b2b",
     borderRadius: 8,
-    padding: "10px 12px",
+    padding: "12px 16px",
     outline: "none",
 };
 
