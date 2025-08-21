@@ -570,7 +570,7 @@ export default async function AdvancedSearchPage({
                         style={{
                             display: "grid",
                             gap: 16,
-                            gridTemplateColumns: "1fr 1fr 1fr 1fr",
+                            gridTemplateColumns: "2fr 1fr 2fr 1fr",
                         }}
                     >
                         <MultiSelectDropdown
@@ -622,7 +622,7 @@ export default async function AdvancedSearchPage({
                         style={{
                             display: "grid",
                             gap: 16,
-                            gridTemplateColumns: "1fr 1fr 1fr 1fr",
+                            gridTemplateColumns: "2fr 1fr 2fr 1fr",
                         }}
                     >
                         <MultiSelectDropdown
