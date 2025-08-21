@@ -9,11 +9,15 @@ export const metadata = {
     icons: { icon: "/favicon.ico" },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+                                       children,
+                                   }: {
+    children: React.ReactNode;
+}) {
     return (
         <html lang="en">
         <head>
-            <style>{`html{scrollbar-gutter:stable;}`}</style>
+            <style>{`html{scrollbar-gutter:stable;*{box-sizing:border-box}}`}</style>
             <link rel="icon" href="/favicon.ico" type="image/x-icon" />
         </head>
         <body
@@ -76,13 +80,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         gap: 8,
                     }}
                 >
-                    <img 
-                        src="/favicon.ico" 
-                        alt="GameCubby Icon" 
+                    <img
+                        src="/favicon.ico"
+                        alt="GameCubby Icon"
                         style={{
                             width: 24,
                             height: 24,
-                            objectFit: "contain"
+                            objectFit: "contain",
                         }}
                     />
                     GameCubby
@@ -100,7 +104,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </header>
 
         {/* Page content */}
-        <main style={{ maxWidth: 1100, margin: "24px auto", padding: "0 16px", width: "100%" }}>
+        <main
+            style={{
+                maxWidth: 1100,
+                margin: "24px auto",
+                padding: "0 16px",
+                width: "100%",
+            }}
+        >
             {children}
         </main>
 
@@ -114,7 +125,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 color: "#9a9a9a",
             }}
         >
-            <div style={{ maxWidth: 1100, margin: "0 auto" }}>GameCubby Web UI</div>
+            <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+                GameCubby Web UI
+            </div>
         </footer>
         </body>
         </html>
