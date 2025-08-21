@@ -545,7 +545,6 @@ export default async function AdvancedSearchPage({
                             display: "grid",
                             gap: 16,
                             gridTemplateColumns: "160px 160px",
-                            justifyContent: "end",
                         }}
                     >
                         <LabeledInput
