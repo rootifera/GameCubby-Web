@@ -634,7 +634,7 @@ export default async function AdvancedSearchPage({
                             placeholder="Select perspectives…"
                         />
                         <label style={{ display: "grid", gap: 6 }}>
-                            <span style={{ opacity: 0.85 }}>Player Perspective Match</span>
+                            <span style={{ opacity: 0.85 }}>P. Perspective Match</span>
                             <select
                                 name="perspective_match_mode"
                                 defaultValue={perspectiveMatch}
