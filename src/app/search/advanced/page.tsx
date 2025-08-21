@@ -544,7 +544,7 @@ export default async function AdvancedSearchPage({
                         style={{
                             display: "grid",
                             gap: 16,
-                            gridTemplateColumns: "200px 200px",
+                            gridTemplateColumns: "160px 160px",
                         }}
                     >
                         <LabeledInput
@@ -570,7 +570,7 @@ export default async function AdvancedSearchPage({
                         style={{
                             display: "grid",
                             gap: 16,
-                            gridTemplateColumns: "1fr 1fr 1fr 1fr",
+                            gridTemplateColumns: "2fr 1fr 2fr 1fr",
                         }}
                     >
                         <MultiSelectDropdown
@@ -622,7 +622,7 @@ export default async function AdvancedSearchPage({
                         style={{
                             display: "grid",
                             gap: 16,
-                            gridTemplateColumns: "1fr 1fr 1fr 1fr",
+                            gridTemplateColumns: "2fr 1fr 2fr 1fr",
                         }}
                     >
                         <MultiSelectDropdown
@@ -634,7 +634,7 @@ export default async function AdvancedSearchPage({
                             placeholder="Select perspectives…"
                         />
                         <label style={{ display: "grid", gap: 6 }}>
-                            <span style={{ opacity: 0.85 }}>Player Perspective Match</span>
+                            <span style={{ opacity: 0.85 }}>P. Perspective Match</span>
                             <select
                                 name="perspective_match_mode"
                                 defaultValue={perspectiveMatch}

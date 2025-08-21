@@ -371,7 +371,7 @@ const boxStyle: React.CSSProperties = {
     border: "1px solid #2b2b2b",
     borderRadius: 8,
     padding: 8,
-    minHeight: 60,
+    minHeight: 90,
     display: "grid",
     alignItems: "center",
 };
@@ -383,7 +383,7 @@ const inputStyle: React.CSSProperties = {
     outline: "none",
     padding: "8px 10px",
     width: "100%",
-    minHeight: "24px",
+    minHeight: "36px",
 };
 
 const chipStyle: React.CSSProperties = {
