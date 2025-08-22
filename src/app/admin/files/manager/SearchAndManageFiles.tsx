@@ -274,7 +274,40 @@ function ManageFilesPanel({ gameId }: { gameId: number }) {
                 cache: "no-store",
             });
             const text = await res.text();
-            if (!res.ok) throw new Error(`Upload failed (${res.status}) ${text}`);
+            if (!res.ok) {
+                // Parse error response to provide user-friendly messages
+                let errorMessage = `Upload failed (${res.status})`;
+                try {
+                    if (text) {
+                        const errorData = JSON.parse(text);
+                        if (errorData.detail && Array.isArray(errorData.detail)) {
+                            const missingFields = errorData.detail
+                                .filter((err: any) => err.type === "missing")
+                                .map((err: any) => err.loc[1]);
+                            
+                            if (missingFields.length > 0) {
+                                if (missingFields.length === 2) {
+                                    errorMessage = "Please select both a label and category for the file.";
+                                } else if (missingFields.includes("label")) {
+                                    errorMessage = "Please select a label for the file.";
+                                } else if (missingFields.includes("category")) {
+                                    errorMessage = "Please select a category for the file.";
+                                } else {
+                                    errorMessage = `Please provide: ${missingFields.join(", ")}`;
+                                }
+                            } else {
+                                errorMessage = `Upload failed: ${text}`;
+                            }
+                        } else {
+                            errorMessage = `Upload failed: ${text}`;
+                        }
+                    }
+                } catch {
+                    // If parsing fails, fall back to original error message
+                    errorMessage = `Upload failed (${res.status}) ${text}`;
+                }
+                throw new Error(errorMessage);
+            }
             // Reload list to reflect new file
             await loadFiles();
             setUplFile(null);
