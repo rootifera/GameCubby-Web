@@ -62,6 +62,63 @@ async function fetchWebVersion(): Promise<WebVersion | null> {
     }
 }
 
+/** Fetch latest version info from GitHub for comparison */
+async function fetchGitHubVersions(): Promise<{
+    api: WebVersion | null;
+    web: WebVersion | null;
+}> {
+    try {
+        const [apiRes, webRes] = await Promise.allSettled([
+            fetch("https://raw.githubusercontent.com/rootifera/GameCubby/refs/heads/main/gamecubby_api/version.json", {
+                cache: "no-store",
+            }),
+            fetch("https://raw.githubusercontent.com/rootifera/GameCubby-Web/refs/heads/main/src/web-version.json", {
+                cache: "no-store",
+            }),
+        ]);
+
+        const api = apiRes.status === "fulfilled" && apiRes.value.ok 
+            ? await apiRes.value.json() 
+            : null;
+        const web = webRes.status === "fulfilled" && webRes.value.ok 
+            ? await webRes.value.json() 
+            : null;
+
+        return { api, web };
+    } catch {
+        return { api: null, web: null };
+    }
+}
+
+/** Get update status for a component */
+function getUpdateStatus(localBuildTime: number, remoteBuildTime: number | null): {
+    status: "latest" | "update-available" | "unable-to-check";
+    label: string;
+    color: string;
+} {
+    if (!remoteBuildTime) {
+        return {
+            status: "unable-to-check",
+            label: "Unable to check",
+            color: "#dc2626", // nice red
+        };
+    }
+
+    if (remoteBuildTime > localBuildTime) {
+        return {
+            status: "update-available",
+            label: "New Version Available",
+            color: "#059669", // nice green
+        };
+    }
+
+    return {
+        status: "latest",
+        label: "Latest Version",
+        color: "#6b7280", // nice grey
+    };
+}
+
 function fmtUnixSeconds(sec: number) {
     if (!Number.isFinite(sec)) return "—";
     // Convert seconds → ms
@@ -81,17 +138,22 @@ export const metadata = {
 export default async function AdminOverviewPage() {
     let data: ApiRoot | null = null;
     let apiError: string | null = null;
-
     let web: WebVersion | null = null;
+    let githubVersions: { api: WebVersion | null; web: WebVersion | null } = { api: null, web: null };
 
     try {
-        [data, web] = await Promise.allSettled([fetchApiRoot(), fetchWebVersion()]).then((r) => {
+        [data, web, githubVersions] = await Promise.allSettled([
+            fetchApiRoot(), 
+            fetchWebVersion(),
+            fetchGitHubVersions()
+        ]).then((r) => {
             const api = r[0].status === "fulfilled" ? r[0].value : null;
             const webv = r[1].status === "fulfilled" ? r[1].value : null;
+            const github = r[2].status === "fulfilled" ? r[2].value : { api: null, web: null };
             if (r[0].status === "rejected") {
                 apiError = (r[0].reason as Error)?.message ?? "Unknown error";
             }
-            return [api, webv] as const;
+            return [api, webv, github] as const;
         });
     } catch (e: any) {
         apiError = e?.message ?? "Unknown error";
@@ -130,7 +192,35 @@ export default async function AdminOverviewPage() {
             <div style={titleStyle}>Overview</div>
 
             {/* Web build card (from src/web-version.json) */}
-            <div style={{ ...panel, marginBottom: 12 }}>
+            <div style={{ ...panel, marginBottom: 12, position: "relative" }}>
+                {/* Update Status Badge - Top Right */}
+                {web && (
+                    <div style={{
+                        position: "absolute",
+                        top: 14,
+                        right: 14,
+                        zIndex: 10,
+                    }}>
+                        {(() => {
+                            const status = getUpdateStatus(web.build_time, githubVersions.web?.build_time || null);
+                            return (
+                                <span style={{
+                                    background: status.color,
+                                    color: "#ffffff",
+                                    padding: "4px 8px",
+                                    borderRadius: 6,
+                                    fontSize: 12,
+                                    fontWeight: 500,
+                                    display: "inline-block",
+                                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
+                                }}>
+                                    {status.label}
+                                </span>
+                            );
+                        })()}
+                    </div>
+                )}
+
                 {web ? (
                     <div style={grid}>
                         <div style={keyStyle}>Web App</div>
@@ -154,7 +244,35 @@ export default async function AdminOverviewPage() {
             </div>
 
             {/* API build card */}
-            <div style={panel}>
+            <div style={{ ...panel, position: "relative" }}>
+                {/* Update Status Badge - Top Right */}
+                {data && (
+                    <div style={{
+                        position: "absolute",
+                        top: 14,
+                        right: 14,
+                        zIndex: 10,
+                    }}>
+                        {(() => {
+                            const status = getUpdateStatus(data.build_time, githubVersions.api?.build_time || null);
+                            return (
+                                <span style={{
+                                    background: status.color,
+                                    color: "#ffffff",
+                                    padding: "4px 8px",
+                                    borderRadius: 6,
+                                    fontSize: 12,
+                                    fontWeight: 500,
+                                    display: "inline-block",
+                                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
+                                }}>
+                                    {status.label}
+                                </span>
+                            );
+                        })()}
+                    </div>
+                )}
+
                 {apiError ? (
                     <div style={{ color: "#ff6666" }}>Failed to load API root: {apiError}</div>
                 ) : data ? (
