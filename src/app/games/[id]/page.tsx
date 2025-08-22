@@ -137,9 +137,22 @@ export default async function GameDetailsPage({ params }: { params: { id: string
     return (
         <div style={{ padding: 16 }}>
             <div style={{ marginBottom: 16 }}>
-                <Link href="/games" style={{ color: "#a0c4ff", textDecoration: "none" }}>
-                    ← Back to Games
-                </Link>
+                <button 
+                    onClick={() => window.history.back()}
+                    style={{ 
+                        color: "#a0c4ff", 
+                        textDecoration: "none",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: "inherit",
+                        fontFamily: "inherit",
+                        padding: 0,
+                        margin: 0
+                    }}
+                >
+                    ← Back
+                </button>
             </div>
 
             {error ? (
