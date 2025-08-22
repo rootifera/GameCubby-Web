@@ -334,7 +334,6 @@ export default async function HomePage() {
             </div>
         </div>
     );
-}
 
 /** ---------- Small building blocks ---------- */
 
@@ -383,14 +382,6 @@ function Badge({ label, muted, type, count }: { label: string; muted?: boolean; 
                 display: "inline-block",
                 cursor: "pointer",
                 transition: "all 0.2s ease",
-            }}
-            onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#263043";
-                e.currentTarget.style.borderColor = "#60a5fa";
-            }}
-            onMouseLeave={(e) => {
-                e.currentTarget.style.background = "#1e293b";
-                e.currentTarget.style.borderColor = "#3b82f6";
             }}
         >
             {label}
@@ -445,3 +436,4 @@ const errBox: React.CSSProperties = {
     borderRadius: 8,
     marginBottom: 16,
 };
+
