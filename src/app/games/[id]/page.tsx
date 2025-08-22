@@ -8,6 +8,7 @@ import {
     prettyCategory,
     UiFile,
 } from "@/lib/files";
+import BackButton from "@/components/BackButton";
 
 type LocationNode = { id: string; name: string };
 
@@ -137,22 +138,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
     return (
         <div style={{ padding: 16 }}>
             <div style={{ marginBottom: 16 }}>
-                <button 
-                    onClick={() => window.history.back()}
-                    style={{ 
-                        color: "#a0c4ff", 
-                        textDecoration: "none",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        fontSize: "inherit",
-                        fontFamily: "inherit",
-                        padding: 0,
-                        margin: 0
-                    }}
-                >
-                    ← Back
-                </button>
+                <BackButton />
             </div>
 
             {error ? (
