@@ -77,8 +77,8 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 async function fetchGame(id: number): Promise<Game> {
-    const base = baseUrl();
-    return await fetchJson<Game>(`${base}/api/proxy/games/${id}`);
+    const { API_BASE_URL } = await import("@/lib/env");
+    return await fetchJson<Game>(`${API_BASE_URL}/games/${id}`);
 }
 
 async function fetchLookups(): Promise<Lookups> {
