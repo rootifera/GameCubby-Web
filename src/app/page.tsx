@@ -27,6 +27,41 @@ type Health = {
     total_games?: number;
 };
 
+/** ---------- Styles ---------- */
+const panel: React.CSSProperties = {
+    background: "#111",
+    border: "1px solid #262626",
+    borderRadius: 12,
+    padding: 16,
+};
+
+const panelHeaderRow: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+};
+
+const panelTitle: React.CSSProperties = { fontSize: 18, margin: 0 };
+
+const listReset: React.CSSProperties = { listStyle: "none", padding: 0, margin: 0, marginTop: 12 };
+
+const rowItem: React.CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: 8,
+    padding: "10px 8px",
+    borderTop: "1px solid #1f1f1f",
+};
+
+const errBox: React.CSSProperties = {
+    background: "#3b0f12",
+    border: "1px solid #5b1a1f",
+    color: "#ffd7d7",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+};
+
 /** ---------- First-run status (unchanged) ---------- */
 async function isFirstRunDone(): Promise<boolean> {
     try {
@@ -402,40 +437,6 @@ function SimpleList({ rows }: { rows: Array<{ left: string; right: string; key: 
     );
 }
 
-/** ---------- Styles ---------- */
-const panel: React.CSSProperties = {
-    background: "#111",
-    border: "1px solid #262626",
-    borderRadius: 12,
-    padding: 16,
-};
 
-const panelHeaderRow: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-};
-
-const panelTitle: React.CSSProperties = { fontSize: 18, margin: 0 };
-
-const listReset: React.CSSProperties = { listStyle: "none", padding: 0, margin: 0, marginTop: 12 };
-
-const rowItem: React.CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    gap: 8,
-    padding: "10px 8px",
-    borderTop: "1px solid #1f1f1f",
-};
-
-const errBox: React.CSSProperties = {
-    background: "#3b0f12",
-    border: "1px solid #5b1a1f",
-    color: "#ffd7d7",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-};
-
-} ;  
+ 
  
