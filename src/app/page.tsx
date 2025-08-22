@@ -27,6 +27,41 @@ type Health = {
     total_games?: number;
 };
 
+/** ---------- Styles ---------- */
+const panel: React.CSSProperties = {
+    background: "#111",
+    border: "1px solid #262626",
+    borderRadius: 12,
+    padding: 16,
+};
+
+const panelHeaderRow: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+};
+
+const panelTitle: React.CSSProperties = { fontSize: 18, margin: 0 };
+
+const listReset: React.CSSProperties = { listStyle: "none", padding: 0, margin: 0, marginTop: 12 };
+
+const rowItem: React.CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: 8,
+    padding: "10px 8px",
+    borderTop: "1px solid #1f1f1f",
+};
+
+const errBox: React.CSSProperties = {
+    background: "#3b0f12",
+    border: "1px solid #5b1a1f",
+    color: "#ffd7d7",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+};
+
 /** ---------- First-run status (unchanged) ---------- */
 async function isFirstRunDone(): Promise<boolean> {
     try {
@@ -93,11 +128,11 @@ export default async function HomePage() {
     const lowestRated = overview?.top_lowest_rated ?? [];
 
     const healthItems = [
-        { label: "Untagged", value: health?.untagged ?? 0 },
-        { label: "Missing release year", value: health?.missing_release_year ?? 0 },
-        { label: "No platforms", value: health?.no_platforms ?? 0 },
-        { label: "No location", value: health?.no_location ?? 0 },
-        { label: "Missing cover", value: health?.missing_cover ?? 0 },
+        { label: "Untagged", value: health?.untagged ?? 0, type: "tag" },
+        { label: "Missing release year", value: health?.missing_release_year ?? 0, type: "release_year" },
+        { label: "No platforms", value: health?.no_platforms ?? 0, type: "platform" },
+        { label: "No location", value: health?.no_location ?? 0, type: "location" },
+        { label: "Missing cover", value: health?.missing_cover ?? 0, type: "cover" },
     ];
     const totalIssues = healthItems.reduce((sum, it) => sum + (it.value || 0), 0);
 
@@ -152,7 +187,13 @@ export default async function HomePage() {
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
                         {healthItems.map((h) => (
-                            <Badge key={h.label} label={`${h.label}: ${h.value}`} muted={h.value === 0} />
+                            <Badge 
+                                key={h.label} 
+                                label={`${h.label}: ${h.value}`} 
+                                muted={h.value === 0} 
+                                type={h.type}
+                                count={h.value}
+                            />
                         ))}
                     </div>
                 </section>
@@ -341,21 +382,46 @@ function StatCard({ label, value }: { label: string; value: number | string }) {
     );
 }
 
-function Badge({ label, muted }: { label: string; muted?: boolean }) {
+function Badge({ label, muted, type, count }: { label: string; muted?: boolean; type?: string; count?: number }) {
+    const hasIssues = count && count > 0;
+    
+    if (muted || !hasIssues || !type) {
+        return (
+            <span
+                style={{
+                    background: muted ? "#1a1a1a" : "#1e293b",
+                    border: `1px solid ${muted ? "#2b2b2b" : "#3b82f6"}`,
+                    color: muted ? "#cfcfcf" : "#dbeafe",
+                    padding: "6px 10px",
+                    borderRadius: 999,
+                    fontSize: 12,
+                    whiteSpace: "nowrap",
+                }}
+            >
+                {label}
+            </span>
+        );
+    }
+    
     return (
-        <span
+        <Link
+            href={`/stats/health/${type}`}
             style={{
-                background: muted ? "#1a1a1a" : "#1e293b",
-                border: `1px solid ${muted ? "#2b2b2b" : "#3b82f6"}`,
-                color: muted ? "#cfcfcf" : "#dbeafe",
+                background: "#1e293b",
+                border: "1px solid #3b82f6",
+                color: "#dbeafe",
                 padding: "6px 10px",
                 borderRadius: 999,
                 fontSize: 12,
                 whiteSpace: "nowrap",
+                textDecoration: "none",
+                display: "inline-block",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
             }}
         >
             {label}
-        </span>
+        </Link>
     );
 }
 
@@ -371,38 +437,3 @@ function SimpleList({ rows }: { rows: Array<{ left: string; right: string; key: 
         </ul>
     );
 }
-
-/** ---------- Styles ---------- */
-const panel: React.CSSProperties = {
-    background: "#111",
-    border: "1px solid #262626",
-    borderRadius: 12,
-    padding: 16,
-};
-
-const panelHeaderRow: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-};
-
-const panelTitle: React.CSSProperties = { fontSize: 18, margin: 0 };
-
-const listReset: React.CSSProperties = { listStyle: "none", padding: 0, margin: 0, marginTop: 12 };
-
-const rowItem: React.CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    gap: 8,
-    padding: "10px 8px",
-    borderTop: "1px solid #1f1f1f",
-};
-
-const errBox: React.CSSProperties = {
-    background: "#3b0f12",
-    border: "1px solid #5b1a1f",
-    color: "#ffd7d7",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-};
