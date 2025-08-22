@@ -369,6 +369,7 @@ export default async function HomePage() {
             </div>
         </div>
     );
+}
 
 /** ---------- Small building blocks ---------- */
 
@@ -436,7 +437,3 @@ function SimpleList({ rows }: { rows: Array<{ left: string; right: string; key: 
         </ul>
     );
 }
-
-
- 
- 
