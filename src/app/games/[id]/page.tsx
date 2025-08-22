@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
+import { cookies } from "next/headers";
 import {
     groupFiles,
     GroupKey,
@@ -65,6 +66,27 @@ function toYear(n?: number | null): string {
 
 function igdbSearchUrl(name: string) {
     return `https://www.igdb.com/search?q=${encodeURIComponent(name)}`;
+}
+
+/** Check if user is authenticated as admin */
+function isAdminAuthenticated(): boolean {
+    const token = cookies().get("__gcub_a")?.value || cookies().get("gc_at")?.value;
+    if (!token) return false;
+    
+    try {
+        const parts = token.split(".");
+        if (parts.length < 2) return false;
+        const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+        const padded = base64 + "===".slice((base64.length + 3) % 4);
+        const json = Buffer.from(padded, "base64").toString("utf8");
+        const payload = JSON.parse(json) as { exp?: number };
+        
+        if (typeof payload.exp !== "number") return true; // treat as active if no exp
+        const now = Math.floor(Date.now() / 1000);
+        return payload.exp > now;
+    } catch {
+        return false;
+    }
 }
 
 /** Helper: basename from a path */
@@ -182,9 +204,31 @@ export default async function GameDetailsPage({ params }: { params: { id: string
 
                     {/* Info */}
                     <div>
-                        <h1 style={{ fontSize: 24, margin: "0 0 10px 0", letterSpacing: 0.2 }}>
-                            {game.name}
-                        </h1>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                            <h1 style={{ fontSize: 24, margin: 0, letterSpacing: 0.2 }}>
+                                {game.name}
+                            </h1>
+                            {isAdminAuthenticated() && (
+                                <Link
+                                    href={`/admin/games/update/${game.id}`}
+                                    style={{
+                                        background: "#3b82f6",
+                                        color: "#ffffff",
+                                        padding: "6px 12px",
+                                        borderRadius: 6,
+                                        fontSize: 14,
+                                        textDecoration: "none",
+                                        fontWeight: 500,
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        transition: "all 0.2s ease",
+                                    }}
+                                >
+                                    ✏️ Edit
+                                </Link>
+                            )}
+                        </div>
 
                         {/* Quick facts */}
                         <div
