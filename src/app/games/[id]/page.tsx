@@ -168,8 +168,39 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                         border: "1px solid #262626",
                         borderRadius: 12,
                         padding: 16,
+                        position: "relative",
                     }}
                 >
+                    {/* Edit Button - Top Right Corner */}
+                    {isAdminAuthenticated() && (
+                        <div style={{
+                            position: "absolute",
+                            top: 16,
+                            right: 16,
+                            zIndex: 10,
+                        }}>
+                            <Link
+                                href={`/admin/games/update/${game.id}`}
+                                style={{
+                                    background: "#6b7280",
+                                    color: "#ffffff",
+                                    padding: "6px 12px",
+                                    borderRadius: 6,
+                                    fontSize: 14,
+                                    textDecoration: "none",
+                                    fontWeight: 500,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    transition: "all 0.2s ease",
+                                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
+                                }}
+                            >
+                                ✏️ Edit
+                            </Link>
+                        </div>
+                    )}
+
                     {/* Cover */}
                     <div>
                         {game.cover_url ? (
@@ -203,31 +234,9 @@ export default async function GameDetailsPage({ params }: { params: { id: string
 
                     {/* Info */}
                     <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-                            <h1 style={{ fontSize: 24, margin: 0, letterSpacing: 0.2 }}>
-                                {game.name}
-                            </h1>
-                            {isAdminAuthenticated() && (
-                                <Link
-                                    href={`/admin/games/update/${game.id}`}
-                                    style={{
-                                        background: "#3b82f6",
-                                        color: "#ffffff",
-                                        padding: "6px 12px",
-                                        borderRadius: 6,
-                                        fontSize: 14,
-                                        textDecoration: "none",
-                                        fontWeight: 500,
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: 6,
-                                        transition: "all 0.2s ease",
-                                    }}
-                                >
-                                    ✏️ Edit
-                                </Link>
-                            )}
-                        </div>
+                        <h1 style={{ fontSize: 24, margin: "0 0 10px 0", letterSpacing: 0.2 }}>
+                            {game.name}
+                        </h1>
 
                         {/* Quick facts */}
                         <div
