@@ -202,7 +202,7 @@ export default async function HomePage() {
                 </section>
 
                 {/* Health snapshot (all fields) */}
-                <section style={panel}>
+                <section style={{ ...panel, position: "relative" }}>
                     <div style={panelHeaderRow}>
                         <h2 style={panelTitle}>Library Health</h2>
                         <span style={{ opacity: 0.7, fontSize: 12 }}>
@@ -221,7 +221,11 @@ export default async function HomePage() {
                         ))}
                     </div>
                     {isAdmin && (
-                        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+                        <div style={{ 
+                            position: "absolute", 
+                            bottom: 12, 
+                            right: 12 
+                        }}>
                             <ForceRefreshButton />
                         </div>
                     )}
