@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
 import { redirect } from "next/navigation";
+import ForceRefreshButton from "@/components/ForceRefreshButton";
+import { cookies } from "next/headers";
 
 /** ---------- Types from the endpoints ---------- */
 
@@ -98,6 +100,27 @@ async function fetchHealth(): Promise<Health> {
     return (await res.json()) as Health;
 }
 
+/** ---------- Check if user is admin ---------- */
+function checkIfAdmin(): boolean {
+    try {
+        const token = cookies().get("__gcub_a")?.value || "";
+        if (!token) return false;
+        
+        // Simple JWT expiration check (same logic as admin health endpoint)
+        const parts = token.split(".");
+        if (parts.length < 2) return false;
+        const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+        const pad = b64.length % 4 ? "=".repeat(4 - (b64.length % 4)) : "";
+        const json = atob(b64 + pad);
+        const payload = JSON.parse(json) as { exp?: number };
+        if (typeof payload.exp !== "number") return true; // no exp -> treat as active
+        const now = Math.floor(Date.now() / 1000);
+        return payload.exp > now;
+    } catch {
+        return false;
+    }
+}
+
 /** ---------- Page ---------- */
 export default async function HomePage() {
     // Redirect to setup if first run not completed
@@ -107,6 +130,7 @@ export default async function HomePage() {
     let overview: Overview | null = null;
     let health: Health | null = null;
     let error: string | null = null;
+    const isAdmin = checkIfAdmin();
 
     try {
         [overview, health] = await Promise.all([fetchOverview(), fetchHealth()]);
@@ -178,7 +202,7 @@ export default async function HomePage() {
                 </section>
 
                 {/* Health snapshot (all fields) */}
-                <section style={panel}>
+                <section style={{ ...panel, position: "relative" }}>
                     <div style={panelHeaderRow}>
                         <h2 style={panelTitle}>Library Health</h2>
                         <span style={{ opacity: 0.7, fontSize: 12 }}>
@@ -196,6 +220,15 @@ export default async function HomePage() {
                             />
                         ))}
                     </div>
+                    {isAdmin && (
+                        <div style={{ 
+                            position: "absolute", 
+                            bottom: 12, 
+                            right: 12 
+                        }}>
+                            <ForceRefreshButton />
+                        </div>
+                    )}
                 </section>
 
                 {/* Top Platforms (all returned) */}
