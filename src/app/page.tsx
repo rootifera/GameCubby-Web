@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
 import { redirect } from "next/navigation";
+import ForceRefreshButton from "@/components/ForceRefreshButton";
 
 /** ---------- Types from the endpoints ---------- */
 
@@ -98,6 +99,18 @@ async function fetchHealth(): Promise<Health> {
     return (await res.json()) as Health;
 }
 
+/** ---------- Check if user is admin ---------- */
+async function checkIfAdmin(): Promise<boolean> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/admin/health`, { cache: "no-store" });
+        if (!res.ok) return false;
+        const data = await res.json() as { authed?: boolean };
+        return Boolean(data?.authed);
+    } catch {
+        return false;
+    }
+}
+
 /** ---------- Page ---------- */
 export default async function HomePage() {
     // Redirect to setup if first run not completed
@@ -107,9 +120,11 @@ export default async function HomePage() {
     let overview: Overview | null = null;
     let health: Health | null = null;
     let error: string | null = null;
+    let isAdmin = false;
 
     try {
         [overview, health] = await Promise.all([fetchOverview(), fetchHealth()]);
+        isAdmin = await checkIfAdmin();
     } catch (e: unknown) {
         error = e instanceof Error ? e.message : "Unknown error loading statistics.";
     }
@@ -181,9 +196,12 @@ export default async function HomePage() {
                 <section style={panel}>
                     <div style={panelHeaderRow}>
                         <h2 style={panelTitle}>Library Health</h2>
-                        <span style={{ opacity: 0.7, fontSize: 12 }}>
-                            {totalIssues === 0 ? "All good 🎉" : `${totalIssues} issue${totalIssues === 1 ? "" : "s"}`}
-                        </span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ opacity: 0.7, fontSize: 12 }}>
+                                {totalIssues === 0 ? "All good 🎉" : `${totalIssues} issue${totalIssues === 1 ? "" : "s"}`}
+                            </span>
+                            {isAdmin && <ForceRefreshButton />}
+                        </div>
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
                         {healthItems.map((h) => (
