@@ -205,12 +205,9 @@ export default async function HomePage() {
                 <section style={panel}>
                     <div style={panelHeaderRow}>
                         <h2 style={panelTitle}>Library Health</h2>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ opacity: 0.7, fontSize: 12 }}>
-                                {totalIssues === 0 ? "All good 🎉" : `${totalIssues} issue${totalIssues === 1 ? "" : "s"}`}
-                            </span>
-                            {isAdmin && <ForceRefreshButton />}
-                        </div>
+                        <span style={{ opacity: 0.7, fontSize: 12 }}>
+                            {totalIssues === 0 ? "All good 🎉" : `${totalIssues} issue${totalIssues === 1 ? "" : "s"}`}
+                        </span>
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
                         {healthItems.map((h) => (
@@ -223,6 +220,11 @@ export default async function HomePage() {
                             />
                         ))}
                     </div>
+                    {isAdmin && (
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+                            <ForceRefreshButton />
+                        </div>
+                    )}
                 </section>
 
                 {/* Top Platforms (all returned) */}
