@@ -17,7 +17,20 @@ export default function RootLayout({
     return (
         <html lang="en">
         <head>
-            <style>{`html{scrollbar-gutter:stable;*{box-sizing:border-box}}`}</style>
+            <style>{`html{scrollbar-gutter:stable;*{box-sizing:border-box}
+/* Remove spinner controls from number inputs */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+/* Prevent mouse wheel from changing number input values */
+input[type="number"]:focus {
+    outline: none;
+}`}</style>
             <link rel="icon" href="/favicon.ico" type="image/x-icon" />
         </head>
         <body
