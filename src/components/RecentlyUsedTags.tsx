@@ -7,7 +7,7 @@ type RecentlyUsedTagsProps = {
     maxTags?: number;
 };
 
-export default function RecentlyUsedTags({ onTagClick, maxTags = 5 }: RecentlyUsedTagsProps) {
+export default function RecentlyUsedTags({ onTagClick, maxTags = 10 }: RecentlyUsedTagsProps) {
     const [recentTags, setRecentTags] = useState<string[]>([]);
     const [refreshKey, setRefreshKey] = useState(0);
 
