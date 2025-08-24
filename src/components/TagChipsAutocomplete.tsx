@@ -1,23 +1,29 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 
 type Chip = { id: number; name: string };
 type SuggestKind = "tags" | "igdb_tags";
 
-export default function TagChipsAutocomplete({
-                                                 label = "Tags",
-                                                 name = "tag_ids",               // e.g. "tag_ids" or "igdb_tag_ids"
-                                                 suggestKind,
-                                                 defaultSelectedIds = [],
-                                                 searchOnly = false
-                                             }: {
+export interface TagChipsAutocompleteRef {
+    addTag: (tagName: string) => void;
+}
+
+export default forwardRef<TagChipsAutocompleteRef, {
     label?: string;
     name?: string;
     suggestKind: SuggestKind;
     defaultSelectedIds?: Array<number | string>;
     searchOnly?: boolean;
-}) {
+    onTagsChange?: (tags: { existing: Chip[]; new: string[] }) => void;
+}>(function TagChipsAutocomplete({
+    label = "Tags",
+    name = "tag_ids",               // e.g. "tag_ids" or "igdb_tag_ids"
+    suggestKind,
+    defaultSelectedIds = [],
+    searchOnly = false,
+    onTagsChange
+}, ref) {
     // --- UI state
     const [query, setQuery] = useState("");
     const [open, setOpen] = useState(false);
@@ -168,6 +174,18 @@ export default function TagChipsAutocomplete({
             if (prev.some((c) => c.id === chip.id)) return prev;
             return [...prev, chip];
         });
+        
+        // Add to recently used tags in localStorage
+        try {
+            const stored = localStorage.getItem('gamecubby_recent_tags');
+            const recentTags = stored ? JSON.parse(stored) as string[] : [];
+            const filtered = recentTags.filter(tag => tag.toLowerCase() !== chip.name.toLowerCase());
+            const newRecentTags = [chip.name, ...filtered].slice(0, 5);
+            localStorage.setItem('gamecubby_recent_tags', JSON.stringify(newRecentTags));
+        } catch (error) {
+            console.warn('Failed to update recent tags in localStorage:', error);
+        }
+        
         setQuery("");
         setOpen(false);
         setOptions([]);
@@ -182,6 +200,18 @@ export default function TagChipsAutocomplete({
         const l = t.toLowerCase();
         if (lowerSetExisting.has(l) || lowerSetNew.has(l)) return;
         setNewNames((prev) => [...prev, t]);
+        
+        // Add to recently used tags in localStorage
+        try {
+            const stored = localStorage.getItem('gamecubby_recent_tags');
+            const recentTags = stored ? JSON.parse(stored) as string[] : [];
+            const filtered = recentTags.filter(tag => tag.toLowerCase() !== l);
+            const newRecentTags = [t, ...filtered].slice(0, 5);
+            localStorage.setItem('gamecubby_recent_tags', JSON.stringify(newRecentTags));
+        } catch (error) {
+            console.warn('Failed to update recent tags in localStorage:', error);
+        }
+        
         setQuery("");
         setOpen(false);
         setOptions([]);
@@ -195,6 +225,40 @@ export default function TagChipsAutocomplete({
     const onRemoveNew = useCallback((name: string) => {
         setNewNames((prev) => prev.filter((n) => n !== name));
     }, []);
+
+    // Function to programmatically add a tag
+    const addTag = useCallback((tagName: string) => {
+        const trimmed = tagName.trim();
+        if (trimmed.length < 2) return;
+        
+        const l = trimmed.toLowerCase();
+        if (lowerSetExisting.has(l) || lowerSetNew.has(l)) return;
+        
+        setNewNames((prev) => [...prev, trimmed]);
+        
+        // Add to recently used tags in localStorage
+        try {
+            const stored = localStorage.getItem('gamecubby_recent_tags');
+            const recentTags = stored ? JSON.parse(stored) as string[] : [];
+            const filtered = recentTags.filter(tag => tag.toLowerCase() !== l);
+            const newRecentTags = [trimmed, ...filtered].slice(0, 5);
+            localStorage.setItem('gamecubby_recent_tags', JSON.stringify(newRecentTags));
+        } catch (error) {
+            console.warn('Failed to update recent tags in localStorage:', error);
+        }
+    }, [lowerSetExisting, lowerSetNew]);
+
+    // Expose addTag function to parent component
+    useEffect(() => {
+        if (onTagsChange) {
+            onTagsChange({ existing: selectedExisting, new: newNames });
+        }
+    }, [selectedExisting, newNames, onTagsChange]);
+
+    // Expose addTag function via ref
+    useImperativeHandle(ref, () => ({
+        addTag
+    }), [addTag]);
 
     // ---------- Hidden input values ----------
     const csvIds = useMemo(
