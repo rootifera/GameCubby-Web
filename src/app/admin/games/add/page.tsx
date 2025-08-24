@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import LocationTreePicker from "@/components/LocationTreePicker";
-import TagChipsAutocomplete from "@/components/TagChipsAutocomplete";
+import TagChipsAutocomplete, { type TagChipsAutocompleteRef } from "@/components/TagChipsAutocomplete";
 import MultiSelectDropdown, { type Option } from "@/components/MultiSelectDropdown";
+import RecentlyUsedTags from "@/components/RecentlyUsedTags";
 
 /* ---------- Types from IGDB endpoints ---------- */
 type IgdbSearchItem = {
@@ -133,11 +134,25 @@ export default function AdminAddGamePage() {
     const [savedMsg, setSavedMsg] = useState<string | null>(null);
     const [saveError, setSaveError] = useState<string | null>(null);
 
+    // Refs for tag components
+    const igdbTagsRef = useRef<TagChipsAutocompleteRef | null>(null);
+    const customTagsRef = useRef<TagChipsAutocompleteRef | null>(null);
+
     // platforms from details; user can tick multiple
     const [selectedPlatforms, setSelectedPlatforms] = useState<Set<number>>(new Set());
     // Local mirrors for condition/order so we can package JSON easily
     const [condition, setCondition] = useState<number>(0);
     const [order, setOrder] = useState<number>(0);
+
+    // Handler for recently used tag clicks
+    const handleRecentTagClick = (tagName: string) => {
+        // Add tag to the currently active tag component
+        if (mode === "igdb" && igdbTagsRef.current) {
+            igdbTagsRef.current.addTag(tagName);
+        } else if (mode === "custom" && customTagsRef.current) {
+            customTagsRef.current.addTag(tagName);
+        }
+    };
 
     /* ---------------- Search ---------------- */
     async function doSearch(e: React.FormEvent<HTMLFormElement>) {
@@ -786,8 +801,16 @@ export default function AdminAddGamePage() {
                                             {/* Location */}
                                             <LocationTreePicker label="Location" name="location_id" />
 
+                                            {/* Recently Used Tags */}
+                                            <RecentlyUsedTags onTagClick={handleRecentTagClick} />
+
                                             {/* User Tags */}
-                                            <TagChipsAutocomplete label="Tags" name="tag_ids" suggestKind="tags" />
+                                            <TagChipsAutocomplete 
+                                                ref={igdbTagsRef}
+                                                label="Tags" 
+                                                name="tag_ids" 
+                                                suggestKind="tags" 
+                                            />
 
                                             {/* Condition & Order */}
                                             <div style={{ display: "grid", gap: 12, gridTemplateColumns: "200px 200px" }}>
@@ -1143,8 +1166,16 @@ export default function AdminAddGamePage() {
                             />
                         </div>
 
+                        {/* Recently Used Tags */}
+                        <RecentlyUsedTags onTagClick={handleRecentTagClick} />
+
                         {/* Tags (now submit mixed JSON via tag_ids_mix) */}
-                        <TagChipsAutocomplete label="Tags" name="tag_ids" suggestKind="tags" />
+                        <TagChipsAutocomplete 
+                            ref={customTagsRef}
+                            label="Tags" 
+                            name="tag_ids" 
+                            suggestKind="tags" 
+                        />
 
                         {/* Custom errors/status */}
                         {customError ? (
