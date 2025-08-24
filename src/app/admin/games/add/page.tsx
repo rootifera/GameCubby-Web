@@ -727,7 +727,17 @@ export default function AdminAddGamePage() {
                                         <div style={{ height: 1, background: "#1f1f1f", margin: "14px 0" }} />
 
                                         {/* Add form */}
-                                        <form ref={formRef} onSubmit={onAddSubmit} style={{ display: "grid", gap: 12 }}>
+                                        <form 
+                                            ref={formRef} 
+                                            onSubmit={onAddSubmit} 
+                                            onKeyDown={(e) => {
+                                                // Prevent Enter key from submitting the form
+                                                if (e.key === "Enter") {
+                                                    e.preventDefault();
+                                                }
+                                            }}
+                                            style={{ display: "grid", gap: 12 }}
+                                        >
                                             <input type="hidden" name="igdb_id" value={details.id} />
 
                                             {/* Platforms (from details) */}
@@ -926,7 +936,17 @@ export default function AdminAddGamePage() {
                         </div>
                     ) : null}
 
-                    <form ref={customFormRef} onSubmit={onCustomSubmit} style={{ display: "grid", gap: 10 }}>
+                    <form 
+                        ref={customFormRef} 
+                        onSubmit={onCustomSubmit} 
+                        onKeyDown={(e) => {
+                            // Prevent Enter key from submitting the form
+                            if (e.key === "Enter") {
+                                e.preventDefault();
+                            }
+                        }}
+                        style={{ display: "grid", gap: 10 }}
+                    >
                         <label style={{ display: "grid", gap: 6 }}>
                             <span style={{ opacity: 0.85 }}>Name</span>
                             <input
