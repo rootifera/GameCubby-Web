@@ -1,5 +1,6 @@
 // src/app/admin/logout/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { shouldUseSecureCookies } from "@/lib/auth";
 
 const NEW_COOKIE = "__gcub_a";
 const LEGACY_COOKIE = "gc_at";
@@ -15,6 +16,9 @@ export async function GET(req: NextRequest) {
     }
 
     const isProd = process.env.NODE_ENV === "production";
+
+    // Determine if cookies should be secure based on PROXY setting
+    const shouldBeSecure = shouldUseSecureCookies(req);
 
     // Small HTML that pings /api/health immediately, then redirects.
     const html = `<!doctype html>
@@ -57,7 +61,7 @@ export async function GET(req: NextRequest) {
         value: "",
         httpOnly: true,
         sameSite: "strict",
-        secure: true,
+        secure: shouldBeSecure,
         path: "/",
         maxAge: 0,
     });
@@ -68,7 +72,7 @@ export async function GET(req: NextRequest) {
         value: "",
         httpOnly: true,
         sameSite: "strict",
-        secure: true,
+        secure: shouldBeSecure,
         path: "/",
         maxAge: 0,
     });
