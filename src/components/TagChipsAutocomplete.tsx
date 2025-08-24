@@ -419,7 +419,7 @@ export default forwardRef<TagChipsAutocompleteRef, {
             {error ? <div style={{ color: "#fca5a5", fontSize: 12 }}>{error}</div> : null}
         </div>
     );
-}
+});
 
 /* ---------- utils ---------- */
 function mergeChipsReplace(prev: Chip[], next: Chip[]): Chip[] {
