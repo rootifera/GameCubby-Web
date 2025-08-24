@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { PROXY } from "@/lib/env";
+import { shouldUseSecureCookies } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -89,12 +91,13 @@ export async function POST(req: NextRequest) {
         { status: 200, headers: { "Cache-Control": "no-store" } }
     );
 
-    const secure = req.nextUrl.protocol === "https:";
+    // Determine if cookies should be secure based on PROXY setting
+    const shouldBeSecure = shouldUseSecureCookies(req);
     res.cookies.set(MAINT_COOKIE, "1", {
         path: "/",
         httpOnly: true,
         sameSite: "lax",
-        secure,
+        secure: shouldBeSecure,
         // keep it around for a while; server-side status still the source of truth
         maxAge: 60 * 60 * 12, // 12h
     });

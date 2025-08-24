@@ -1,6 +1,7 @@
 // src/app/admin/login/submit/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { API_BASE_URL } from "@/lib/env";
+import { shouldUseSecureCookies } from "@/lib/auth";
 
 const NEW_COOKIE = "__gcub_a";
 const LEGACY_COOKIE = "gc_at";
@@ -61,13 +62,16 @@ export async function POST(req: NextRequest) {
             headers: { Location: next || "/admin" },
         });
 
+        // Determine if cookies should be secure based on PROXY setting
+        const shouldBeSecure = shouldUseSecureCookies(req);
+
         // Set BOTH cookies for compatibility
         res.cookies.set({
             name: NEW_COOKIE,
             value: token,
             httpOnly: true,
             sameSite: "strict",
-            secure: true,
+            secure: shouldBeSecure,
             path: "/",
             maxAge: ONE_WEEK,
         });
@@ -76,7 +80,7 @@ export async function POST(req: NextRequest) {
             value: token,
             httpOnly: true,
             sameSite: "strict",
-            secure: true,
+            secure: shouldBeSecure,
             path: "/",
             maxAge: ONE_WEEK,
         });
