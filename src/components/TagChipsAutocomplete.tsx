@@ -182,7 +182,7 @@ export default forwardRef<TagChipsAutocompleteRef, {
             const stored = localStorage.getItem('gamecubby_recent_tags');
             const recentTags = stored ? JSON.parse(stored) as string[] : [];
             const filtered = recentTags.filter(tag => tag.toLowerCase() !== chip.name.toLowerCase());
-            const newRecentTags = [chip.name, ...filtered].slice(0, 5);
+            const newRecentTags = [chip.name, ...filtered].slice(0, 10);
             localStorage.setItem('gamecubby_recent_tags', JSON.stringify(newRecentTags));
         } catch (error) {
             console.warn('Failed to update recent tags in localStorage:', error);
@@ -208,7 +208,7 @@ export default forwardRef<TagChipsAutocompleteRef, {
             const stored = localStorage.getItem('gamecubby_recent_tags');
             const recentTags = stored ? JSON.parse(stored) as string[] : [];
             const filtered = recentTags.filter(tag => tag.toLowerCase() !== l);
-            const newRecentTags = [t, ...filtered].slice(0, 5);
+            const newRecentTags = [t, ...filtered].slice(0, 10);
             localStorage.setItem('gamecubby_recent_tags', JSON.stringify(newRecentTags));
         } catch (error) {
             console.warn('Failed to update recent tags in localStorage:', error);
@@ -247,7 +247,7 @@ export default forwardRef<TagChipsAutocompleteRef, {
             const stored = localStorage.getItem('gamecubby_recent_tags');
             const recentTags = stored ? JSON.parse(stored) as string[] : [];
             const filtered = recentTags.filter(tag => tag.toLowerCase() !== l);
-            const newRecentTags = [trimmed, ...filtered].slice(0, 5);
+            const newRecentTags = [trimmed, ...filtered].slice(0, 10);
             localStorage.setItem('gamecubby_recent_tags', JSON.stringify(newRecentTags));
         } catch (error) {
             console.warn('Failed to update recent tags in localStorage:', error);
