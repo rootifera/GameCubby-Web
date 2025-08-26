@@ -110,6 +110,7 @@ function hasMeaningfulFilters(
         "company_id",
         "company_ids",
         "location_id",
+        "include_location_descendants",
         "include_manual",
     ];
 
@@ -140,6 +141,7 @@ function buildQuery(sp: Record<string, string | string[] | undefined>) {
         "year_min",
         "year_max",
         "location_id",
+        "include_location_descendants",
         "include_manual",
         "limit",
         "offset",
@@ -778,6 +780,23 @@ export default async function AdvancedSearchPage({
                                 locationDefaultId ? Number(locationDefaultId) : undefined
                             }
                         />
+                        {/* Include Sub Locations checkbox */}
+                        <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
+                            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                                <input
+                                    type="checkbox"
+                                    name="include_location_descendants"
+                                    value="true"
+                                    defaultChecked={get(sp, "include_location_descendants") === "true"}
+                                    style={{
+                                        width: 16,
+                                        height: 16,
+                                        cursor: "pointer"
+                                    }}
+                                />
+                                <span style={{ opacity: 0.85, fontSize: 14 }}>Include Sub Locations</span>
+                            </label>
+                        </div>
                     </div>
 
                     {/* Row 9 — Include Custom Games */}
