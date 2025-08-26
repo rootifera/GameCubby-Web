@@ -1,9 +1,19 @@
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
+import { PROXY } from "./env";
 
 /**
  * Shared authentication utilities for consistent token handling across routes
  */
+
+/**
+ * Determines if cookies should be secure based on PROXY setting and request protocol
+ * @param req - The NextRequest object
+ * @returns true if cookies should be secure, false otherwise
+ */
+export function shouldUseSecureCookies(req: NextRequest): boolean {
+    return PROXY || req.nextUrl.protocol === "https:";
+}
 
 export function readToken(): string {
     return cookies().get("__gcub_a")?.value || cookies().get("gc_at")?.value || "";

@@ -147,7 +147,7 @@ export default function LocationManager() {
                 method: "POST",
             });
 
-            setNotice(`Added “${name}” ${selectedId ? "under the selected node" : "at top level"}.`);
+            setNotice(`Added "${name}" ${selectedId ? "under the selected node" : "at top level"}.`);
             setNewName("");
             setNewType("");
 
@@ -267,7 +267,8 @@ export default function LocationManager() {
 
     /* ---------- render ---------- */
     return (
-        <div style={{ display: "grid", gap: 14 }}>
+        <div style={{ display: "grid", gap: 16 }}>
+            {/* Status banners */}
             {(busy || notice || err) && (
                 <div style={{ display: "grid", gap: 8 }}>
                     {busy && (
@@ -288,155 +289,191 @@ export default function LocationManager() {
                 </div>
             )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 420px) 1fr", gap: 16 }}>
-                {/* Left: tree */}
-                <div
-                    ref={pickerHostRef}
+            {/* Top: Locations card (full width) */}
+            <div
+                ref={pickerHostRef}
+                style={{
+                    background: "#141414",
+                    border: "1px solid #262626",
+                    borderRadius: 10,
+                    padding: 16,
+                }}
+            >
+                <div style={{ fontWeight: 700, marginBottom: 12, fontSize: "16px" }}>Locations</div>
+                {/* force remount via key after mutations to re-hydrate */}
+                <div key={treeKey}>
+                    <LocationTreePicker
+                        label="Pick a location"
+                        name="location_id"
+                        defaultSelectedId={selectedId}
+                        height={400}
+                    />
+                </div>
+            </div>
+
+            {/* Below: Action cards (full width, stacked vertically) */}
+            <div style={{ display: "grid", gap: 16 }}>
+                {/* Selected Location Details */}
+                <section
                     style={{
                         background: "#141414",
                         border: "1px solid #262626",
                         borderRadius: 10,
-                        padding: 12,
+                        padding: 16,
                     }}
                 >
-                    <div style={{ fontWeight: 700, marginBottom: 8 }}>Locations</div>
-                    {/* force remount via key after mutations to re-hydrate */}
-                    <div key={treeKey}>
-                        <LocationTreePicker
-                            label="Pick a location"
-                            name="location_id"
-                            defaultSelectedId={selectedId}
-                            height={360}
-                        />
-                    </div>
-                </div>
-
-                {/* Right: details & actions */}
-                <div style={{ display: "grid", gap: 12 }}>
-                    {/* Selected details */}
-                    <section
-                        style={{
-                            background: "#141414",
-                            border: "1px solid #262626",
-                            borderRadius: 10,
-                            padding: 12,
-                        }}
-                    >
-                        <div style={{ fontWeight: 700, marginBottom: 8 }}>Selected</div>
-                        {!selectedId ? (
-                            <div style={{ opacity: 0.75 }}>No location selected.</div>
-                        ) : !selected ? (
-                            <div style={{ opacity: 0.8 }}>Loading…</div>
-                        ) : (
-                            <div style={{ display: "grid", gap: 6 }}>
+                    <div style={{ fontWeight: 700, marginBottom: 12, fontSize: "16px" }}>Selected Location Details</div>
+                    {!selectedId ? (
+                        <div style={{ opacity: 0.75 }}>No location selected.</div>
+                    ) : !selected ? (
+                        <div style={{ opacity: 0.8 }}>Loading…</div>
+                    ) : (
+                        <div style={{ display: "grid", gap: 12 }}>
+                            <div>
+                                <div style={{ opacity: 0.8, fontSize: 12, marginBottom: 4 }}>Name</div>
+                                <div style={{ fontWeight: 600, fontSize: "14px" }}>{selected.name}</div>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                                 <div>
-                                    <div style={{ opacity: 0.8, fontSize: 12 }}>Name</div>
-                                    <div style={{ fontWeight: 600 }}>{selected.name}</div>
-                                </div>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                                    <div>
-                                        <div style={{ opacity: 0.8, fontSize: 12 }}>ID</div>
-                                        <div>{selected.id}</div>
-                                    </div>
-                                    <div>
-                                        {/* CHANGED: Parent Name instead of Parent ID */}
-                                        <div style={{ opacity: 0.8, fontSize: 12 }}>Parent Name</div>
-                                        <div>{parentName}</div>
-                                    </div>
+                                    <div style={{ opacity: 0.8, fontSize: 12, marginBottom: 4 }}>ID</div>
+                                    <div style={{ fontSize: "14px" }}>{selected.id}</div>
                                 </div>
                                 <div>
-                                    <div style={{ opacity: 0.8, fontSize: 12 }}>Type</div>
-                                    <div>{selected.type ?? "—"}</div>
-                                </div>
-                                <div>
-                                    <div style={{ opacity: 0.8, fontSize: 12 }}>Children</div>
-                                    <div style={{ opacity: 0.9 }}>
-                                        {children && children.length
-                                            ? children.map((c) => c.name).join(", ")
-                                            : "No direct children"}
-                                    </div>
+                                    <div style={{ opacity: 0.8, fontSize: 12, marginBottom: 4 }}>Parent Name</div>
+                                    <div style={{ fontSize: "14px" }}>{parentName}</div>
                                 </div>
                             </div>
-                        )}
-                    </section>
-
-                    {/* Rename */}
-                    <section
-                        style={{
-                            background: "#141414",
-                            border: "1px solid #262626",
-                            borderRadius: 10,
-                            padding: 12,
-                        }}
-                    >
-                        <div style={{ fontWeight: 700, marginBottom: 8 }}>Rename</div>
-                        <form onSubmit={renameSelected} style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr auto" }}>
-                            <input
-                                value={renameVal}
-                                onChange={(e) => setRenameVal(e.target.value)}
-                                style={input}
-                                placeholder="New name…"
-                                disabled={!selectedId}
-                            />
-                            <button type="submit" style={primaryBtn} disabled={!selectedId}>
-                                Save
-                            </button>
-                        </form>
-                    </section>
-
-                    {/* Add new (under selected or top level) */}
-                    <section
-                        style={{
-                            background: "#141414",
-                            border: "1px solid #262626",
-                            borderRadius: 10,
-                            padding: 12,
-                        }}
-                    >
-                        <div style={{ fontWeight: 700, marginBottom: 8 }}>Add Location</div>
-                        <form onSubmit={addLocation} style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr auto" }}>
-                            <input
-                                value={newName}
-                                onChange={(e) => setNewName(e.target.value)}
-                                style={input}
-                                placeholder={`Name (added ${selectedId ? "under selected" : "at top level"})`}
-                            />
-                            <input
-                                value={newType}
-                                onChange={(e) => setNewType(e.target.value)}
-                                style={input}
-                                placeholder="Type (optional)"
-                            />
-                            <button type="submit" style={primaryBtn}>
-                                Add
-                            </button>
-                        </form>
-                    </section>
-
-                    {/* Delete */}
-                    <section
-                        style={{
-                            background: "#141414",
-                            border: "1px solid #262626",
-                            borderRadius: 10,
-                            padding: 12,
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                        }}
-                    >
-                        <div>
-                            <div style={{ fontWeight: 700 }}>Delete Location</div>
-                            <div style={{ fontSize: 12, opacity: 0.8 }}>
-                                <div>Deletes the selected location. If the location has children or is in use,</div>
-                                <div>the API will reject the delete.</div>
+                            <div>
+                                <div style={{ opacity: 0.8, fontSize: 12, marginBottom: 4 }}>Type</div>
+                                <div style={{ fontSize: "14px" }}>{selected.type ?? "—"}</div>
+                            </div>
+                            <div>
+                                <div style={{ opacity: 0.8, fontSize: 12, marginBottom: 4 }}>Children</div>
+                                {children && children.length > 0 ? (
+                                    <div style={{ 
+                                        background: "#0f0f0f", 
+                                        border: "1px solid #333", 
+                                        borderRadius: 6, 
+                                        padding: 8,
+                                        maxHeight: 120,
+                                        overflow: "auto"
+                                    }}>
+                                        <div style={{ display: "grid", gap: 4 }}>
+                                            {children.map((child) => (
+                                                <div 
+                                                    key={child.id}
+                                                    style={{
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        gap: 8,
+                                                        padding: "4px 6px",
+                                                        background: "#1a1a1a",
+                                                        borderRadius: 4,
+                                                        fontSize: "13px"
+                                                    }}
+                                                >
+                                                    <span style={{ opacity: 0.7 }}>▶</span>
+                                                    <span style={{ fontWeight: 500 }}>{child.name}</span>
+                                                    {child.type && (
+                                                        <span style={{ 
+                                                            opacity: 0.6, 
+                                                            fontSize: "11px",
+                                                            background: "#333",
+                                                            padding: "2px 6px",
+                                                            borderRadius: 3
+                                                        }}>
+                                                            {child.type}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div style={{ opacity: 0.9, fontSize: "14px", fontStyle: "italic" }}>
+                                        No direct children
+                                    </div>
+                                )}
                             </div>
                         </div>
-                        <button type="button" style={dangerBtn} onClick={() => void deleteSelected()} disabled={!selectedId}>
-                            Delete
+                    )}
+                </section>
+
+                {/* Add Location */}
+                <section
+                    style={{
+                        background: "#141414",
+                        border: "1px solid #262626",
+                        borderRadius: 10,
+                        padding: 16,
+                    }}
+                >
+                    <div style={{ fontWeight: 700, marginBottom: 12, fontSize: "16px" }}>Add Location</div>
+                    <form onSubmit={addLocation} style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr auto" }}>
+                        <input
+                            value={newName}
+                            onChange={(e) => setNewName(e.target.value)}
+                            style={input}
+                            placeholder={`Name (added ${selectedId ? "under selected" : "at top level"})`}
+                        />
+                        <input
+                            value={newType}
+                            onChange={(e) => setNewType(e.target.value)}
+                            style={input}
+                            placeholder="Type (optional)"
+                        />
+                        <button type="submit" style={primaryBtn}>
+                            Add
                         </button>
-                    </section>
-                </div>
+                    </form>
+                </section>
+
+                {/* Rename */}
+                <section
+                    style={{
+                        background: "#141414",
+                        border: "1px solid #262626",
+                        borderRadius: 10,
+                        padding: 16,
+                    }}
+                >
+                    <div style={{ fontWeight: 700, marginBottom: 12, fontSize: "16px" }}>Rename</div>
+                    <form onSubmit={renameSelected} style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr auto" }}>
+                        <input
+                            value={renameVal}
+                            onChange={(e) => setRenameVal(e.target.value)}
+                            style={input}
+                            placeholder="New name…"
+                            disabled={!selectedId}
+                        />
+                        <button type="submit" style={primaryBtn} disabled={!selectedId}>
+                            Save
+                        </button>
+                    </form>
+                </section>
+
+                {/* Delete */}
+                <section
+                    style={{
+                        background: "#141414",
+                        border: "1px solid #262626",
+                        borderRadius: 10,
+                        padding: 16,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                    }}
+                >
+                    <div>
+                        <div style={{ fontWeight: 700, fontSize: "16px", marginBottom: 4 }}>Delete Location</div>
+                        <div style={{ fontSize: 12, opacity: 0.8, lineHeight: "1.4" }}>
+                            Deletes the selected location. If the location has children or is in use, the API will reject the delete.
+                        </div>
+                    </div>
+                    <button type="button" style={dangerBtn} onClick={() => void deleteSelected()} disabled={!selectedId}>
+                        Delete
+                    </button>
+                </section>
             </div>
         </div>
     );

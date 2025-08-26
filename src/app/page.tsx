@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
 import { redirect } from "next/navigation";
+import ForceRefreshButton from "@/components/ForceRefreshButton";
+import { cookies } from "next/headers";
 
 /** ---------- Types from the endpoints ---------- */
 
@@ -25,6 +27,41 @@ type Health = {
     untagged?: number;
     total_games_unique?: number;
     total_games?: number;
+};
+
+/** ---------- Styles ---------- */
+const panel: React.CSSProperties = {
+    background: "#111",
+    border: "1px solid #262626",
+    borderRadius: 12,
+    padding: 16,
+};
+
+const panelHeaderRow: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+};
+
+const panelTitle: React.CSSProperties = { fontSize: 18, margin: 0 };
+
+const listReset: React.CSSProperties = { listStyle: "none", padding: 0, margin: 0, marginTop: 12 };
+
+const rowItem: React.CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: 8,
+    padding: "10px 8px",
+    borderTop: "1px solid #1f1f1f",
+};
+
+const errBox: React.CSSProperties = {
+    background: "#3b0f12",
+    border: "1px solid #5b1a1f",
+    color: "#ffd7d7",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
 };
 
 /** ---------- First-run status (unchanged) ---------- */
@@ -63,6 +100,27 @@ async function fetchHealth(): Promise<Health> {
     return (await res.json()) as Health;
 }
 
+/** ---------- Check if user is admin ---------- */
+function checkIfAdmin(): boolean {
+    try {
+        const token = cookies().get("__gcub_a")?.value || "";
+        if (!token) return false;
+        
+        // Simple JWT expiration check (same logic as admin health endpoint)
+        const parts = token.split(".");
+        if (parts.length < 2) return false;
+        const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+        const pad = b64.length % 4 ? "=".repeat(4 - (b64.length % 4)) : "";
+        const json = atob(b64 + pad);
+        const payload = JSON.parse(json) as { exp?: number };
+        if (typeof payload.exp !== "number") return true; // no exp -> treat as active
+        const now = Math.floor(Date.now() / 1000);
+        return payload.exp > now;
+    } catch {
+        return false;
+    }
+}
+
 /** ---------- Page ---------- */
 export default async function HomePage() {
     // Redirect to setup if first run not completed
@@ -72,6 +130,7 @@ export default async function HomePage() {
     let overview: Overview | null = null;
     let health: Health | null = null;
     let error: string | null = null;
+    const isAdmin = checkIfAdmin();
 
     try {
         [overview, health] = await Promise.all([fetchOverview(), fetchHealth()]);
@@ -93,11 +152,11 @@ export default async function HomePage() {
     const lowestRated = overview?.top_lowest_rated ?? [];
 
     const healthItems = [
-        { label: "Untagged", value: health?.untagged ?? 0 },
-        { label: "Missing release year", value: health?.missing_release_year ?? 0 },
-        { label: "No platforms", value: health?.no_platforms ?? 0 },
-        { label: "No location", value: health?.no_location ?? 0 },
-        { label: "Missing cover", value: health?.missing_cover ?? 0 },
+        { label: "Untagged", value: health?.untagged ?? 0, type: "tag" },
+        { label: "Missing release year", value: health?.missing_release_year ?? 0, type: "release_year" },
+        { label: "No platforms", value: health?.no_platforms ?? 0, type: "platform" },
+        { label: "No location", value: health?.no_location ?? 0, type: "location" },
+        { label: "Missing cover", value: health?.missing_cover ?? 0, type: "cover" },
     ];
     const totalIssues = healthItems.reduce((sum, it) => sum + (it.value || 0), 0);
 
@@ -143,7 +202,7 @@ export default async function HomePage() {
                 </section>
 
                 {/* Health snapshot (all fields) */}
-                <section style={panel}>
+                <section style={{ ...panel, position: "relative" }}>
                     <div style={panelHeaderRow}>
                         <h2 style={panelTitle}>Library Health</h2>
                         <span style={{ opacity: 0.7, fontSize: 12 }}>
@@ -152,9 +211,24 @@ export default async function HomePage() {
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
                         {healthItems.map((h) => (
-                            <Badge key={h.label} label={`${h.label}: ${h.value}`} muted={h.value === 0} />
+                            <Badge 
+                                key={h.label} 
+                                label={`${h.label}: ${h.value}`} 
+                                muted={h.value === 0} 
+                                type={h.type}
+                                count={h.value}
+                            />
                         ))}
                     </div>
+                    {isAdmin && (
+                        <div style={{ 
+                            position: "absolute", 
+                            bottom: 12, 
+                            right: 12 
+                        }}>
+                            <ForceRefreshButton />
+                        </div>
+                    )}
                 </section>
 
                 {/* Top Platforms (all returned) */}
@@ -341,21 +415,46 @@ function StatCard({ label, value }: { label: string; value: number | string }) {
     );
 }
 
-function Badge({ label, muted }: { label: string; muted?: boolean }) {
+function Badge({ label, muted, type, count }: { label: string; muted?: boolean; type?: string; count?: number }) {
+    const hasIssues = count && count > 0;
+    
+    if (muted || !hasIssues || !type) {
+        return (
+            <span
+                style={{
+                    background: muted ? "#1a1a1a" : "#1e293b",
+                    border: `1px solid ${muted ? "#2b2b2b" : "#3b82f6"}`,
+                    color: muted ? "#cfcfcf" : "#dbeafe",
+                    padding: "6px 10px",
+                    borderRadius: 999,
+                    fontSize: 12,
+                    whiteSpace: "nowrap",
+                }}
+            >
+                {label}
+            </span>
+        );
+    }
+    
     return (
-        <span
+        <Link
+            href={`/stats/health/${type}`}
             style={{
-                background: muted ? "#1a1a1a" : "#1e293b",
-                border: `1px solid ${muted ? "#2b2b2b" : "#3b82f6"}`,
-                color: muted ? "#cfcfcf" : "#dbeafe",
+                background: "#1e293b",
+                border: "1px solid #3b82f6",
+                color: "#dbeafe",
                 padding: "6px 10px",
                 borderRadius: 999,
                 fontSize: 12,
                 whiteSpace: "nowrap",
+                textDecoration: "none",
+                display: "inline-block",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
             }}
         >
             {label}
-        </span>
+        </Link>
     );
 }
 
@@ -371,38 +470,3 @@ function SimpleList({ rows }: { rows: Array<{ left: string; right: string; key: 
         </ul>
     );
 }
-
-/** ---------- Styles ---------- */
-const panel: React.CSSProperties = {
-    background: "#111",
-    border: "1px solid #262626",
-    borderRadius: 12,
-    padding: 16,
-};
-
-const panelHeaderRow: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-};
-
-const panelTitle: React.CSSProperties = { fontSize: 18, margin: 0 };
-
-const listReset: React.CSSProperties = { listStyle: "none", padding: 0, margin: 0, marginTop: 12 };
-
-const rowItem: React.CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    gap: 8,
-    padding: "10px 8px",
-    borderTop: "1px solid #1f1f1f",
-};
-
-const errBox: React.CSSProperties = {
-    background: "#3b0f12",
-    border: "1px solid #5b1a1f",
-    color: "#ffd7d7",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-};

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 
 /** API payload shape */
 type LocationNode = {
@@ -43,6 +43,9 @@ export default function LocationTreePicker({
     // Loading/error states per parent id
     const [loadingParents, setLoadingParents] = useState<Set<number | null>>(new Set());
     const [error, setError] = useState<string | null>(null);
+    
+    // Ref for auto-scrolling
+    const treeContainerRef = useRef<HTMLDivElement>(null);
 
     // Load top level on mount
     useEffect(() => {
@@ -154,6 +157,54 @@ export default function LocationTreePicker({
         setSelectedId(undefined);
     }
 
+    // Improved auto-scroll to newly expanded nodes - prevents main window scrolling
+    const scrollToNode = (nodeId: number) => {
+        // Increased delay to ensure DOM is fully updated with children
+        setTimeout(() => {
+            if (treeContainerRef.current) {
+                const nodeElement = treeContainerRef.current.querySelector(`[data-node-id="${nodeId}"]`);
+                if (nodeElement) {
+                    // Calculate the scroll position within the tree container only
+                    const container = treeContainerRef.current;
+                    const containerRect = container.getBoundingClientRect();
+                    const nodeRect = nodeElement.getBoundingClientRect();
+                    
+                    // Calculate relative position within the container
+                    const relativeTop = nodeRect.top - containerRect.top;
+                    const containerHeight = container.clientHeight;
+                    
+                    // Only scroll if the node is not fully visible
+                    if (relativeTop < 0 || relativeTop + nodeRect.height > containerHeight) {
+                        // Smooth scroll within the container only
+                        const targetScrollTop = container.scrollTop + relativeTop - 20; // 20px padding
+                        container.scrollTo({
+                            top: targetScrollTop,
+                            behavior: 'smooth'
+                        });
+                    }
+                    
+                    // Additional scroll to show children if they exist
+                    const children = nodeElement.nextElementSibling;
+                    if (children) {
+                        setTimeout(() => {
+                            const childrenRect = children.getBoundingClientRect();
+                            const relativeChildrenBottom = childrenRect.bottom - containerRect.top;
+                            
+                            // Only scroll if children extend beyond container
+                            if (relativeChildrenBottom > containerHeight) {
+                                const targetScrollTop = container.scrollTop + relativeChildrenBottom - containerHeight + 20; // 20px padding
+                                container.scrollTo({
+                                    top: targetScrollTop,
+                                    behavior: 'smooth'
+                                });
+                            }
+                        }, 300);
+                    }
+                }
+            }
+        }, 200); // Increased delay for better reliability
+    };
+
     // Build breadcrumb for selectedId
     const breadcrumb = useMemo(() => {
         if (!selectedId) return "";
@@ -181,7 +232,7 @@ export default function LocationTreePicker({
 
     return (
         <div style={{ display: "grid", gap: 8 }}>
-            <label style={{ opacity: 0.85 }}>{label}</label>
+            <label style={{ opacity: 0.85, wordWrap: "break-word", overflowWrap: "break-word" }}>{label}</label>
 
             {/* hidden input for form GET submit */}
             <input type="hidden" name={name} value={selectedId ?? ""} />
@@ -189,7 +240,9 @@ export default function LocationTreePicker({
             {/* breadcrumb + clear */}
             <div style={crumbBarStyle}>
                 <div style={crumbTextWrapStyle} title={breadcrumb}>
-                    <span style={{ opacity: 0.9 }}>{breadcrumb || "No location selected"}</span>
+                    <span style={{ opacity: 0.9, wordWrap: "break-word", overflowWrap: "break-word" }}>
+                        {breadcrumb || "No location selected"}
+                    </span>
                 </div>
                 {selectedId ? (
                     <button type="button" onClick={onClear} style={btnSecondary} title="Clear selection">
@@ -200,6 +253,7 @@ export default function LocationTreePicker({
 
             {/* Tree panel */}
             <div
+                ref={treeContainerRef}
                 style={{
                     background: "#141414",
                     border: "1px solid #2b2b2b",
@@ -222,6 +276,7 @@ export default function LocationTreePicker({
                         onSelect={onSelect}
                         selectedId={selectedId}
                         depth={0}
+                        scrollToNode={scrollToNode}
                     />
                 )}
             </div>
@@ -241,6 +296,7 @@ function TreeLevel(props: {
     onSelect: (id: number) => void;
     selectedId?: number;
     depth: number;
+    scrollToNode: (nodeId: number) => void;
 }) {
     const {
         parentId,
@@ -251,7 +307,8 @@ function TreeLevel(props: {
         toggleExpand,
         onSelect,
         selectedId,
-        depth
+        depth,
+        scrollToNode
     } = props;
 
     const children = childrenMap.get(parentId);
@@ -283,15 +340,31 @@ function TreeLevel(props: {
                 return (
                     <li key={node.id} style={{ margin: 0 }}>
                         <div
+                            data-node-id={node.id}
                             style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: 6,
-                                padding: "4px 6px",
-                                marginLeft: depth * 14,
-                                borderRadius: 6,
+                                gap: 8,
+                                padding: "6px 8px",
+                                marginLeft: depth * 16,
+                                borderRadius: 8,
                                 background: isSelected ? "#1e293b" : "transparent",
-                                border: isSelected ? "1px solid #334155" : "1px solid transparent"
+                                border: isSelected ? "1px solid #334155" : "1px solid transparent",
+                                transition: "all 0.15s ease-in-out",
+                                cursor: "pointer",
+                                position: "relative"
+                            }}
+                            onMouseEnter={(e) => {
+                                if (!isSelected) {
+                                    e.currentTarget.style.background = "#1a1a1a";
+                                    e.currentTarget.style.borderColor = "#404040";
+                                }
+                            }}
+                            onMouseLeave={(e) => {
+                                if (!isSelected) {
+                                    e.currentTarget.style.background = "transparent";
+                                    e.currentTarget.style.borderColor = "transparent";
+                                }
                             }}
                         >
                             {/* expand/collapse toggle */}
@@ -302,13 +375,15 @@ function TreeLevel(props: {
                                     e.stopPropagation();
                                     if (!isExpanded) {
                                         await ensureChildren(node.id);
+                                        // Auto-scroll to newly expanded node
+                                        scrollToNode(node.id);
                                     }
                                     toggleExpand(node.id);
                                 }}
                                 style={chevronBtn}
                                 title={isExpanded ? "Collapse" : "Expand"}
                             >
-                                {isExpanded ? "▾" : "▸"}
+                                {isExpanded ? "▼" : "▶"}
                             </button>
 
                             {/* select radio */}
@@ -347,6 +422,7 @@ function TreeLevel(props: {
                                 onSelect={onSelect}
                                 selectedId={selectedId}
                                 depth={depth + 1}
+                                scrollToNode={scrollToNode}
                             />
                         ) : null}
                     </li>
@@ -374,7 +450,8 @@ const btnSecondary: React.CSSProperties = {
     borderRadius: 8,
     padding: "8px 12px",
     height: 36,
-    cursor: "pointer"
+    cursor: "pointer",
+    transition: "all 0.15s ease-in-out"
 };
 
 const crumbBarStyle: React.CSSProperties = {
@@ -390,9 +467,8 @@ const crumbBarStyle: React.CSSProperties = {
 
 const crumbTextWrapStyle: React.CSSProperties = {
     flex: 1,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis"
+    wordWrap: "break-word",
+    overflowWrap: "break-word"
 };
 
 const chevronBtn: React.CSSProperties = {
@@ -405,7 +481,9 @@ const chevronBtn: React.CSSProperties = {
     lineHeight: "20px",
     textAlign: "center" as const,
     cursor: "pointer",
-    padding: 0
+    padding: 0,
+    transition: "all 0.15s ease-in-out",
+    fontSize: "10px"
 };
 
 const nodeBtn: React.CSSProperties = {
@@ -415,5 +493,6 @@ const nodeBtn: React.CSSProperties = {
     padding: "2px 4px",
     cursor: "pointer",
     textAlign: "left" as const,
-    flex: 1
+    flex: 1,
+    transition: "all 0.15s ease-in-out"
 };

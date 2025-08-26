@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
+import { cookies } from "next/headers";
 import {
     groupFiles,
     GroupKey,
@@ -7,6 +8,7 @@ import {
     prettyCategory,
     UiFile,
 } from "@/lib/files";
+import BackButton from "@/components/BackButton";
 
 type LocationNode = { id: string; name: string };
 
@@ -67,6 +69,27 @@ function igdbSearchUrl(name: string) {
     return `https://www.igdb.com/search?q=${encodeURIComponent(name)}`;
 }
 
+/** Check if user is authenticated as admin */
+function isAdminAuthenticated(): boolean {
+    const token = cookies().get("__gcub_a")?.value || cookies().get("gc_at")?.value;
+    if (!token) return false;
+    
+    try {
+        const parts = token.split(".");
+        if (parts.length < 2) return false;
+        const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+        const padded = base64 + "===".slice((base64.length + 3) % 4);
+        const json = Buffer.from(padded, "base64").toString("utf8");
+        const payload = JSON.parse(json) as { exp?: number };
+        
+        if (typeof payload.exp !== "number") return true; // treat as active if no exp
+        const now = Math.floor(Date.now() / 1000);
+        return payload.exp > now;
+    } catch {
+        return false;
+    }
+}
+
 /** Helper: basename from a path */
 function basenameFromPath(p: string): string {
     const parts = p.split("/");
@@ -115,9 +138,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
     return (
         <div style={{ padding: 16 }}>
             <div style={{ marginBottom: 16 }}>
-                <Link href="/games" style={{ color: "#a0c4ff", textDecoration: "none" }}>
-                    ← Back to Games
-                </Link>
+                <BackButton />
             </div>
 
             {error ? (
@@ -147,8 +168,39 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                         border: "1px solid #262626",
                         borderRadius: 12,
                         padding: 16,
+                        position: "relative",
                     }}
                 >
+                    {/* Edit Button - Top Right Corner */}
+                    {isAdminAuthenticated() && (
+                        <div style={{
+                            position: "absolute",
+                            top: 16,
+                            right: 16,
+                            zIndex: 10,
+                        }}>
+                            <Link
+                                href={`/admin/games/update/${game.id}`}
+                                style={{
+                                    background: "#6b7280",
+                                    color: "#ffffff",
+                                    padding: "6px 12px",
+                                    borderRadius: 6,
+                                    fontSize: 14,
+                                    textDecoration: "none",
+                                    fontWeight: 500,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    transition: "all 0.2s ease",
+                                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
+                                }}
+                            >
+                                ✏️ Edit
+                            </Link>
+                        </div>
+                    )}
+
                     {/* Cover */}
                     <div>
                         {game.cover_url ? (

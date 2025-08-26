@@ -1,21 +1,29 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 
 type Chip = { id: number; name: string };
 type SuggestKind = "tags" | "igdb_tags";
 
-export default function TagChipsAutocomplete({
-                                                 label = "Tags",
-                                                 name = "tag_ids",               // e.g. "tag_ids" or "igdb_tag_ids"
-                                                 suggestKind,
-                                                 defaultSelectedIds = []
-                                             }: {
+export interface TagChipsAutocompleteRef {
+    addTag: (tagName: string) => void;
+}
+
+export default forwardRef<TagChipsAutocompleteRef, {
     label?: string;
     name?: string;
     suggestKind: SuggestKind;
     defaultSelectedIds?: Array<number | string>;
-}) {
+    searchOnly?: boolean;
+    onTagsChange?: (tags: { existing: Chip[]; new: string[] }) => void;
+}>(function TagChipsAutocomplete({
+    label = "Tags",
+    name = "tag_ids",               // e.g. "tag_ids" or "igdb_tag_ids"
+    suggestKind,
+    defaultSelectedIds = [],
+    searchOnly = false,
+    onTagsChange
+}, ref) {
     // --- UI state
     const [query, setQuery] = useState("");
     const [open, setOpen] = useState(false);
@@ -27,6 +35,7 @@ export default function TagChipsAutocomplete({
     const [options, setOptions] = useState<Chip[]>([]);
     const [selectedExisting, setSelectedExisting] = useState<Chip[]>([]);
     const [newNames, setNewNames] = useState<string[]>([]);
+    const [shortcutTags, setShortcutTags] = useState<string[]>([]);
 
     const inputRef = useRef<HTMLInputElement | null>(null);
     const rootRef = useRef<HTMLDivElement | null>(null);
@@ -39,6 +48,7 @@ export default function TagChipsAutocomplete({
             if (!form.contains(rootRef.current)) return;
             setSelectedExisting([]);
             setNewNames([]);
+            setShortcutTags([]);
             setOptions([]);
             setQuery("");
             setOpen(false);
@@ -143,12 +153,13 @@ export default function TagChipsAutocomplete({
         [selectedExisting]
     );
     const lowerSetNew = useMemo(
-        () => new Set(newNames.map((n) => n.toLowerCase())),
-        [newNames]
+        () => new Set([...newNames, ...shortcutTags].map((n) => n.toLowerCase())),
+        [newNames, shortcutTags]
     );
 
     // Should we show the "Add “query”" row?
     const canCreateFromQuery = useMemo(() => {
+        if (searchOnly) return false; // Disable tag creation in search mode
         const q = query.trim();
         if (q.length < 2) return false;
         const l = q.toLowerCase();
@@ -156,7 +167,7 @@ export default function TagChipsAutocomplete({
         // also hide if an option has the exact same name
         if (options.some((o) => o.name.toLowerCase() === l)) return false;
         return true;
-    }, [query, lowerSetExisting, lowerSetNew, options]);
+    }, [query, lowerSetExisting, lowerSetNew, options, searchOnly]);
 
     // ---------- Select / remove ----------
     const onSelectExisting = useCallback((chip: Chip) => {
@@ -165,6 +176,18 @@ export default function TagChipsAutocomplete({
             if (prev.some((c) => c.id === chip.id)) return prev;
             return [...prev, chip];
         });
+        
+        // Add to recently used tags in localStorage
+        try {
+            const stored = localStorage.getItem('gamecubby_recent_tags');
+            const recentTags = stored ? JSON.parse(stored) as string[] : [];
+            const filtered = recentTags.filter(tag => tag.toLowerCase() !== chip.name.toLowerCase());
+            const newRecentTags = [chip.name, ...filtered].slice(0, 10);
+            localStorage.setItem('gamecubby_recent_tags', JSON.stringify(newRecentTags));
+        } catch (error) {
+            console.warn('Failed to update recent tags in localStorage:', error);
+        }
+        
         setQuery("");
         setOpen(false);
         setOptions([]);
@@ -173,17 +196,30 @@ export default function TagChipsAutocomplete({
     }, []);
 
     const onCreateNew = useCallback((raw: string) => {
+        if (searchOnly) return; // Disable tag creation in search mode
         const t = raw.trim();
         if (t.length < 2) return;
         const l = t.toLowerCase();
         if (lowerSetExisting.has(l) || lowerSetNew.has(l)) return;
         setNewNames((prev) => [...prev, t]);
+        
+        // Add to recently used tags in localStorage
+        try {
+            const stored = localStorage.getItem('gamecubby_recent_tags');
+            const recentTags = stored ? JSON.parse(stored) as string[] : [];
+            const filtered = recentTags.filter(tag => tag.toLowerCase() !== l);
+            const newRecentTags = [t, ...filtered].slice(0, 10);
+            localStorage.setItem('gamecubby_recent_tags', JSON.stringify(newRecentTags));
+        } catch (error) {
+            console.warn('Failed to update recent tags in localStorage:', error);
+        }
+        
         setQuery("");
         setOpen(false);
         setOptions([]);
         setHighlight(0);
         inputRef.current?.focus();
-    }, [lowerSetExisting, lowerSetNew]);
+    }, [lowerSetExisting, lowerSetNew, searchOnly]);
 
     const onRemoveExisting = useCallback((id: number) => {
         setSelectedExisting((prev) => prev.filter((c) => c.id !== id));
@@ -191,6 +227,44 @@ export default function TagChipsAutocomplete({
     const onRemoveNew = useCallback((name: string) => {
         setNewNames((prev) => prev.filter((n) => n !== name));
     }, []);
+    
+    const onRemoveShortcut = useCallback((name: string) => {
+        setShortcutTags((prev) => prev.filter((n) => n !== name));
+    }, []);
+
+    // Function to programmatically add a tag
+    const addTag = useCallback((tagName: string) => {
+        const trimmed = tagName.trim();
+        if (trimmed.length < 2) return;
+        
+        const l = trimmed.toLowerCase();
+        if (lowerSetExisting.has(l) || lowerSetNew.has(l) || shortcutTags.some(t => t.toLowerCase() === l)) return;
+        
+        setShortcutTags((prev) => [...prev, trimmed]);
+        
+        // Add to recently used tags in localStorage
+        try {
+            const stored = localStorage.getItem('gamecubby_recent_tags');
+            const recentTags = stored ? JSON.parse(stored) as string[] : [];
+            const filtered = recentTags.filter(tag => tag.toLowerCase() !== l);
+            const newRecentTags = [trimmed, ...filtered].slice(0, 10);
+            localStorage.setItem('gamecubby_recent_tags', JSON.stringify(newRecentTags));
+        } catch (error) {
+            console.warn('Failed to update recent tags in localStorage:', error);
+        }
+    }, [lowerSetExisting, lowerSetNew, shortcutTags]);
+
+    // Expose addTag function to parent component
+    useEffect(() => {
+        if (onTagsChange) {
+            onTagsChange({ existing: selectedExisting, new: [...newNames, ...shortcutTags] });
+        }
+    }, [selectedExisting, newNames, shortcutTags, onTagsChange]);
+
+    // Expose addTag function via ref
+    useImperativeHandle(ref, () => ({
+        addTag
+    }), [addTag]);
 
     // ---------- Hidden input values ----------
     const csvIds = useMemo(
@@ -198,13 +272,13 @@ export default function TagChipsAutocomplete({
         [selectedExisting]
     );
     const mixedJson = useMemo(() => {
-        const mixed = [...selectedExisting.map((c) => c.id as number | string), ...newNames];
+        const mixed = [...selectedExisting.map((c) => c.id as number | string), ...(searchOnly ? [] : [...newNames, ...shortcutTags])];
         try {
             return JSON.stringify(mixed);
         } catch {
             return "[]";
         }
-    }, [selectedExisting, newNames]);
+    }, [selectedExisting, newNames, shortcutTags, searchOnly]);
 
     // ---------- Keyboard ----------
     function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -230,6 +304,7 @@ export default function TagChipsAutocomplete({
         } else if (e.key === "Escape") {
             setOpen(false);
         } else if (e.key === "," /* quick add on comma */) {
+            if (searchOnly) return; // Disable tag creation in search mode
             const q = query.trim();
             if (q.length >= 2 && canCreateFromQuery) {
                 e.preventDefault();
@@ -249,37 +324,54 @@ export default function TagChipsAutocomplete({
             <input type="hidden" name={`${name}_mix`} value={mixedJson} />
 
             <div style={boxStyle}>
-                {/* Chips (existing + new) */}
+                {/* Chips (existing + new + shortcut) */}
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     {selectedExisting.map((c) => (
                         <span key={`id-${c.id}`} style={chipStyle} title={`${c.name}`}>
-              {c.name}
+                            {c.name}
                             <button
                                 type="button"
                                 onClick={() => onRemoveExisting(c.id)}
                                 style={chipXBtn}
                                 aria-label={`Remove ${c.name}`}
                             >
-                ×
-              </button>
-            </span>
+                                ×
+                            </button>
+                        </span>
                     ))}
-                    {newNames.map((n) => (
+                    {!searchOnly && newNames.map((n) => (
                         <span
                             key={`new-${n}`}
                             style={{ ...chipStyle, background: "#234232", borderColor: "#2e7d32", color: "#d1fadf" }}
                             title={`${n} (new)`}
                         >
-              {n}
+                            {n}
                             <button
                                 type="button"
                                 onClick={() => onRemoveNew(n)}
                                 style={chipXBtn}
                                 aria-label={`Remove ${n}`}
                             >
-                ×
-              </button>
-            </span>
+                                ×
+                            </button>
+                        </span>
+                    ))}
+                    {!searchOnly && shortcutTags.map((n) => (
+                        <span
+                            key={`shortcut-${n}`}
+                            style={{ ...chipStyle, background: "#553c9a", borderColor: "#7c3aed", color: "#e9d5ff" }}
+                            title={`${n} (shortcut)`}
+                        >
+                            {n}
+                            <button
+                                type="button"
+                                onClick={() => onRemoveShortcut(n)}
+                                style={chipXBtn}
+                                aria-label={`Remove ${n}`}
+                            >
+                                ×
+                            </button>
+                        </span>
                     ))}
                 </div>
 
@@ -290,7 +382,7 @@ export default function TagChipsAutocomplete({
                     onChange={(e) => setQuery(e.target.value)}
                     onFocus={() => setOpen(true)}
                     onKeyDown={onKeyDown}
-                    placeholder="Type to add…"
+                    placeholder={searchOnly ? "Type to search…" : "Type to add…"}
                     autoComplete="off"
                     style={inputStyle}
                 />
@@ -322,7 +414,8 @@ export default function TagChipsAutocomplete({
                         const hi = highlight === idx + offset;
                         const isSel =
                             selectedExisting.some((s) => s.id === opt.id) ||
-                            newNames.some((n) => n.toLowerCase() === opt.name.toLowerCase());
+                            newNames.some((n) => n.toLowerCase() === opt.name.toLowerCase()) ||
+                            shortcutTags.some((n) => n.toLowerCase() === opt.name.toLowerCase());
                         return (
                             <li
                                 key={`${opt.id}-${idx}`}
@@ -350,7 +443,7 @@ export default function TagChipsAutocomplete({
             {error ? <div style={{ color: "#fca5a5", fontSize: 12 }}>{error}</div> : null}
         </div>
     );
-}
+});
 
 /* ---------- utils ---------- */
 function mergeChipsReplace(prev: Chip[], next: Chip[]): Chip[] {
@@ -365,8 +458,8 @@ const boxStyle: React.CSSProperties = {
     background: "#1a1a1a",
     border: "1px solid #2b2b2b",
     borderRadius: 8,
-    padding: 6,
-    minHeight: 44,
+    padding: 8,
+    minHeight: 90,
     display: "grid",
     alignItems: "center",
 };
@@ -376,8 +469,9 @@ const inputStyle: React.CSSProperties = {
     color: "#eaeaea",
     border: "none",
     outline: "none",
-    padding: "6px 8px",
+    padding: "8px 10px",
     width: "100%",
+    minHeight: "36px",
 };
 
 const chipStyle: React.CSSProperties = {

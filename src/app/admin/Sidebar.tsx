@@ -31,7 +31,10 @@ const menu: MenuGroup[] = [
 
     {
         section: "Location Management",
-        items: [{ label: "Location Manager", href: "/admin/locations/manager" }],
+        items: [
+            { label: "Location Manager", href: "/admin/locations/manager" },
+            { label: "Bulk Change Location", href: "/admin/locations/migrate" },
+        ],
     },
 
     {

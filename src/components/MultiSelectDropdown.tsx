@@ -31,7 +31,7 @@ export default function MultiSelectDropdown({
                                                 defaultSelectedIds = [],
                                                 multiple = true,
                                                 placeholder = "Select…",
-                                                compact = false
+                                                compact = false,
                                             }: Props) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
@@ -69,7 +69,7 @@ export default function MultiSelectDropdown({
     // the string written to the hidden input
     const formValue = useMemo(() => {
         const vals = Array.from(selected);
-        return multiple ? vals.join(",") : (vals[0] ?? "");
+        return multiple ? vals.join(",") : vals[0] ?? "";
     }, [selected, multiple]);
 
     function toggle(id: string) {
@@ -103,7 +103,10 @@ export default function MultiSelectDropdown({
     const height = compact ? 36 : 44;
 
     return (
-        <div ref={rootRef} style={{ display: "grid", gap: 6, position: "relative" }}>
+        <div
+            ref={rootRef}
+            style={{ display: "grid", gap: 6, position: "relative" }}
+        >
             <label style={{ opacity: 0.85 }}>{label}</label>
 
             {/* Hidden input that actually carries the value in the GET request */}
@@ -125,7 +128,8 @@ export default function MultiSelectDropdown({
                     borderRadius: 8,
                     padding: "8px 10px",
                     cursor: "pointer",
-                    textAlign: "left"
+                    textAlign: "left",
+                    minWidth: "100%",
                 }}
             >
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -143,7 +147,7 @@ export default function MultiSelectDropdown({
                                     border: "1px solid #2b2b2b",
                                     borderRadius: 999,
                                     padding: "4px 8px",
-                                    fontSize: 12
+                                    fontSize: 12,
                                 }}
                             >
                 {o.name}
@@ -158,7 +162,7 @@ export default function MultiSelectDropdown({
                                         fontWeight: 700,
                                         opacity: 0.7,
                                         cursor: "pointer",
-                                        userSelect: "none"
+                                        userSelect: "none",
                                     }}
                                 >
                   ×
@@ -167,7 +171,9 @@ export default function MultiSelectDropdown({
                         ))
                     )}
                 </div>
-                <span aria-hidden style={{ opacity: 0.7 }}>▾</span>
+                <span aria-hidden style={{ opacity: 0.7 }}>
+          ▾
+        </span>
             </button>
 
             {/* Dropdown */}
@@ -184,7 +190,9 @@ export default function MultiSelectDropdown({
                         borderRadius: 8,
                         padding: 8,
                         zIndex: 50,
-                        boxShadow: "0 8px 20px rgba(0,0,0,0.35)"
+                        boxShadow: "0 8px 20px rgba(0,0,0,0.35)",
+                        maxWidth: "100%",
+                        overflow: "hidden",
                     }}
                 >
                     <input
@@ -195,13 +203,15 @@ export default function MultiSelectDropdown({
                         autoFocus
                         style={{
                             width: "100%",
+                            maxWidth: "100%",
+                            boxSizing: "border-box" as const,
                             background: "#1a1a1a",
                             color: "#eaeaea",
                             border: "1px solid #2b2b2b",
                             borderRadius: 8,
                             padding: "8px 10px",
                             outline: "none",
-                            marginBottom: 8
+                            marginBottom: 8,
                         }}
                     />
 
@@ -210,7 +220,7 @@ export default function MultiSelectDropdown({
                             maxHeight: 240,
                             overflowY: "auto",
                             display: "grid",
-                            gap: 4
+                            gap: 4,
                         }}
                     >
                         {filtered.length === 0 ? (
@@ -229,8 +239,10 @@ export default function MultiSelectDropdown({
                                             padding: "6px 8px",
                                             borderRadius: 6,
                                             background: checked ? "#1e293b" : "transparent",
-                                            border: checked ? "1px solid #3b82f6" : "1px solid transparent",
-                                            cursor: "pointer"
+                                            border: checked
+                                                ? "1px solid #3b82f6"
+                                                : "1px solid transparent",
+                                            cursor: "pointer",
                                         }}
                                         onMouseDown={(e) => {
                                             // prevent focus loss on the filter box
@@ -250,7 +262,14 @@ export default function MultiSelectDropdown({
                         )}
                     </div>
 
-                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+                    <div
+                        style={{
+                            display: "flex",
+                            justifyContent: "flex-end",
+                            gap: 8,
+                            marginTop: 8,
+                        }}
+                    >
                         <button
                             type="button"
                             onClick={() => {
@@ -261,7 +280,11 @@ export default function MultiSelectDropdown({
                         >
                             Clear
                         </button>
-                        <button type="button" onClick={() => setOpen(false)} style={btnPrimary}>
+                        <button
+                            type="button"
+                            onClick={() => setOpen(false)}
+                            style={btnPrimary}
+                        >
                             Done
                         </button>
                     </div>
@@ -278,7 +301,7 @@ const btnPrimary: React.CSSProperties = {
     borderRadius: 8,
     padding: "8px 12px",
     fontWeight: 600,
-    cursor: "pointer"
+    cursor: "pointer",
 };
 
 const btnGhost: React.CSSProperties = {
@@ -287,5 +310,5 @@ const btnGhost: React.CSSProperties = {
     border: "1px solid #2b2b2b",
     borderRadius: 8,
     padding: "8px 12px",
-    cursor: "pointer"
+    cursor: "pointer",
 };

@@ -2,6 +2,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { PROXY } from "@/lib/env";
+import { shouldUseSecureCookies } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -71,12 +73,12 @@ export async function POST(req: NextRequest) {
     );
 
     // Clear the maintenance cookie so middleware stops blocking pages immediately
-    const secure = req.nextUrl.protocol === "https:";
+    const shouldBeSecure = shouldUseSecureCookies(req);
     res.cookies.set(MAINT_COOKIE, "", {
         path: "/",
         httpOnly: true,
         sameSite: "lax",
-        secure,
+        secure: shouldBeSecure,
         maxAge: 0,
     });
 

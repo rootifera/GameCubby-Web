@@ -9,11 +9,60 @@ export const metadata = {
     icons: { icon: "/favicon.ico" },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+                                       children,
+                                   }: {
+    children: React.ReactNode;
+}) {
     return (
         <html lang="en">
         <head>
-            <style>{`html{scrollbar-gutter:stable;}`}</style>
+            <style>{`html{scrollbar-gutter:stable;*{box-sizing:border-box}
+/* Remove spinner controls from number inputs */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+/* Prevent mouse wheel from changing number input values */
+input[type="number"]:focus {
+    outline: none;
+}`}</style>
+            <script dangerouslySetInnerHTML={{
+                __html: `
+                    // Disable mouse wheel on number inputs
+                    document.addEventListener('DOMContentLoaded', function() {
+                        function disableWheelOnNumberInputs() {
+                            const numberInputs = document.querySelectorAll('input[type="number"]');
+                            numberInputs.forEach(function(input) {
+                                input.addEventListener('wheel', function(e) {
+                                    e.preventDefault();
+                                }, { passive: false });
+                            });
+                        }
+                        
+                        // Run on initial load
+                        disableWheelOnNumberInputs();
+                        
+                        // Also handle dynamically added inputs (for React components)
+                        const observer = new MutationObserver(function(mutations) {
+                            mutations.forEach(function(mutation) {
+                                if (mutation.addedNodes.length > 0) {
+                                    disableWheelOnNumberInputs();
+                                }
+                            });
+                        });
+                        
+                        observer.observe(document.body, {
+                            childList: true,
+                            subtree: true
+                        });
+                    });
+                `
+            }} />
             <link rel="icon" href="/favicon.ico" type="image/x-icon" />
         </head>
         <body
@@ -71,8 +120,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         textDecoration: "none",
                         color: "#fff",
                         letterSpacing: 0.3,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
                     }}
                 >
+                    <img
+                        src="/favicon.ico"
+                        alt="GameCubby Icon"
+                        style={{
+                            width: 24,
+                            height: 24,
+                            objectFit: "contain",
+                        }}
+                    />
                     GameCubby
                 </Link>
 
@@ -88,7 +149,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </header>
 
         {/* Page content */}
-        <main style={{ maxWidth: 1100, margin: "24px auto", padding: "0 16px", width: "100%" }}>
+        <main
+            style={{
+                maxWidth: 1100,
+                margin: "24px auto",
+                padding: "0 16px",
+                width: "100%",
+            }}
+        >
             {children}
         </main>
 
@@ -102,7 +170,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 color: "#9a9a9a",
             }}
         >
-            <div style={{ maxWidth: 1100, margin: "0 auto" }}>GameCubby Web UI</div>
+            <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+                GameCubby Web UI
+            </div>
         </footer>
         </body>
         </html>
