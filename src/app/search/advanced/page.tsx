@@ -418,7 +418,7 @@ export default async function AdvancedSearchPage({
                     const resultsWithOrder = await Promise.all(
                         results.map(async (game) => {
                             try {
-                                const gameDetails = await fetch(`${API_BASE_URL}/proxy/games/${game.id}`, { cache: "no-store" });
+                                const gameDetails = await fetch(`/api/proxy/games/${game.id}`, { cache: "no-store" });
                                 if (gameDetails.ok) {
                                     const details = await gameDetails.json();
                                     return { ...game, order: details.order || 0 };
@@ -857,30 +857,37 @@ export default async function AdvancedSearchPage({
                                 dangerouslySetInnerHTML={{
                                     __html: `
                                         (function() {
-                                            const locationInput = document.querySelector('input[name="location_id"]');
-                                            const sortCheckbox = document.getElementById('sort_by_order_checkbox');
-                                            const sortLabel = sortCheckbox.nextElementSibling;
-                                            
                                             function updateSortCheckbox() {
-                                                const hasLocation = locationInput && locationInput.value && locationInput.value.trim() !== '';
+                                                const locationInput = document.querySelector('input[name="location_id"]');
+                                                const sortCheckbox = document.getElementById('sort_by_order_checkbox');
+                                                if (!locationInput || !sortCheckbox) return;
+                                                
+                                                const sortLabel = sortCheckbox.nextElementSibling;
+                                                const hasLocation = locationInput.value && locationInput.value.trim() !== '';
+                                                
                                                 sortCheckbox.disabled = !hasLocation;
                                                 sortCheckbox.style.cursor = hasLocation ? 'pointer' : 'not-allowed';
                                                 sortCheckbox.style.opacity = hasLocation ? '1' : '0.5';
-                                                sortLabel.style.opacity = hasLocation ? '0.85' : '0.5';
-                                                sortLabel.style.color = hasLocation ? 'inherit' : '#666';
+                                                if (sortLabel) {
+                                                    sortLabel.style.opacity = hasLocation ? '0.85' : '0.5';
+                                                    sortLabel.style.color = hasLocation ? 'inherit' : '#666';
+                                                }
                                             }
                                             
-                                            // Use MutationObserver to watch for changes to the hidden input
+                                            // Initial state
+                                            setTimeout(updateSortCheckbox, 100);
+                                            
+                                            // Watch for changes to the hidden input
+                                            const locationInput = document.querySelector('input[name="location_id"]');
                                             if (locationInput) {
                                                 const observer = new MutationObserver(updateSortCheckbox);
                                                 observer.observe(locationInput, { 
                                                     attributes: true, 
                                                     attributeFilter: ['value'] 
                                                 });
-                                                updateSortCheckbox(); // Initial state
                                             }
                                             
-                                            // Also listen for form changes as a fallback
+                                            // Listen for form changes
                                             const form = document.querySelector('form');
                                             if (form) {
                                                 form.addEventListener('change', function(e) {
@@ -889,6 +896,9 @@ export default async function AdvancedSearchPage({
                                                     }
                                                 });
                                             }
+                                            
+                                            // Also check periodically for dynamic changes
+                                            setInterval(updateSortCheckbox, 1000);
                                         })();
                                     `
                                 }}
