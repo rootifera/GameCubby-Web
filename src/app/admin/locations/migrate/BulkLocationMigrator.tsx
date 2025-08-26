@@ -6,10 +6,6 @@ import LocationTreePicker from "@/components/LocationTreePicker";
 type GamePreview = {
     id: number;
     name: string;
-    cover_url?: string | null;
-    release_date?: number | null;
-    summary?: string | null;
-    platforms: Array<{ id: number; name: string }>;
 };
 
 type LocationNode = {
