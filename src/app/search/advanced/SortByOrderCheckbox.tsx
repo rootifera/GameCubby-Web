@@ -25,8 +25,9 @@ export function SortByOrderCheckbox({ locationId, sortByOrder, includeSubLocatio
 
         // Watch for changes to the hidden input
         const locationInput = document.querySelector('input[name="location_id"]');
+        let observer: MutationObserver | null = null;
         if (locationInput) {
-            const observer = new MutationObserver(updateLocationState);
+            observer = new MutationObserver(updateLocationState);
             observer.observe(locationInput, { 
                 attributes: true, 
                 attributeFilter: ['value'] 
