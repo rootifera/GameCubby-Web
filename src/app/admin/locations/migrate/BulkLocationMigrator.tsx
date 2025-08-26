@@ -42,74 +42,22 @@ export default function BulkLocationMigrator() {
     // Fetch games for a specific location
     const fetchGamesByLocation = async (locationId: number): Promise<GamePreview[]> => {
         try {
-            // Since basic search doesn't support location filtering, we'll use a different approach
-            // Option 1: Try the advanced search endpoint if it exists and supports location_id
-            console.log(`Attempting to fetch games for location ${locationId} using advanced search endpoint...`);
-            try {
-                const advancedResponse = await fetch(`/api/proxy/search/advanced?location_id=${locationId}&limit=100`, {
-                    cache: "no-store",
-                });
-                
-                if (advancedResponse.ok) {
-                    const data = await advancedResponse.json();
-                    console.log(`Advanced search endpoint response:`, data);
-                    
-                    if (Array.isArray(data) && data.length > 0) {
-                        return data;
-                    }
-                }
-            } catch (advancedError) {
-                console.log(`Advanced search endpoint not available or failed:`, advancedError);
-            }
+            console.log(`Fetching games for location ${locationId} using dedicated endpoint...`);
             
-            // Option 2: Fallback - Get all games and filter by location
-            console.log(`Falling back to fetching all games and filtering by location...`);
-            const allGamesResponse = await fetch('/api/proxy/games/', {
+            // Use the dedicated endpoint for getting games by location
+            const response = await fetch(`/api/proxy/locations/${locationId}/games`, {
                 cache: "no-store",
             });
             
-            if (!allGamesResponse.ok) {
-                throw new Error(`Failed to fetch all games: ${allGamesResponse.status}`);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch games: ${response.status}`);
             }
             
-            const allGames = await allGamesResponse.json();
-            console.log(`All games response:`, allGames);
+            const data = await response.json();
+            console.log(`Games in location ${locationId}:`, data);
             
-            // Filter games that have this location
-            // We need to fetch individual game details to get location information
-            const gamesWithLocation: GamePreview[] = [];
-            
-            for (const game of allGames) {
-                try {
-                    const gameDetailResponse = await fetch(`/api/proxy/games/${game.id}`, {
-                        cache: "no-store",
-                    });
-                    
-                    if (gameDetailResponse.ok) {
-                        const gameDetail = await gameDetailResponse.json();
-                        
-                        // Check if this game is in the specified location
-                        if (gameDetail.location_path && Array.isArray(gameDetail.location_path)) {
-                            const isInLocation = gameDetail.location_path.some((loc: any) => loc.id === locationId);
-                            if (isInLocation) {
-                                gamesWithLocation.push({
-                                    id: game.id,
-                                    name: game.name,
-                                    cover_url: game.cover_url,
-                                    release_date: game.release_date,
-                                    summary: game.summary,
-                                    platforms: game.platforms || []
-                                });
-                            }
-                        }
-                    }
-                } catch (gameDetailError) {
-                    console.warn(`Failed to fetch details for game ${game.id}:`, gameDetailError);
-                }
-            }
-            
-            console.log(`Found ${gamesWithLocation.length} games in location ${locationId}:`, gamesWithLocation);
-            return gamesWithLocation;
+            // Ensure we return an array
+            return Array.isArray(data) ? data : [];
             
         } catch (error) {
             console.error("Error fetching games:", error);
