@@ -410,6 +410,40 @@ export default async function AdvancedSearchPage({
     if (meaningful) {
         try {
             results = await runAdvancedSearch(sp);
+            
+            // Client-side sorting by order if requested and location is selected
+            if (get(sp, "sort_by_order") === "true" && get(sp, "location_id")) {
+                // We need to fetch the order information for each game to sort them
+                try {
+                    const resultsWithOrder = await Promise.all(
+                        results.map(async (game) => {
+                            try {
+                                const gameDetails = await fetch(`${API_BASE_URL}/proxy/games/${game.id}`, { cache: "no-store" });
+                                if (gameDetails.ok) {
+                                    const details = await gameDetails.json();
+                                    return { ...game, order: details.order || 0 };
+                                }
+                            } catch {
+                                // If we can't fetch order, use 0
+                            }
+                            return { ...game, order: 0 };
+                        })
+                    );
+                    
+                    // Sort by order (0 or undefined games go to the end)
+                    results = resultsWithOrder.sort((a, b) => {
+                        const orderA = a.order || 0;
+                        const orderB = b.order || 0;
+                        if (orderA === 0 && orderB === 0) return 0;
+                        if (orderA === 0) return 1;
+                        if (orderB === 0) return -1;
+                        return orderA - orderB;
+                    });
+                } catch (sortError) {
+                    // If sorting fails, continue with unsorted results
+                    console.warn("Failed to sort by order:", sortError);
+                }
+            }
         } catch (e: unknown) {
             // If API advanced search fails and the query is basic-compatible, try basic fallback
             if (isBasicCompatible(sp)) {
@@ -823,12 +857,12 @@ export default async function AdvancedSearchPage({
                                 dangerouslySetInnerHTML={{
                                     __html: `
                                         (function() {
-                                            const locationPicker = document.querySelector('select[name="location_id"]');
+                                            const locationInput = document.querySelector('input[name="location_id"]');
                                             const sortCheckbox = document.getElementById('sort_by_order_checkbox');
                                             const sortLabel = sortCheckbox.nextElementSibling;
                                             
                                             function updateSortCheckbox() {
-                                                const hasLocation = locationPicker && locationPicker.value;
+                                                const hasLocation = locationInput && locationInput.value && locationInput.value.trim() !== '';
                                                 sortCheckbox.disabled = !hasLocation;
                                                 sortCheckbox.style.cursor = hasLocation ? 'pointer' : 'not-allowed';
                                                 sortCheckbox.style.opacity = hasLocation ? '1' : '0.5';
@@ -836,9 +870,24 @@ export default async function AdvancedSearchPage({
                                                 sortLabel.style.color = hasLocation ? 'inherit' : '#666';
                                             }
                                             
-                                            if (locationPicker) {
-                                                locationPicker.addEventListener('change', updateSortCheckbox);
+                                            // Use MutationObserver to watch for changes to the hidden input
+                                            if (locationInput) {
+                                                const observer = new MutationObserver(updateSortCheckbox);
+                                                observer.observe(locationInput, { 
+                                                    attributes: true, 
+                                                    attributeFilter: ['value'] 
+                                                });
                                                 updateSortCheckbox(); // Initial state
+                                            }
+                                            
+                                            // Also listen for form changes as a fallback
+                                            const form = document.querySelector('form');
+                                            if (form) {
+                                                form.addEventListener('change', function(e) {
+                                                    if (e.target && e.target.name === 'location_id') {
+                                                        setTimeout(updateSortCheckbox, 0);
+                                                    }
+                                                });
                                             }
                                         })();
                                     `
