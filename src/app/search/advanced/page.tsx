@@ -112,6 +112,7 @@ function hasMeaningfulFilters(
         "location_id",
         "include_location_descendants",
         "include_manual",
+        "sort_by_order",
     ];
 
     for (const k of meaningfulKeys) {
@@ -143,6 +144,7 @@ function buildQuery(sp: Record<string, string | string[] | undefined>) {
         "location_id",
         "include_location_descendants",
         "include_manual",
+        "sort_by_order",
         "limit",
         "offset",
         // tag match modes
@@ -442,6 +444,7 @@ export default async function AdvancedSearchPage({
     const companyDefaultIds = parseIdsCSV(companyIdsCSV);
 
     const locationDefaultId = get(sp, "location_id"); // preselect in picker if present
+    const sortByOrderDefault = get(sp, "sort_by_order") === "true"; // preselect sort by order if present
 
     // Match modes (default 'any' in UI—ignored if default)
     const tagMatch = get(sp, "match_mode") || "any";
@@ -780,7 +783,7 @@ export default async function AdvancedSearchPage({
                                 locationDefaultId ? Number(locationDefaultId) : undefined
                             }
                         />
-                        {/* Include Sub Locations checkbox */}
+                        {/* Include Sub Locations and Sort by Order checkboxes */}
                         <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
                             <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
                                 <input
@@ -795,6 +798,28 @@ export default async function AdvancedSearchPage({
                                     }}
                                 />
                                 <span style={{ opacity: 0.85, fontSize: 14 }}>Include Sub Locations</span>
+                            </label>
+                            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                                <input
+                                    type="checkbox"
+                                    name="sort_by_order"
+                                    value="true"
+                                    defaultChecked={sortByOrderDefault}
+                                    disabled={!locationDefaultId}
+                                    style={{
+                                        width: 16,
+                                        height: 16,
+                                        cursor: locationDefaultId ? "pointer" : "not-allowed",
+                                        opacity: locationDefaultId ? 1 : 0.5
+                                    }}
+                                />
+                                <span style={{ 
+                                    opacity: locationDefaultId ? 0.85 : 0.5, 
+                                    fontSize: 14,
+                                    color: locationDefaultId ? "inherit" : "#666"
+                                }}>
+                                    Sort by Order
+                                </span>
                             </label>
                         </div>
                     </div>
