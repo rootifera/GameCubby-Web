@@ -9,6 +9,8 @@ import CoverThumb from "@/components/CoverThumb";
 import GameHoverCard from "@/components/GameHoverCard";
 import SearchBox from "@/components/SearchBox";
 import { ToggleButton } from "./ToggleButton";
+import { SortByOrderCheckbox } from "./SortByOrderCheckbox";
+import { SortableResults } from "./SortableResults";
 
 /** Minimal shape we render */
 type GameLike = {
@@ -18,6 +20,7 @@ type GameLike = {
     release_date?: number | null;
     platforms?: Array<{ id: number; name: string }>;
     rating?: number | null;
+    order?: number; // Added for sorting
 };
 
 type Named = { id: number; name: string };
@@ -112,6 +115,7 @@ function hasMeaningfulFilters(
         "location_id",
         "include_location_descendants",
         "include_manual",
+        "sort_by_order",
     ];
 
     for (const k of meaningfulKeys) {
@@ -143,6 +147,7 @@ function buildQuery(sp: Record<string, string | string[] | undefined>) {
         "location_id",
         "include_location_descendants",
         "include_manual",
+        "sort_by_order",
         "limit",
         "offset",
         // tag match modes
@@ -408,6 +413,10 @@ export default async function AdvancedSearchPage({
     if (meaningful) {
         try {
             results = await runAdvancedSearch(sp);
+            
+            // Note: Sorting by order is now handled by the backend API
+            // The sort_by_order parameter is passed through to the API
+            // If the backend doesn't support it, results will remain unsorted
         } catch (e: unknown) {
             // If API advanced search fails and the query is basic-compatible, try basic fallback
             if (isBasicCompatible(sp)) {
@@ -442,6 +451,7 @@ export default async function AdvancedSearchPage({
     const companyDefaultIds = parseIdsCSV(companyIdsCSV);
 
     const locationDefaultId = get(sp, "location_id"); // preselect in picker if present
+    const sortByOrderDefault = get(sp, "sort_by_order") === "true"; // preselect sort by order if present
 
     // Match modes (default 'any' in UI—ignored if default)
     const tagMatch = get(sp, "match_mode") || "any";
@@ -780,22 +790,13 @@ export default async function AdvancedSearchPage({
                                 locationDefaultId ? Number(locationDefaultId) : undefined
                             }
                         />
-                        {/* Include Sub Locations checkbox */}
+                        {/* Include Sub Locations and Sort by Order checkboxes */}
                         <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
-                            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                                <input
-                                    type="checkbox"
-                                    name="include_location_descendants"
-                                    value="true"
-                                    defaultChecked={get(sp, "include_location_descendants") === "true"}
-                                    style={{
-                                        width: 16,
-                                        height: 16,
-                                        cursor: "pointer"
-                                    }}
-                                />
-                                <span style={{ opacity: 0.85, fontSize: 14 }}>Include Sub Locations</span>
-                            </label>
+                                                         <SortByOrderCheckbox
+                                 locationId={locationDefaultId}
+                                 sortByOrder={sortByOrderDefault}
+                                 includeSubLocations={get(sp, "include_location_descendants") === "true"}
+                              />
                         </div>
                     </div>
 
@@ -913,68 +914,11 @@ export default async function AdvancedSearchPage({
             {/* Results */}
             {results.length ? (
                 <>
-                    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                        {results.map((g) => (
-                            <li
-                                key={g.id}
-                                style={{
-                                    display: "flex",
-                                    gap: 12,
-                                    padding: "12px 8px",
-                                    borderBottom: "1px solid #1f1f1f",
-                                    alignItems: "center",
-                                }}
-                            >
-                                {/* Cover with hover card (56×56, robust placeholder) */}
-                                <GameHoverCard gameId={g.id}>
-                                    <Link
-                                        href={`/games/${g.id}`}
-                                        style={{ display: "inline-block", flexShrink: 0 }}
-                                    >
-                                        <CoverThumb
-                                            name={g.name}
-                                            coverUrl={g.cover_url ?? undefined}
-                                            width={56}
-                                            height={56}
-                                        />
-                                    </Link>
-                                </GameHoverCard>
-
-                                {/* Info */}
-                                <div
-                                    style={{
-                                        display: "grid",
-                                        gridTemplateColumns: "1fr auto",
-                                        gap: 4,
-                                        width: "100%",
-                                    }}
-                                >
-                                    <div>
-                                        <Link
-                                            href={`/games/${g.id}`}
-                                            style={{
-                                                color: "#fff",
-                                                textDecoration: "none",
-                                                fontWeight: 600,
-                                            }}
-                                        >
-                                            {g.name}
-                                        </Link>
-                                        <div style={{ fontSize: 12, opacity: 0.8 }}>
-                                            Platforms:{" "}
-                                            {(g.platforms ?? []).map((p) => p.name).join(", ") || "—"}
-                                        </div>
-                                    </div>
-                                    <div
-                                        style={{ textAlign: "right", fontSize: 12, opacity: 0.9 }}
-                                    >
-                                        <div>Year: {toYearLabel(g.release_date)}</div>
-                                        <div>Rating: {g.rating ?? "—"}</div>
-                                    </div>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
+                    <SortableResults 
+                        results={results}
+                        sortByOrder={get(sp, "sort_by_order") === "true"}
+                        locationId={get(sp, "location_id")}
+                    />
 
                     {/* Pagination */}
                     <div

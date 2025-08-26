@@ -178,15 +178,12 @@ function CardContent({ g }: { g: GameDetails }) {
                 <div style={{ fontSize: 12, opacity: 0.85 }}>Platforms: {platforms}</div>
             </div>
 
-            {/* Location / Order / Condition */}
-            <div style={{ gridColumn: "1 / span 2", marginTop: 8, display: "grid", gap: 6 }}>
+            {/* Location / Order */}
+            <div style={{ gridColumn: "1 / span 2", marginTop: 8 }}>
                 <div style={{ fontSize: 12, opacity: 0.9 }}>
                     <span style={{ opacity: 0.75 }}>Location:</span>{" "}
                     {locationStr ? locationStr : "Not set"}
-                </div>
-                <div style={{ fontSize: 12, opacity: 0.9 }}>
-                    Order: {typeof g.order === "number" ? g.order : "—"} · Condition:{" "}
-                    {typeof g.condition === "number" ? g.condition : "—"}
+                    {typeof g.order === "number" && g.order > 0 ? ` > ${g.order}` : ""}
                 </div>
             </div>
         </div>
