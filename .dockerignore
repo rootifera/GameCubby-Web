@@ -60,6 +60,14 @@ jspm_packages/
 Dockerfile
 .dockerignore
 
+# Env files (don’t bake secrets into image)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+release.sh
 # Documentation
 README.md
 LICENSE
+
