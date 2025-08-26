@@ -183,7 +183,7 @@ function CardContent({ g }: { g: GameDetails }) {
                 <div style={{ fontSize: 12, opacity: 0.9 }}>
                     <span style={{ opacity: 0.75 }}>Location:</span>{" "}
                     {locationStr ? locationStr : "Not set"}
-                    {typeof g.order === "number" ? ` > Order: ${g.order}` : ""}
+                    {typeof g.order === "number" && g.order > 0 ? ` > ${g.order}` : ""}
                 </div>
             </div>
         </div>
