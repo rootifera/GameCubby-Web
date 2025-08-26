@@ -22,6 +22,7 @@ function parseIdsCSV(csv: string) {
  * - platform_id (single) OR platform_ids (repeated)  ← NEW
  * - tag_ids (repeated supported; also accepts CSV via tag_ids=1,2,3)
  * - match_mode
+
  * - size, page
  */
 export async function GET(req: NextRequest) {
