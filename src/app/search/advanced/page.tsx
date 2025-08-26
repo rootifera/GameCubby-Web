@@ -9,6 +9,7 @@ import CoverThumb from "@/components/CoverThumb";
 import GameHoverCard from "@/components/GameHoverCard";
 import SearchBox from "@/components/SearchBox";
 import { ToggleButton } from "./ToggleButton";
+import { SortByOrderCheckbox } from "./SortByOrderCheckbox";
 
 /** Minimal shape we render */
 type GameLike = {
@@ -819,90 +820,11 @@ export default async function AdvancedSearchPage({
                         />
                         {/* Include Sub Locations and Sort by Order checkboxes */}
                         <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
-                            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                                <input
-                                    type="checkbox"
-                                    name="include_location_descendants"
-                                    value="true"
-                                    defaultChecked={get(sp, "include_location_descendants") === "true"}
-                                    style={{
-                                        width: 16,
-                                        height: 16,
-                                        cursor: "pointer"
-                                    }}
-                                />
-                                <span style={{ opacity: 0.85, fontSize: 14 }}>Include Sub Locations</span>
-                            </label>
-                            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                                <input
-                                    type="checkbox"
-                                    name="sort_by_order"
-                                    value="true"
-                                    defaultChecked={sortByOrderDefault}
-                                    id="sort_by_order_checkbox"
-                                    style={{
-                                        width: 16,
-                                        height: 16,
-                                        cursor: "pointer"
-                                    }}
-                                />
-                                <span style={{ 
-                                    opacity: 0.85, 
-                                    fontSize: 14
-                                }}>
-                                    Sort by Order
-                                </span>
-                            </label>
-                            <script
-                                dangerouslySetInnerHTML={{
-                                    __html: `
-                                        (function() {
-                                            function updateSortCheckbox() {
-                                                const locationInput = document.querySelector('input[name="location_id"]');
-                                                const sortCheckbox = document.getElementById('sort_by_order_checkbox');
-                                                if (!locationInput || !sortCheckbox) return;
-                                                
-                                                const sortLabel = sortCheckbox.nextElementSibling;
-                                                const hasLocation = locationInput.value && locationInput.value.trim() !== '';
-                                                
-                                                sortCheckbox.disabled = !hasLocation;
-                                                sortCheckbox.style.cursor = hasLocation ? 'pointer' : 'not-allowed';
-                                                sortCheckbox.style.opacity = hasLocation ? '1' : '0.5';
-                                                if (sortLabel) {
-                                                    sortLabel.style.opacity = hasLocation ? '0.85' : '0.5';
-                                                    sortLabel.style.color = hasLocation ? 'inherit' : '#666';
-                                                }
-                                            }
-                                            
-                                            // Initial state
-                                            setTimeout(updateSortCheckbox, 100);
-                                            
-                                            // Watch for changes to the hidden input
-                                            const locationInput = document.querySelector('input[name="location_id"]');
-                                            if (locationInput) {
-                                                const observer = new MutationObserver(updateSortCheckbox);
-                                                observer.observe(locationInput, { 
-                                                    attributes: true, 
-                                                    attributeFilter: ['value'] 
-                                                });
-                                            }
-                                            
-                                            // Listen for form changes
-                                            const form = document.querySelector('form');
-                                            if (form) {
-                                                form.addEventListener('change', function(e) {
-                                                    if (e.target && e.target.name === 'location_id') {
-                                                        setTimeout(updateSortCheckbox, 0);
-                                                    }
-                                                });
-                                            }
-                                            
-                                            // Also check periodically for dynamic changes
-                                            setInterval(updateSortCheckbox, 1000);
-                                        })();
-                                    `
-                                }}
-                            />
+                                                         <SortByOrderCheckbox
+                                 locationId={locationDefaultId}
+                                 sortByOrder={sortByOrderDefault}
+                                 includeSubLocations={get(sp, "include_location_descendants") === "true"}
+                              />
                         </div>
                     </div>
 
