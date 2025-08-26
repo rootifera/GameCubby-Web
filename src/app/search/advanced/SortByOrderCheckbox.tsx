@@ -15,7 +15,7 @@ export function SortByOrderCheckbox({ locationId, sortByOrder, includeSubLocatio
         function updateLocationState() {
             const locationInput = document.querySelector('input[name="location_id"]') as HTMLInputElement;
             if (locationInput) {
-                const hasValue = locationInput.value && locationInput.value.trim() !== '';
+                const hasValue = Boolean(locationInput.value && locationInput.value.trim() !== '');
                 setHasLocation(hasValue);
             }
         }
