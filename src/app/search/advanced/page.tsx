@@ -805,22 +805,45 @@ export default async function AdvancedSearchPage({
                                     name="sort_by_order"
                                     value="true"
                                     defaultChecked={sortByOrderDefault}
-                                    disabled={!locationDefaultId}
+                                    id="sort_by_order_checkbox"
                                     style={{
                                         width: 16,
                                         height: 16,
-                                        cursor: locationDefaultId ? "pointer" : "not-allowed",
-                                        opacity: locationDefaultId ? 1 : 0.5
+                                        cursor: "pointer"
                                     }}
                                 />
                                 <span style={{ 
-                                    opacity: locationDefaultId ? 0.85 : 0.5, 
-                                    fontSize: 14,
-                                    color: locationDefaultId ? "inherit" : "#666"
+                                    opacity: 0.85, 
+                                    fontSize: 14
                                 }}>
                                     Sort by Order
                                 </span>
                             </label>
+                            <script
+                                dangerouslySetInnerHTML={{
+                                    __html: `
+                                        (function() {
+                                            const locationPicker = document.querySelector('select[name="location_id"]');
+                                            const sortCheckbox = document.getElementById('sort_by_order_checkbox');
+                                            const sortLabel = sortCheckbox.nextElementSibling;
+                                            
+                                            function updateSortCheckbox() {
+                                                const hasLocation = locationPicker && locationPicker.value;
+                                                sortCheckbox.disabled = !hasLocation;
+                                                sortCheckbox.style.cursor = hasLocation ? 'pointer' : 'not-allowed';
+                                                sortCheckbox.style.opacity = hasLocation ? '1' : '0.5';
+                                                sortLabel.style.opacity = hasLocation ? '0.85' : '0.5';
+                                                sortLabel.style.color = hasLocation ? 'inherit' : '#666';
+                                            }
+                                            
+                                            if (locationPicker) {
+                                                locationPicker.addEventListener('change', updateSortCheckbox);
+                                                updateSortCheckbox(); // Initial state
+                                            }
+                                        })();
+                                    `
+                                }}
+                            />
                         </div>
                     </div>
 
