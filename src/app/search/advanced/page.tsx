@@ -413,46 +413,9 @@ export default async function AdvancedSearchPage({
         try {
             results = await runAdvancedSearch(sp);
             
-            // Client-side sorting by order if requested and location is selected
-            console.log("Debug - sort_by_order:", get(sp, "sort_by_order"), "location_id:", get(sp, "location_id"));
-            if (get(sp, "sort_by_order") === "true" && get(sp, "location_id")) {
-                console.log("Debug - Starting to sort by order");
-                // We need to fetch the order information for each game to sort them
-                try {
-                    const resultsWithOrder = await Promise.all(
-                        results.map(async (game) => {
-                            try {
-                                const gameDetails = await fetch(`/api/proxy/games/${game.id}`, { cache: "no-store" });
-                                if (gameDetails.ok) {
-                                    const details = await gameDetails.json();
-                                    console.log(`Debug - Game ${game.id} has order:`, details.order);
-                                    return { ...game, order: details.order || 0 };
-                                }
-                            } catch (error) {
-                                console.log(`Debug - Failed to fetch order for game ${game.id}:`, error);
-                                // If we can't fetch order, use 0
-                            }
-                            return { ...game, order: 0 };
-                        })
-                    );
-                    
-                    console.log("Debug - Results before sorting:", resultsWithOrder.map(g => ({ id: g.id, order: g.order })));
-                    
-                    // Sort by order (simple numeric sorting)
-                    results = resultsWithOrder.sort((a, b) => {
-                        const orderA = a.order || 0;
-                        const orderB = b.order || 0;
-                        return orderA - orderB;
-                    });
-                    
-                    console.log("Debug - Results after sorting:", results.map(g => ({ id: g.id, order: g.order })));
-                } catch (sortError) {
-                    // If sorting fails, continue with unsorted results
-                    console.warn("Failed to sort by order:", sortError);
-                }
-            } else {
-                console.log("Debug - Not sorting by order. Conditions not met.");
-            }
+            // Note: Sorting by order is now handled by the backend API
+            // The sort_by_order parameter is passed through to the API
+            // If the backend doesn't support it, results will remain unsorted
         } catch (e: unknown) {
             // If API advanced search fails and the query is basic-compatible, try basic fallback
             if (isBasicCompatible(sp)) {
