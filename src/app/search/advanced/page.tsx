@@ -10,6 +10,7 @@ import GameHoverCard from "@/components/GameHoverCard";
 import SearchBox from "@/components/SearchBox";
 import { ToggleButton } from "./ToggleButton";
 import { SortByOrderCheckbox } from "./SortByOrderCheckbox";
+import { SortableResults } from "./SortableResults";
 
 /** Minimal shape we render */
 type GameLike = {
@@ -913,68 +914,11 @@ export default async function AdvancedSearchPage({
             {/* Results */}
             {results.length ? (
                 <>
-                    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                        {results.map((g) => (
-                            <li
-                                key={g.id}
-                                style={{
-                                    display: "flex",
-                                    gap: 12,
-                                    padding: "12px 8px",
-                                    borderBottom: "1px solid #1f1f1f",
-                                    alignItems: "center",
-                                }}
-                            >
-                                {/* Cover with hover card (56×56, robust placeholder) */}
-                                <GameHoverCard gameId={g.id}>
-                                    <Link
-                                        href={`/games/${g.id}`}
-                                        style={{ display: "inline-block", flexShrink: 0 }}
-                                    >
-                                        <CoverThumb
-                                            name={g.name}
-                                            coverUrl={g.cover_url ?? undefined}
-                                            width={56}
-                                            height={56}
-                                        />
-                                    </Link>
-                                </GameHoverCard>
-
-                                {/* Info */}
-                                <div
-                                    style={{
-                                        display: "grid",
-                                        gridTemplateColumns: "1fr auto",
-                                        gap: 4,
-                                        width: "100%",
-                                    }}
-                                >
-                                    <div>
-                                        <Link
-                                            href={`/games/${g.id}`}
-                                            style={{
-                                                color: "#fff",
-                                                textDecoration: "none",
-                                                fontWeight: 600,
-                                            }}
-                                        >
-                                            {g.name}
-                                        </Link>
-                                        <div style={{ fontSize: 12, opacity: 0.8 }}>
-                                            Platforms:{" "}
-                                            {(g.platforms ?? []).map((p) => p.name).join(", ") || "—"}
-                                        </div>
-                                    </div>
-                                    <div
-                                        style={{ textAlign: "right", fontSize: 12, opacity: 0.9 }}
-                                    >
-                                        <div>Year: {toYearLabel(g.release_date)}</div>
-                                        <div>Rating: {g.rating ?? "—"}</div>
-                                    </div>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
+                    <SortableResults 
+                        results={results}
+                        sortByOrder={get(sp, "sort_by_order") === "true"}
+                        locationId={get(sp, "location_id")}
+                    />
 
                     {/* Pagination */}
                     <div
