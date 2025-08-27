@@ -34,52 +34,56 @@ export function SortableResults({ results, sortByOrder, locationId }: SortableRe
     const [isLoading, setIsLoading] = useState(false);
     const [sortError, setSortError] = useState<string | null>(null);
 
-    // Memoize the sorting function to prevent unnecessary re-runs
-    const sortResults = useCallback(async () => {
+    // Simple sorting function without useCallback to avoid dependency issues
+    const sortResults = async () => {
         if (!sortByOrder || !locationId || results.length === 0) {
+            console.log("Sorting skipped:", { sortByOrder, locationId, resultsLength: results.length });
             setSortedResults(results);
             setSortError(null);
             return;
         }
 
+        console.log("Starting sort by order for", results.length, "games");
         setIsLoading(true);
         setSortError(null);
 
         try {
-            // Fetch order information for all games in a single request to avoid API spam
-            // Use the location-specific endpoint which should have the games in order
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
-            
-            const response = await fetch(`/api/proxy/locations/${locationId}/games`, {
-                cache: "no-store",
-                signal: controller.signal
-            });
+            // Fetch order information for each game with rate limiting
+            const resultsWithOrder = await Promise.all(
+                results.map(async (game, index) => {
+                    try {
+                        // Add a small delay between requests to prevent API spam
+                        if (index > 0) {
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                        }
 
-            clearTimeout(timeoutId);
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 5000);
+                        
+                        const response = await fetch(`/api/proxy/games/${game.id}`, {
+                            cache: "no-store",
+                            signal: controller.signal
+                        });
+                        
+                        clearTimeout(timeoutId);
 
-            if (!response.ok) {
-                throw new Error(`Location games fetch failed: ${response.status}`);
-            }
+                        if (response.ok) {
+                            const details = await response.json();
+                            const order = details.order || 0;
+                            console.log(`Game ${game.id} (${game.name}): order = ${order}`);
+                            return { ...game, order };
+                        } else {
+                            console.warn(`Failed to fetch order for game ${game.id}: ${response.status}`);
+                            return { ...game, order: 0 };
+                        }
+                    } catch (error) {
+                        console.warn(`Failed to fetch order for game ${game.id}:`, error);
+                        return { ...game, order: 0 };
+                    }
+                })
+            );
 
-            const locationGames = await response.json();
-            
-            if (!Array.isArray(locationGames)) {
-                throw new Error("Invalid response from location games endpoint");
-            }
-
-            // Create a map of game ID to order from the location endpoint
-            const orderMap = new Map();
-            locationGames.forEach((game: any, index: number) => {
-                // Use the index as order, or if the game has an order field, use that
-                orderMap.set(game.id, game.order !== undefined ? game.order : index);
-            });
-            
-            // Map the order data back to our search results
-            const resultsWithOrder = results.map(game => ({
-                ...game,
-                order: orderMap.get(game.id) ?? 999999 // Default to high number for games not in location
-            }));
+            console.log("Games with order data:", resultsWithOrder.map(g => ({ id: g.id, name: g.name, order: g.order })));
 
             // Sort by order (simple numeric sorting)
             const sorted = resultsWithOrder.sort((a, b) => {
@@ -88,6 +92,7 @@ export function SortableResults({ results, sortByOrder, locationId }: SortableRe
                 return orderA - orderB;
             });
 
+            console.log("Sorted games:", sorted.map(g => ({ id: g.id, name: g.name, order: g.order })));
             setSortedResults(sorted);
         } catch (error) {
             console.error("Failed to sort by order:", error);
@@ -96,11 +101,15 @@ export function SortableResults({ results, sortByOrder, locationId }: SortableRe
         } finally {
             setIsLoading(false);
         }
-    }, [results, sortByOrder, locationId]);
+    };
 
     useEffect(() => {
-        sortResults();
-    }, [sortResults]);
+        // Only sort when the component mounts or when key dependencies change
+        if (sortByOrder && locationId && results.length > 0) {
+            console.log("Triggering sort due to dependency change");
+            sortResults();
+        }
+    }, [sortByOrder, locationId, results.length]); // Remove sortResults from dependencies to prevent infinite loops
 
     if (isLoading) {
         return (
