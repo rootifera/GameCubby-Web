@@ -1,57 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
+import { healthService, type HealthStatus } from "@/lib/healthService";
 
 export default function AuthActions() {
     const [authed, setAuthed] = useState<boolean | null>(null);
-    const [checking, setChecking] = useState(false);
-
-    const check = useCallback(async () => {
-        // If already checking, don't start another check
-        if (checking) {
-            return;
-        }
-
-        setChecking(true);
-
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000);
-            
-            const res = await fetch("/api/health", { 
-                cache: "no-store",
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            
-            if (res.ok) {
-                const data = (await res.json()) as { authed?: boolean };
-                setAuthed(Boolean(data?.authed));
-            } else {
-                // Keep last known state on error to avoid flicker
-                console.warn("Health check failed:", res.status);
-            }
-        } catch (error) {
-            // Keep last-known state to avoid flicker
-            console.warn("Health check error:", error);
-        } finally {
-            setChecking(false);
-        }
-    }, [checking]);
 
     useEffect(() => {
-        // Initial check
-        check();
+        // Subscribe to health status updates
+        const unsubscribe = healthService.subscribe((healthStatus: HealthStatus) => {
+            setAuthed(healthStatus.authed);
+        });
 
-        // Set up periodic checks with reasonable interval
-        const intervalId = setInterval(check, 30000); // Check every 30 seconds
-
-        return () => {
-            clearInterval(intervalId);
-        };
-    }, [check]);
+        // Cleanup subscription
+        return unsubscribe;
+    }, []);
 
     return (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
