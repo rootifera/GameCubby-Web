@@ -205,8 +205,7 @@ export default async function BasicSearchPage({
             {/* Search bar (same width rhythm as /games controls) */}
             <div style={{ marginBottom: 16 }}>
                 <div style={{ maxWidth: 540, width: "100%" }}>
-                    {/* CHANGED: do not repopulate from URL */}
-                    <SearchBox defaultValue="" />
+                    {/* Search input is now inside the main form below */}
                 </div>
             </div>
 
@@ -217,12 +216,21 @@ export default async function BasicSearchPage({
                     <ToggleButton />
                 </summary>
 
-                <form method="GET" action="/search" style={{ display: "grid", gap: 16, padding: "16px", marginBottom: 12 }}>
-                    {/* Keep q sticky */}
-                    <input type="hidden" name="q" value={q} />
+                <form method="GET" action="/search" style={{ display: "grid", gap: 16, padding: "16px", marginBottom: 12, gridTemplateColumns: "1fr 1fr" }}>
+                    {/* Search input */}
+                    <div style={{ gridColumn: "span 2" }}>
+                        <label style={{ display: "grid", gap: 6 }}>
+                            <span style={{ opacity: 0.85 }}>Search games</span>
+                            <SearchBox 
+                                defaultValue={q} 
+                                wrapWithForm={false}
+                                onSelectNavigateTo={null}
+                            />
+                        </label>
+                    </div>
 
                     {/* Row 1 — Year + Platform */}
-                    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "200px 1fr" }}>
+                    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "200px 1fr", gridColumn: "span 2" }}>
                         <label style={{ display: "grid", gap: 6 }}>
                             <span style={{ opacity: 0.85 }}>Year (exact)</span>
                             <input
@@ -251,7 +259,7 @@ export default async function BasicSearchPage({
                     </div>
 
                     {/* Row 2 — Tags + Match mode */}
-                    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 200px" }}>
+                    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 200px", gridColumn: "span 2" }}>
                         <TagChipsAutocomplete
                             label="Tags"
                             name="tag_ids"
@@ -270,12 +278,12 @@ export default async function BasicSearchPage({
                     </div>
 
                     {/* Page size control */}
-                    <div style={{ display: "grid", gap: 6, maxWidth: 200 }}>
+                    <div style={{ display: "grid", gap: 6, maxWidth: 200, gridColumn: "span 2" }}>
                         <span style={{ opacity: 0.85 }}>Page size</span>
                         <input name="size" defaultValue={String(size)} inputMode="numeric" style={inputShort} />
                     </div>
 
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 8, gridColumn: "span 2" }}>
                         <button
                             type="submit"
                             style={{
