@@ -183,6 +183,24 @@ export default async function BasicSearchPage({
                 <h1 style={{ fontSize: 24, margin: 0 }}>Search</h1>
             </div>
 
+            {/* Basic / Advanced toggle below header */}
+            <div
+                style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 8,
+                    alignItems: "center",
+                    marginBottom: 12,
+                }}
+            >
+                <Link href={{ pathname: "/search" }} style={toggleActive} aria-current="page">
+                    Basic
+                </Link>
+                <Link href={{ pathname: "/search/advanced" }} style={toggleInactive}>
+                    Advanced
+                </Link>
+            </div>
+
             {/* Basic search form - always visible */}
             <div style={{ border: "1px solid #222", borderRadius: 10, background: "#121212", marginBottom: 16 }}>
                 <form method="GET" action="/search" style={{ display: "grid", gap: 16, padding: "16px", marginBottom: 12, gridTemplateColumns: "1fr 1fr" }}>
@@ -462,3 +480,23 @@ const btn: React.CSSProperties = {
     fontSize: 13,
 };
 const btnDisabled: React.CSSProperties = { ...btn, opacity: 0.5, pointerEvents: "none" };
+
+const toggleActive: React.CSSProperties = {
+    textDecoration: "none",
+    color: "#fff",
+    border: "1px solid #3b82f6",
+    borderRadius: 8,
+    padding: "8px 12px",
+    fontWeight: 600,
+    background: "#1e293b",
+};
+
+const toggleInactive: React.CSSProperties = {
+    textDecoration: "none",
+    color: "#d8d8d8",
+    border: "1px solid #2b2b2b",
+    borderRadius: 8,
+    padding: "8px 12px",
+    fontWeight: 600,
+    background: "#151515",
+};
