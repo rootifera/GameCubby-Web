@@ -2,19 +2,30 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { healthService, type HealthStatus } from "@/lib/healthService";
 
 export default function AuthActions() {
     const [authed, setAuthed] = useState<boolean | null>(null);
+    const [checking, setChecking] = useState(false);
+
+    async function check() {
+        if (checking) return;
+        
+        setChecking(true);
+        try {
+            const res = await fetch("/api/health", { cache: "no-store" });
+            const data = (await res.json()) as { authed?: boolean };
+            setAuthed(Boolean(data?.authed));
+        } catch {
+            // keep last-known state to avoid flicker
+        } finally {
+            setChecking(false);
+        }
+    }
 
     useEffect(() => {
-        // Subscribe to health status updates
-        const unsubscribe = healthService.subscribe((healthStatus: HealthStatus) => {
-            setAuthed(healthStatus.authed);
-        });
-
-        // Cleanup subscription
-        return unsubscribe;
+        void check(); // initial
+        const id = setInterval(check, 30000); // Check every 30 seconds
+        return () => clearInterval(id);
     }, []);
 
     return (

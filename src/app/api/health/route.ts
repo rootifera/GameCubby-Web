@@ -1,14 +1,32 @@
 // src/app/api/health/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { readToken, isJwtActive } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
+// Simple in-memory cache to reduce backend calls
+let lastHealthCheck = 0;
+let cachedHealthStatus: { online: boolean; authed: boolean } | null = null;
+const CACHE_DURATION = 25000; // 25 seconds
+
 export async function GET() {
+    const now = Date.now();
+    
+    // Return cached result if it's still valid
+    if (cachedHealthStatus && (now - lastHealthCheck) < CACHE_DURATION) {
+        return NextResponse.json(cachedHealthStatus, { 
+            status: 200, 
+            headers: { 
+                "Cache-Control": "no-store",
+                "Content-Type": "application/json"
+            } 
+        });
+    }
+
     // 1) API online check (with reduced frequency)
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000); // Reduced timeout
+    const timeout = setTimeout(() => controller.abort(), 2000);
 
     let online = false;
     try {
@@ -38,6 +56,10 @@ export async function GET() {
         }
         // Keep authed as false on error
     }
+
+    // Cache the result
+    cachedHealthStatus = { online, authed };
+    lastHealthCheck = now;
 
     return NextResponse.json(
         { online, authed },
