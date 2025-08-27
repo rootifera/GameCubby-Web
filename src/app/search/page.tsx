@@ -4,7 +4,6 @@ import SearchBox from "@/components/SearchBox";
 import TagChipsAutocomplete from "@/components/TagChipsAutocomplete";
 import CoverThumb from "@/components/CoverThumb";
 import GameHoverCard from "@/components/GameHoverCard";
-import { ToggleButton } from "./ToggleButton";
 
 /* ------------ types ------------ */
 
@@ -184,37 +183,7 @@ export default async function BasicSearchPage({
                 <h1 style={{ fontSize: 24, margin: 0 }}>Search</h1>
             </div>
 
-            {/* Basic / Advanced toggle below header (match /games bar spacing) */}
-            <div
-                style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 8,
-                    alignItems: "center",
-                    marginBottom: 12,
-                }}
-            >
-                <Link href={{ pathname: "/search" }} style={toggleActive} aria-current="page">
-                    Basic
-                </Link>
-                <Link href={{ pathname: "/search/advanced" }} style={toggleInactive}>
-                    Advanced
-                </Link>
-            </div>
-
-            {/* Search bar (same width rhythm as /games controls) */}
-            <div style={{ marginBottom: 16 }}>
-                <div style={{ maxWidth: 540, width: "100%" }}>
-                    {/* Search input is now inside the main form below */}
-                </div>
-            </div>
-
-            {/* Extra parameters */}
-            <details style={detailsWrap}>
-                <summary style={summaryBar}>
-                    <span>Additional parameters</span>
-                    <ToggleButton />
-                </summary>
+            {/* Basic search form - always visible */}
 
                 <form method="GET" action="/search" style={{ display: "grid", gap: 16, padding: "16px", marginBottom: 12, gridTemplateColumns: "1fr 1fr" }}>
                     {/* Search input */}
@@ -312,7 +281,6 @@ export default async function BasicSearchPage({
                         </Link>
                     </div>
                 </form>
-            </details>
 
             {/* Pagination (top) */}
             {hasAnyParam && !error ? (
@@ -481,24 +449,7 @@ const selectStyle: React.CSSProperties = {
     outline: "none",
 };
 
-const detailsWrap: React.CSSProperties = {
-    border: "1px solid #222",
-    borderRadius: 10,
-    background: "#121212",
-    marginBottom: 16,
-};
-const summaryBar: React.CSSProperties = {
-    listStyle: "none",
-    cursor: "pointer",
-    userSelect: "none" as const,
-    padding: "10px 12px",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderBottom: "1px solid #222",
-    color: "#eaeaea",
-    fontWeight: 600,
-};
+
 
 const btn: React.CSSProperties = {
     textDecoration: "none",
@@ -510,24 +461,3 @@ const btn: React.CSSProperties = {
     fontSize: 13,
 };
 const btnDisabled: React.CSSProperties = { ...btn, opacity: 0.5, pointerEvents: "none" };
-
-/* Toggle button styles */
-const toggleBase: React.CSSProperties = {
-    textDecoration: "none",
-    padding: "6px 10px",
-    borderRadius: 999,
-    fontSize: 13,
-    border: "1px solid #2b2b2b",
-};
-const toggleActive: React.CSSProperties = {
-    ...toggleBase,
-    background: "#1e293b",
-    borderColor: "#3b82f6",
-    color: "#fff",
-    fontWeight: 600,
-};
-const toggleInactive: React.CSSProperties = {
-    ...toggleBase,
-    background: "#151515",
-    color: "#d8d8d8",
-};
