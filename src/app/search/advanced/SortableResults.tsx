@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import CoverThumb from "@/components/CoverThumb";
 import GameHoverCard from "@/components/GameHoverCard";
@@ -12,6 +12,7 @@ interface GameLike {
     release_date?: number | null;
     platforms?: Array<{ id: number; name: string }>;
     rating?: number | null;
+    order?: number;
 }
 
 interface SortableResultsProps {
@@ -31,58 +32,152 @@ function toYearLabel(n?: number | null): string {
 export function SortableResults({ results, sortByOrder, locationId }: SortableResultsProps) {
     const [sortedResults, setSortedResults] = useState<GameLike[]>(results);
     const [isLoading, setIsLoading] = useState(false);
+    const [sortError, setSortError] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (!sortByOrder || !locationId) {
+    // Memoize the sorting function to prevent unnecessary re-runs
+    const sortResults = useCallback(async () => {
+        if (!sortByOrder || !locationId || results.length === 0) {
             setSortedResults(results);
+            setSortError(null);
             return;
         }
 
-        async function sortResults() {
-            setIsLoading(true);
-            try {
-                // Fetch order information for each game
-                const resultsWithOrder = await Promise.all(
-                    results.map(async (game) => {
-                        try {
-                            const gameDetails = await fetch(`/api/proxy/games/${game.id}`, { 
-                                cache: "no-store" 
-                            });
-                            if (gameDetails.ok) {
-                                const details = await gameDetails.json();
-                                return { ...game, order: details.order || 0 };
-                            }
-                        } catch (error) {
-                            console.warn(`Failed to fetch order for game ${game.id}:`, error);
-                        }
-                        return { ...game, order: 0 };
-                    })
-                );
+        setIsLoading(true);
+        setSortError(null);
 
-                // Sort by order (simple numeric sorting)
-                const sorted = resultsWithOrder.sort((a, b) => {
-                    const orderA = (a as any).order || 0;
-                    const orderB = (b as any).order || 0;
-                    return orderA - orderB;
-                });
+        try {
+            // Use the new batch API endpoint to fetch order information for all games at once
+            const response = await fetch('/api/proxy/games/batch-order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ gameIds: results.map(game => game.id) }),
+                cache: "no-store",
+                signal: AbortSignal.timeout(10000)
+            });
 
-                setSortedResults(sorted);
-            } catch (error) {
-                console.error("Failed to sort by order:", error);
-                setSortedResults(results);
-            } finally {
-                setIsLoading(false);
+            if (!response.ok) {
+                throw new Error(`Batch order fetch failed: ${response.status}`);
             }
-        }
 
-        sortResults();
+            const { orders } = await response.json();
+            
+            // Map the order data back to the games
+            const resultsWithOrder = results.map(game => {
+                const orderData = orders.find((o: any) => o.id === game.id);
+                return {
+                    ...game,
+                    order: orderData?.order || 0
+                };
+            });
+
+            // Sort by order (simple numeric sorting)
+            const sorted = resultsWithOrder.sort((a, b) => {
+                const orderA = a.order || 0;
+                const orderB = b.order || 0;
+                return orderA - orderB;
+            });
+
+            setSortedResults(sorted);
+        } catch (error) {
+            console.error("Failed to sort by order:", error);
+            setSortError("Failed to sort results by order. Showing unsorted results.");
+            setSortedResults(results);
+        } finally {
+            setIsLoading(false);
+        }
     }, [results, sortByOrder, locationId]);
+
+    useEffect(() => {
+        sortResults();
+    }, [sortResults]);
 
     if (isLoading) {
         return (
             <div style={{ textAlign: "center", padding: "20px", opacity: 0.7 }}>
                 Sorting results by order...
             </div>
+        );
+    }
+
+    if (sortError) {
+        return (
+            <>
+                <div style={{ 
+                    background: "#3b0f12", 
+                    border: "1px solid #5b1a1f", 
+                    color: "#ffd7d7", 
+                    padding: "8px 12px", 
+                    borderRadius: 8, 
+                    marginBottom: 12,
+                    fontSize: 14
+                }}>
+                    {sortError}
+                </div>
+                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                    {sortedResults.map((g) => (
+                        <li
+                            key={g.id}
+                            style={{
+                                display: "flex",
+                                gap: 12,
+                                padding: "12px 8px",
+                                borderBottom: "1px solid #1f1f1f",
+                                alignItems: "center",
+                            }}
+                        >
+                            {/* Cover with hover card (56×56, robust placeholder) */}
+                            <GameHoverCard gameId={g.id}>
+                                <Link
+                                    href={`/games/${g.id}`}
+                                    style={{ display: "inline-block", flexShrink: 0 }}
+                                >
+                                    <CoverThumb
+                                        name={g.name}
+                                        coverUrl={g.cover_url ?? undefined}
+                                        width={56}
+                                        height={56}
+                                    />
+                                </Link>
+                            </GameHoverCard>
+
+                            {/* Info */}
+                            <div
+                                style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "1fr auto",
+                                    gap: 4,
+                                    width: "100%",
+                                }}
+                            >
+                                <div>
+                                    <Link
+                                        href={`/games/${g.id}`}
+                                        style={{
+                                            color: "#fff",
+                                            textDecoration: "none",
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        {g.name}
+                                    </Link>
+                                    <div style={{ fontSize: 12, opacity: 0.8 }}>
+                                        Platforms:{" "}
+                                        {(g.platforms ?? []).map((p) => p.name).join(", ") || "—"}
+                                    </div>
+                                </div>
+                                <div
+                                    style={{ textAlign: "right", fontSize: 12, opacity: 0.9 }}
+                                >
+                                    <div>Year: {toYearLabel(g.release_date)}</div>
+                                    <div>Rating: {g.rating ?? "—"}</div>
+                                </div>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            </>
         );
     }
 

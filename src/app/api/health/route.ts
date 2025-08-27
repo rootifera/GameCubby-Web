@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
     // 1) API online check (same as before)
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
+    const timeout = setTimeout(() => controller.abort(), 3000); // Reduced timeout
 
     let online = false;
     try {
@@ -17,18 +17,31 @@ export async function GET() {
             signal: controller.signal,
         });
         online = res.ok;
-    } catch {
+    } catch (error) {
+        console.warn("API health check failed:", error);
         online = false;
     } finally {
         clearTimeout(timeout);
     }
 
     // 2) Auth status from HttpOnly cookie __gcub_a
-    const token = readToken();
-    const authed = token ? isJwtActive(token) : false;
+    let authed = false;
+    try {
+        const token = readToken();
+        authed = token ? isJwtActive(token) : false;
+    } catch (error) {
+        console.warn("Auth check failed:", error);
+        // Keep authed as false on error
+    }
 
     return NextResponse.json(
         { online, authed },
-        { status: 200, headers: { "Cache-Control": "no-store" } }
+        { 
+            status: 200, 
+            headers: { 
+                "Cache-Control": "no-store",
+                "Content-Type": "application/json"
+            } 
+        }
     );
 }
