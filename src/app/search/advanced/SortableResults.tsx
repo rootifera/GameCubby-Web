@@ -46,38 +46,38 @@ export function SortableResults({ results, sortByOrder, locationId }: SortableRe
         setSortError(null);
 
         try {
-            // Create an AbortController for timeout handling
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
-            
-            // Fetch games from the location-specific endpoint which should have proper ordering
-            const response = await fetch(`/api/proxy/locations/${locationId}/games`, {
-                cache: "no-store",
-                signal: controller.signal
-            });
+            // Fetch order information for each game with rate limiting
+            const resultsWithOrder = await Promise.all(
+                results.map(async (game, index) => {
+                    try {
+                        // Add a small delay between requests to avoid overwhelming the API
+                        if (index > 0) {
+                            await new Promise(resolve => setTimeout(resolve, 50));
+                        }
 
-            clearTimeout(timeoutId);
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 5000);
+                        
+                        const response = await fetch(`/api/proxy/games/${game.id}`, {
+                            cache: "no-store",
+                            signal: controller.signal
+                        });
+                        
+                        clearTimeout(timeoutId);
 
-            if (!response.ok) {
-                throw new Error(`Location games fetch failed: ${response.status}`);
-            }
-
-            const locationGames = await response.json();
-            
-            // Create a map of game ID to order from the location endpoint
-            const orderMap = new Map();
-            if (Array.isArray(locationGames)) {
-                locationGames.forEach((game: any, index: number) => {
-                    // Use the index as order, or if the game has an order field, use that
-                    orderMap.set(game.id, game.order !== undefined ? game.order : index);
-                });
-            }
-            
-            // Map the order data back to our search results
-            const resultsWithOrder = results.map(game => ({
-                ...game,
-                order: orderMap.get(game.id) ?? 999999 // Default to high number for games not in location
-            }));
+                        if (response.ok) {
+                            const details = await response.json();
+                            return { ...game, order: details.order || 0 };
+                        } else {
+                            console.warn(`Failed to fetch order for game ${game.id}: ${response.status}`);
+                            return { ...game, order: 0 };
+                        }
+                    } catch (error) {
+                        console.warn(`Failed to fetch order for game ${game.id}:`, error);
+                        return { ...game, order: 0 };
+                    }
+                })
+            );
 
             // Sort by order (simple numeric sorting)
             const sorted = resultsWithOrder.sort((a, b) => {

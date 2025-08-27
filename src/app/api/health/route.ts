@@ -6,9 +6,9 @@ import { API_BASE_URL } from "@/lib/env";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-    // 1) API online check (same as before)
+    // 1) API online check (with reduced frequency)
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000); // Reduced timeout
+    const timeout = setTimeout(() => controller.abort(), 2000); // Reduced timeout
 
     let online = false;
     try {
@@ -18,7 +18,10 @@ export async function GET() {
         });
         online = res.ok;
     } catch (error) {
-        console.warn("API health check failed:", error);
+        // Only log errors in development
+        if (process.env.NODE_ENV === 'development') {
+            console.warn("API health check failed:", error);
+        }
         online = false;
     } finally {
         clearTimeout(timeout);
@@ -30,7 +33,9 @@ export async function GET() {
         const token = readToken();
         authed = token ? isJwtActive(token) : false;
     } catch (error) {
-        console.warn("Auth check failed:", error);
+        if (process.env.NODE_ENV === 'development') {
+            console.warn("Auth check failed:", error);
+        }
         // Keep authed as false on error
     }
 
