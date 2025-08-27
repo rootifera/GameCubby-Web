@@ -46,31 +46,38 @@ export function SortableResults({ results, sortByOrder, locationId }: SortableRe
         setSortError(null);
 
         try {
-            // Use the new batch API endpoint to fetch order information for all games at once
-            const response = await fetch('/api/proxy/games/batch-order', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ gameIds: results.map(game => game.id) }),
+            // Create an AbortController for timeout handling
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            
+            // Fetch games from the location-specific endpoint which should have proper ordering
+            const response = await fetch(`/api/proxy/locations/${locationId}/games`, {
                 cache: "no-store",
-                signal: AbortSignal.timeout(10000)
+                signal: controller.signal
             });
+
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
-                throw new Error(`Batch order fetch failed: ${response.status}`);
+                throw new Error(`Location games fetch failed: ${response.status}`);
             }
 
-            const { orders } = await response.json();
+            const locationGames = await response.json();
             
-            // Map the order data back to the games
-            const resultsWithOrder = results.map(game => {
-                const orderData = orders.find((o: any) => o.id === game.id);
-                return {
-                    ...game,
-                    order: orderData?.order || 0
-                };
-            });
+            // Create a map of game ID to order from the location endpoint
+            const orderMap = new Map();
+            if (Array.isArray(locationGames)) {
+                locationGames.forEach((game: any, index: number) => {
+                    // Use the index as order, or if the game has an order field, use that
+                    orderMap.set(game.id, game.order !== undefined ? game.order : index);
+                });
+            }
+            
+            // Map the order data back to our search results
+            const resultsWithOrder = results.map(game => ({
+                ...game,
+                order: orderMap.get(game.id) ?? 999999 // Default to high number for games not in location
+            }));
 
             // Sort by order (simple numeric sorting)
             const sorted = resultsWithOrder.sort((a, b) => {

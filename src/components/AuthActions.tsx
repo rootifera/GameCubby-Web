@@ -26,11 +26,16 @@ export default function AuthActions() {
         lastCheckTime.current = now;
 
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+            
             const res = await fetch("/api/health", { 
                 cache: "no-store",
                 // Add timeout to prevent hanging requests
-                signal: AbortSignal.timeout(3000)
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             
             if (res.ok) {
                 const data = (await res.json()) as { authed?: boolean };

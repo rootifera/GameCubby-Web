@@ -19,11 +19,16 @@ export async function POST(req: NextRequest) {
         // Fetch order information for all games in parallel
         const orderPromises = gameIds.map(async (gameId: number) => {
             try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                
                 const response = await fetch(`${API_BASE_URL}/games/${gameId}`, {
                     cache: "no-store",
                     headers: { Accept: "application/json" },
-                    signal: AbortSignal.timeout(5000)
+                    signal: controller.signal
                 });
+
+                clearTimeout(timeoutId);
 
                 if (!response.ok) {
                     return { id: gameId, order: 0, error: `HTTP ${response.status}` };
