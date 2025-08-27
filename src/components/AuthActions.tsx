@@ -8,6 +8,8 @@ export default function AuthActions() {
     const [checking, setChecking] = useState(false);
 
     async function check() {
+        if (checking) return;
+        
         setChecking(true);
         try {
             const res = await fetch("/api/health", { cache: "no-store" });
@@ -22,13 +24,8 @@ export default function AuthActions() {
 
     useEffect(() => {
         void check(); // initial
-        const onFocus = () => void check();
-        window.addEventListener("focus", onFocus);
-        const id = setInterval(check, 30000);
-        return () => {
-            window.removeEventListener("focus", onFocus);
-            clearInterval(id);
-        };
+        const id = setInterval(check, 30000); // Check every 30 seconds
+        return () => clearInterval(id);
     }, []);
 
     return (
@@ -41,7 +38,7 @@ export default function AuthActions() {
             ) : (
                 <Link href="/admin/login" style={btnPrimary}>Login</Link>
             )}
-            {/* no “refreshing” text; background checks happen silently */}
+            {/* no "refreshing" text; background checks happen silently */}
         </div>
     );
 }

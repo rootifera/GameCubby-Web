@@ -52,8 +52,8 @@ export default function ApiStatus() {
     useEffect(() => {
         // initial check
         ping();
-        // re-check every 30s
-        timerRef.current = setInterval(ping, 30000);
+        // re-check every 60s (increased from 30s to reduce API calls)
+        timerRef.current = setInterval(ping, 60000);
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
