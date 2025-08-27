@@ -481,22 +481,22 @@ const btn: React.CSSProperties = {
 };
 const btnDisabled: React.CSSProperties = { ...btn, opacity: 0.5, pointerEvents: "none" };
 
-const toggleActive: React.CSSProperties = {
+const toggleBase: React.CSSProperties = {
     textDecoration: "none",
-    color: "#fff",
-    border: "1px solid #3b82f6",
-    borderRadius: 8,
-    padding: "8px 12px",
-    fontWeight: 600,
-    background: "#1e293b",
-};
-
-const toggleInactive: React.CSSProperties = {
-    textDecoration: "none",
-    color: "#d8d8d8",
+    padding: "6px 10px",
+    borderRadius: 999,
+    fontSize: 13,
     border: "1px solid #2b2b2b",
-    borderRadius: 8,
-    padding: "8px 12px",
+};
+const toggleActive: React.CSSProperties = {
+    ...toggleBase,
+    background: "#1e293b",
+    borderColor: "#3b82f6",
+    color: "#fff",
     fontWeight: 600,
+};
+const toggleInactive: React.CSSProperties = {
+    ...toggleBase,
     background: "#151515",
+    color: "#d8d8d8",
 };
