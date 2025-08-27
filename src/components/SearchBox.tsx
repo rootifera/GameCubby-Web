@@ -88,7 +88,7 @@ export default function SearchBox({
             } catch {
                 // ignore aborted/failed fetch
             }
-        }, 150);
+        }, 300);
 
         return () => clearTimeout(t);
     }, [q]);
