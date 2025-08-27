@@ -43,9 +43,16 @@ export default function SearchBox({
     const abortRef = useRef<AbortController | null>(null);
     const wrapRef = useRef<HTMLDivElement | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
+    const justSelectedRef = useRef(false);
 
     // Fetch suggestions for any length >= 2
     useEffect(() => {
+        // Skip if we just selected a suggestion
+        if (justSelectedRef.current) {
+            justSelectedRef.current = false;
+            return;
+        }
+
         const value = q.trim();
         setHighlight(-1);
 
