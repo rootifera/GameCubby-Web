@@ -132,12 +132,9 @@ export default function SearchBox({
                 const chosen = items[highlight].trim();
                 setQ(chosen);
                 setOpen(false);
-                if (onSelectNavigateTo) {
-                    navigateTo(onSelectNavigateTo, chosen);
-                } else {
-                    // advanced mode: just set the value in input; parent form will submit
-                    inputRef.current?.form?.requestSubmit();
-                }
+                // Don't navigate automatically - just fill the input field
+                // User needs to manually submit the form
+                inputRef.current?.focus();
             }
         } else if (e.key === "Escape") {
             setOpen(false);
@@ -148,12 +145,9 @@ export default function SearchBox({
         const chosen = nameVal.trim();
         setQ(chosen);
         setOpen(false);
-        if (onSelectNavigateTo) {
-            navigateTo(onSelectNavigateTo, chosen);
-        } else {
-            // advanced mode: keep focus, no navigation
-            inputRef.current?.focus();
-        }
+        // Don't navigate automatically - just fill the input field
+        // User needs to manually submit the form
+        inputRef.current?.focus();
     }
 
     const InputEl = (
