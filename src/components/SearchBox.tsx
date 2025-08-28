@@ -40,6 +40,8 @@ export default function SearchBox({
     const [open, setOpen] = useState(false);
     const [items, setItems] = useState<string[]>([]);
     const [highlight, setHighlight] = useState(-1);
+    const [searchDisabled, setSearchDisabled] = useState(false);
+    const [lastSelectedValue, setLastSelectedValue] = useState("");
     const abortRef = useRef<AbortController | null>(null);
     const wrapRef = useRef<HTMLDivElement | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
@@ -90,7 +92,7 @@ export default function SearchBox({
         }, 1000);
 
         return () => clearTimeout(t);
-    }, [q]);
+    }, [q, searchDisabled]);
 
     // Click outside to close
     useEffect(() => {
@@ -137,6 +139,11 @@ export default function SearchBox({
                 const chosen = items[highlight].trim();
                 setQ(chosen);
                 setOpen(false);
+                
+                // Disable search and remember the selected value
+                setSearchDisabled(true);
+                setLastSelectedValue(chosen);
+                
                 // Don't navigate automatically - just fill the input field
                 // User needs to manually submit the form
                 inputRef.current?.focus();
@@ -150,6 +157,11 @@ export default function SearchBox({
         const chosen = nameVal.trim();
         setQ(chosen);
         setOpen(false);
+        
+        // Disable search and remember the selected value
+        setSearchDisabled(true);
+        setLastSelectedValue(chosen);
+        
         // Don't navigate automatically - just fill the input field
         // User needs to manually submit the form
         inputRef.current?.focus();
@@ -162,7 +174,15 @@ export default function SearchBox({
                 ref={inputRef}
                 name={name}
                 value={q}
-                onChange={(e) => setQ(e.target.value)}
+                onChange={(e) => {
+                    const newValue = e.target.value;
+                    setQ(newValue);
+                    
+                    // If user types something different from what was selected, re-enable search
+                    if (searchDisabled && newValue !== lastSelectedValue) {
+                        setSearchDisabled(false);
+                    }
+                }}
                 onKeyDown={onKeyDown}
                 placeholder={placeholder}
                 autoComplete="off"
