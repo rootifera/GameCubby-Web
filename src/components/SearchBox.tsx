@@ -40,12 +40,51 @@ export default function SearchBox({
     const [open, setOpen] = useState(false);
     const [items, setItems] = useState<string[]>([]);
     const [highlight, setHighlight] = useState(-1);
+    const [searchDisabled, setSearchDisabled] = useState(() => {
+        // Only run in browser, not during SSR
+        if (typeof window === 'undefined') return false;
+        
+        // Check if search was disabled for this value in localStorage
+        const stored = localStorage.getItem('searchBoxDisabled');
+        if (stored) {
+            const { value, timestamp } = JSON.parse(stored);
+            // Only disable if it's the same value and within last 5 minutes
+            if (value === defaultValue && Date.now() - timestamp < 5 * 60 * 1000) {
+                return true;
+            }
+        }
+        return false;
+    });
+    
+    const [lastSelectedValue, setLastSelectedValue] = useState("");
+    
+    // Effect to handle page refreshes with search results
+    useEffect(() => {
+        // Only run in browser, not during SSR
+        if (typeof window === 'undefined') return;
+        
+        const stored = localStorage.getItem('searchBoxDisabled');
+        if (stored) {
+            const { value, timestamp } = JSON.parse(stored);
+            // If page refreshed with the same value that was disabled, keep it disabled
+            if (value === q && Date.now() - timestamp < 5 * 60 * 1000) {
+                setSearchDisabled(true);
+                setLastSelectedValue(value);
+            }
+        }
+    }, [q]);
+    
     const abortRef = useRef<AbortController | null>(null);
     const wrapRef = useRef<HTMLDivElement | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
 
     // Fetch suggestions for any length >= 2
     useEffect(() => {
+        // Skip if search is disabled
+        if (searchDisabled) {
+            return;
+        }
+
         const value = q.trim();
         setHighlight(-1);
 
@@ -82,10 +121,10 @@ export default function SearchBox({
             } catch {
                 // ignore aborted/failed fetch
             }
-        }, 150);
+        }, 1000);
 
         return () => clearTimeout(t);
-    }, [q]);
+    }, [q, searchDisabled]);
 
     // Click outside to close
     useEffect(() => {
@@ -95,6 +134,41 @@ export default function SearchBox({
         }
         document.addEventListener("mousedown", onDocClick);
         return () => document.removeEventListener("mousedown", onDocClick);
+    }, []);
+
+    // Listen for form reset events to clear the input and other form fields
+    useEffect(() => {
+        function onReset(ev: Event) {
+            const form = ev.target as HTMLFormElement | null;
+            if (!form || !inputRef.current) return;
+            if (!form.contains(inputRef.current)) return;
+            
+            // Clear the input and reset search state
+            setQ("");
+            setOpen(false);
+            setItems([]);
+            setHighlight(-1);
+            setSearchDisabled(false);
+            setLastSelectedValue("");
+            
+            // Also clear other form fields since they use defaultValue and don't respond to form reset
+            const yearInput = form.querySelector('[name="year"]') as HTMLInputElement;
+            if (yearInput) yearInput.value = '';
+            
+            const platformSelect = form.querySelector('[name="platform_id"]') as HTMLSelectElement;
+            if (platformSelect) platformSelect.value = '';
+            
+            const matchModeSelect = form.querySelector('[name="match_mode"]') as HTMLSelectElement;
+            if (matchModeSelect) matchModeSelect.value = 'any';
+            
+            const sizeInput = form.querySelector('[name="size"]') as HTMLInputElement;
+            if (sizeInput) sizeInput.value = '20';
+            
+            // Clear search results by navigating to base search page
+            window.location.href = '/search';
+        }
+        document.addEventListener("reset", onReset, true);
+        return () => document.removeEventListener("reset", onReset, true);
     }, []);
 
     function navigateTo(path: string, value: string) {
@@ -132,12 +206,22 @@ export default function SearchBox({
                 const chosen = items[highlight].trim();
                 setQ(chosen);
                 setOpen(false);
-                if (onSelectNavigateTo) {
-                    navigateTo(onSelectNavigateTo, chosen);
-                } else {
-                    // advanced mode: just set the value in input; parent form will submit
-                    inputRef.current?.form?.requestSubmit();
+                
+                // Disable search and remember the selected value
+                setSearchDisabled(true);
+                setLastSelectedValue(chosen);
+                
+                // Save to localStorage to persist across page reloads
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('searchBoxDisabled', JSON.stringify({
+                        value: chosen,
+                        timestamp: Date.now()
+                    }));
                 }
+                
+                // Don't navigate automatically - just fill the input field
+                // User needs to manually submit the form
+                inputRef.current?.focus();
             }
         } else if (e.key === "Escape") {
             setOpen(false);
@@ -148,12 +232,22 @@ export default function SearchBox({
         const chosen = nameVal.trim();
         setQ(chosen);
         setOpen(false);
-        if (onSelectNavigateTo) {
-            navigateTo(onSelectNavigateTo, chosen);
-        } else {
-            // advanced mode: keep focus, no navigation
-            inputRef.current?.focus();
+        
+        // Disable search and remember the selected value
+        setSearchDisabled(true);
+        setLastSelectedValue(chosen);
+        
+        // Save to localStorage to persist across page reloads
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('searchBoxDisabled', JSON.stringify({
+                value: chosen,
+                timestamp: Date.now()
+            }));
         }
+        
+        // Don't navigate automatically - just fill the input field
+        // User needs to manually submit the form
+        inputRef.current?.focus();
     }
 
     const InputEl = (
@@ -163,7 +257,15 @@ export default function SearchBox({
                 ref={inputRef}
                 name={name}
                 value={q}
-                onChange={(e) => setQ(e.target.value)}
+                onChange={(e) => {
+                    const newValue = e.target.value;
+                    setQ(newValue);
+                    
+                    // If user types something different from what was selected, re-enable search
+                    if (searchDisabled && newValue !== lastSelectedValue) {
+                        setSearchDisabled(false);
+                    }
+                }}
                 onKeyDown={onKeyDown}
                 placeholder={placeholder}
                 autoComplete="off"

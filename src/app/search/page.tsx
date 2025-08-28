@@ -4,7 +4,7 @@ import SearchBox from "@/components/SearchBox";
 import TagChipsAutocomplete from "@/components/TagChipsAutocomplete";
 import CoverThumb from "@/components/CoverThumb";
 import GameHoverCard from "@/components/GameHoverCard";
-import { ToggleButton } from "./ToggleButton";
+
 
 /* ------------ types ------------ */
 
@@ -184,7 +184,7 @@ export default async function BasicSearchPage({
                 <h1 style={{ fontSize: 24, margin: 0 }}>Search</h1>
             </div>
 
-            {/* Basic / Advanced toggle below header (match /games bar spacing) */}
+            {/* Basic / Advanced toggle below header */}
             <div
                 style={{
                     display: "flex",
@@ -202,27 +202,23 @@ export default async function BasicSearchPage({
                 </Link>
             </div>
 
-            {/* Search bar (same width rhythm as /games controls) */}
-            <div style={{ marginBottom: 16 }}>
-                <div style={{ maxWidth: 540, width: "100%" }}>
-                    {/* CHANGED: do not repopulate from URL */}
-                    <SearchBox defaultValue="" />
-                </div>
-            </div>
-
-            {/* Extra parameters */}
-            <details style={detailsWrap}>
-                <summary style={summaryBar}>
-                    <span>Additional parameters</span>
-                    <ToggleButton />
-                </summary>
-
-                <form method="GET" action="/search" style={{ display: "grid", gap: 16, padding: "16px", marginBottom: 12 }}>
-                    {/* Keep q sticky */}
-                    <input type="hidden" name="q" value={q} />
+            {/* Basic search form - always visible */}
+            <div style={{ border: "1px solid #222", borderRadius: 10, background: "#121212", marginBottom: 16 }}>
+                <form method="GET" action="/search" style={{ display: "grid", gap: 16, padding: "16px", marginBottom: 12, gridTemplateColumns: "1fr 1fr" }}>
+                    {/* Search input */}
+                    <div style={{ gridColumn: "span 2" }}>
+                        <label style={{ display: "grid", gap: 6 }}>
+                            <span style={{ opacity: 0.85 }}>Search games</span>
+                            <SearchBox 
+                                defaultValue={q} 
+                                wrapWithForm={false}
+                                onSelectNavigateTo={null}
+                            />
+                        </label>
+                    </div>
 
                     {/* Row 1 — Year + Platform */}
-                    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "200px 1fr" }}>
+                    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "200px 1fr", gridColumn: "span 2" }}>
                         <label style={{ display: "grid", gap: 6 }}>
                             <span style={{ opacity: 0.85 }}>Year (exact)</span>
                             <input
@@ -251,7 +247,7 @@ export default async function BasicSearchPage({
                     </div>
 
                     {/* Row 2 — Tags + Match mode */}
-                    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 200px" }}>
+                    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 200px", gridColumn: "span 2" }}>
                         <TagChipsAutocomplete
                             label="Tags"
                             name="tag_ids"
@@ -270,12 +266,12 @@ export default async function BasicSearchPage({
                     </div>
 
                     {/* Page size control */}
-                    <div style={{ display: "grid", gap: 6, maxWidth: 200 }}>
+                    <div style={{ display: "grid", gap: 6, maxWidth: 200, gridColumn: "span 2" }}>
                         <span style={{ opacity: 0.85 }}>Page size</span>
                         <input name="size" defaultValue={String(size)} inputMode="numeric" style={inputShort} />
                     </div>
 
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 8, gridColumn: "span 2" }}>
                         <button
                             type="submit"
                             style={{
@@ -290,21 +286,22 @@ export default async function BasicSearchPage({
                         >
                             Apply
                         </button>
-                        <Link
-                            href={{ pathname: "/search" }}
+                        <button
+                            type="reset"
                             style={{
                                 color: "#d8d8d8",
                                 border: "1px solid #2b2b2b",
                                 borderRadius: 8,
                                 padding: "10px 14px",
-                                textDecoration: "none",
+                                background: "transparent",
+                                cursor: "pointer",
                             }}
                         >
                             Reset
-                        </Link>
+                        </button>
                     </div>
                 </form>
-            </details>
+            </div>
 
             {/* Pagination (top) */}
             {hasAnyParam && !error ? (
@@ -454,43 +451,9 @@ function BasicPager({
     );
 }
 
-const inputShort: React.CSSProperties = {
-    background: "#1a1a1a",
-    color: "#eaeaea",
-    border: "1px solid #2b2b2b",
-    borderRadius: 8,
-    padding: "12px 16px",
-    outline: "none",
-    maxWidth: 200,
-};
 
-const selectStyle: React.CSSProperties = {
-    background: "#1a1a1a",
-    color: "#eaeaea",
-    border: "1px solid #2b2b2b",
-    borderRadius: 8,
-    padding: "12px 16px",
-    outline: "none",
-};
 
-const detailsWrap: React.CSSProperties = {
-    border: "1px solid #222",
-    borderRadius: 10,
-    background: "#121212",
-    marginBottom: 16,
-};
-const summaryBar: React.CSSProperties = {
-    listStyle: "none",
-    cursor: "pointer",
-    userSelect: "none" as const,
-    padding: "10px 12px",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderBottom: "1px solid #222",
-    color: "#eaeaea",
-    fontWeight: 600,
-};
+
 
 const btn: React.CSSProperties = {
     textDecoration: "none",
@@ -503,7 +466,6 @@ const btn: React.CSSProperties = {
 };
 const btnDisabled: React.CSSProperties = { ...btn, opacity: 0.5, pointerEvents: "none" };
 
-/* Toggle button styles */
 const toggleBase: React.CSSProperties = {
     textDecoration: "none",
     padding: "6px 10px",
@@ -522,4 +484,23 @@ const toggleInactive: React.CSSProperties = {
     ...toggleBase,
     background: "#151515",
     color: "#d8d8d8",
+};
+
+const inputShort: React.CSSProperties = {
+    background: "#1a1a1a",
+    color: "#eaeaea",
+    border: "1px solid #2b2b2b",
+    borderRadius: 8,
+    padding: "12px 16px",
+    outline: "none",
+    maxWidth: 200,
+};
+
+const selectStyle: React.CSSProperties = {
+    background: "#1a1a1a",
+    color: "#eaeaea",
+    border: "1px solid #2b2b2b",
+    borderRadius: 8,
+    padding: "12px 16px",
+    outline: "none",
 };
