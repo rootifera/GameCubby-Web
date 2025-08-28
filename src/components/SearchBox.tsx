@@ -47,12 +47,6 @@ export default function SearchBox({
 
     // Fetch suggestions for any length >= 2
     useEffect(() => {
-        // Skip if we just selected a suggestion
-        if (justSelectedRef.current) {
-            justSelectedRef.current = false;
-            return;
-        }
-
         const value = q.trim();
         setHighlight(-1);
 
