@@ -10,11 +10,13 @@ let lastHealthCheck = 0;
 let cachedHealthStatus: { online: boolean; authed: boolean } | null = null;
 const CACHE_DURATION = 25000; // 25 seconds
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     const now = Date.now();
+    const url = new URL(request.url);
+    const forceRefresh = url.searchParams.has('t'); // Cache busting parameter
     
-    // Return cached result if it's still valid
-    if (cachedHealthStatus && (now - lastHealthCheck) < CACHE_DURATION) {
+    // Return cached result if it's still valid AND not forcing refresh
+    if (!forceRefresh && cachedHealthStatus && (now - lastHealthCheck) < CACHE_DURATION) {
         return NextResponse.json(cachedHealthStatus, { 
             status: 200, 
             headers: { 

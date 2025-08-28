@@ -30,8 +30,13 @@ export async function GET(req: NextRequest) {
     <script>
       (function () {
         try {
-          fetch('/api/health', { cache: 'no-store', credentials: 'same-origin' })
-            .finally(function () { window.location.replace('/admin/login'); });
+          // Clear any cached authentication state by calling health with cache busting
+          fetch('/api/health?t=' + Date.now(), { 
+            cache: 'no-store', 
+            credentials: 'same-origin',
+            headers: { 'Cache-Control': 'no-cache' }
+          })
+          .finally(function () { window.location.replace('/admin/login'); });
         } catch (e) {
           window.location.replace('/admin/login');
         }

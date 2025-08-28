@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
         const isProd = process.env.NODE_ENV === "production";
         const res = new NextResponse(null, {
             status: 303,
-            headers: { Location: next || "/admin" },
+            headers: { Location: `/admin/login/success?next=${encodeURIComponent(next)}` },
         });
 
         // Determine if cookies should be secure based on PROXY setting
