@@ -204,7 +204,7 @@ export default async function BasicSearchPage({
 
             {/* Basic search form - always visible */}
             <div style={{ border: "1px solid #222", borderRadius: 10, background: "#121212", marginBottom: 16 }}>
-                <form method="GET" action="/search" style={{ display: "grid", gap: 16, padding: "16px", marginBottom: 12, gridTemplateColumns: "1fr 1fr" }} onReset={() => window.location.href = '/search'}>
+                <form method="GET" action="/search" style={{ display: "grid", gap: 16, padding: "16px", marginBottom: 12, gridTemplateColumns: "1fr 1fr" }}>
                     {/* Search input */}
                     <div style={{ gridColumn: "span 2" }}>
                         <label style={{ display: "grid", gap: 6 }}>

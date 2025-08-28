@@ -163,6 +163,9 @@ export default function SearchBox({
             
             const sizeInput = form.querySelector('[name="size"]') as HTMLInputElement;
             if (sizeInput) sizeInput.value = '20';
+            
+            // Clear search results by navigating to base search page
+            window.location.href = '/search';
         }
         document.addEventListener("reset", onReset, true);
         return () => document.removeEventListener("reset", onReset, true);
