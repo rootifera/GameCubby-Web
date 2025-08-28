@@ -40,8 +40,34 @@ export default function SearchBox({
     const [open, setOpen] = useState(false);
     const [items, setItems] = useState<string[]>([]);
     const [highlight, setHighlight] = useState(-1);
-    const [searchDisabled, setSearchDisabled] = useState(false);
+    const [searchDisabled, setSearchDisabled] = useState(() => {
+        // Check if search was disabled for this value in localStorage
+        const stored = localStorage.getItem('searchBoxDisabled');
+        if (stored) {
+            const { value, timestamp } = JSON.parse(stored);
+            // Only disable if it's the same value and within last 5 minutes
+            if (value === defaultValue && Date.now() - timestamp < 5 * 60 * 1000) {
+                return true;
+            }
+        }
+        return false;
+    });
+    
     const [lastSelectedValue, setLastSelectedValue] = useState("");
+    
+    // Effect to handle page refreshes with search results
+    useEffect(() => {
+        const stored = localStorage.getItem('searchBoxDisabled');
+        if (stored) {
+            const { value, timestamp } = JSON.parse(stored);
+            // If page refreshed with the same value that was disabled, keep it disabled
+            if (value === q && Date.now() - timestamp < 5 * 60 * 1000) {
+                setSearchDisabled(true);
+                setLastSelectedValue(value);
+            }
+        }
+    }, [q]);
+
     const abortRef = useRef<AbortController | null>(null);
     const wrapRef = useRef<HTMLDivElement | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
