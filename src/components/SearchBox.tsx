@@ -152,6 +152,7 @@ export default function SearchBox({
         const chosen = nameVal.trim();
         setQ(chosen);
         setOpen(false);
+        justSelectedRef.current = true;
         // Don't navigate automatically - just fill the input field
         // User needs to manually submit the form
         inputRef.current?.focus();
