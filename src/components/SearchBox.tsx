@@ -43,10 +43,14 @@ export default function SearchBox({
     const abortRef = useRef<AbortController | null>(null);
     const wrapRef = useRef<HTMLDivElement | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
-    const justSelectedRef = useRef(false);
 
     // Fetch suggestions for any length >= 2
     useEffect(() => {
+        // Skip if search is disabled
+        if (searchDisabled) {
+            return;
+        }
+
         const value = q.trim();
         setHighlight(-1);
 
@@ -83,7 +87,7 @@ export default function SearchBox({
             } catch {
                 // ignore aborted/failed fetch
             }
-        }, 300);
+        }, 1000);
 
         return () => clearTimeout(t);
     }, [q]);
@@ -146,7 +150,6 @@ export default function SearchBox({
         const chosen = nameVal.trim();
         setQ(chosen);
         setOpen(false);
-        justSelectedRef.current = true;
         // Don't navigate automatically - just fill the input field
         // User needs to manually submit the form
         inputRef.current?.focus();
