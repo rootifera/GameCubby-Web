@@ -4,6 +4,7 @@ import SearchBox from "@/components/SearchBox";
 import TagChipsAutocomplete from "@/components/TagChipsAutocomplete";
 import CoverThumb from "@/components/CoverThumb";
 import GameHoverCard from "@/components/GameHoverCard";
+import SearchFormWrapper from "./SearchFormWrapper";
 
 /* ------------ types ------------ */
 
@@ -450,24 +451,7 @@ function BasicPager({
     );
 }
 
-const inputShort: React.CSSProperties = {
-    background: "#1a1a1a",
-    color: "#eaeaea",
-    border: "1px solid #2b2b2b",
-    borderRadius: 8,
-    padding: "12px 16px",
-    outline: "none",
-    maxWidth: 200,
-};
 
-const selectStyle: React.CSSProperties = {
-    background: "#1a1a1a",
-    color: "#eaeaea",
-    border: "1px solid #2b2b2b",
-    borderRadius: 8,
-    padding: "12px 16px",
-    outline: "none",
-};
 
 
 
