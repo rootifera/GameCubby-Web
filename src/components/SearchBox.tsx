@@ -136,6 +136,25 @@ export default function SearchBox({
         return () => document.removeEventListener("mousedown", onDocClick);
     }, []);
 
+    // Listen for form reset events to clear the input
+    useEffect(() => {
+        function onReset(ev: Event) {
+            const form = ev.target as HTMLFormElement | null;
+            if (!form || !inputRef.current) return;
+            if (!form.contains(inputRef.current)) return;
+            
+            // Clear the input and reset search state
+            setQ("");
+            setOpen(false);
+            setItems([]);
+            setHighlight(-1);
+            setSearchDisabled(false);
+            setLastSelectedValue("");
+        }
+        document.addEventListener("reset", onReset, true);
+        return () => document.removeEventListener("reset", onReset, true);
+    }, []);
+
     function navigateTo(path: string, value: string) {
         const u = new URL(path, window.location.origin);
         u.searchParams.set(name, value);
