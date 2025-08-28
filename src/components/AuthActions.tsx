@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 export default function AuthActions() {
     const [authed, setAuthed] = useState<boolean | null>(null);
     const [checking, setChecking] = useState(false);
+    const [initialized, setInitialized] = useState(false); // Track if we've completed first check
     const pathname = usePathname();
 
     async function check() {
@@ -14,9 +15,12 @@ export default function AuthActions() {
         
         setChecking(true);
         try {
-            const res = await fetch("/api/health", { cache: "no-store" });
+            // Add cache busting parameter to ensure fresh data
+            const timestamp = Date.now();
+            const res = await fetch(`/api/health?t=${timestamp}`, { cache: "no-store" });
             const data = (await res.json()) as { authed?: boolean };
             setAuthed(Boolean(data?.authed));
+            setInitialized(true); // Mark as initialized after first check
         } catch {
             // keep last-known state to avoid flicker
         } finally {
@@ -35,6 +39,15 @@ export default function AuthActions() {
         const id = setInterval(check, 5000);
         return () => clearInterval(id);
     }, [pathname]); // Re-run when pathname changes
+
+    // Don't show anything until we've completed the first authentication check
+    if (!initialized) {
+        return (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ opacity: 0.6, fontSize: 14 }}>Checking...</span>
+            </div>
+        );
+    }
 
     return (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
