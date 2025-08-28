@@ -144,6 +144,12 @@ export default function SearchBox({
                 setSearchDisabled(true);
                 setLastSelectedValue(chosen);
                 
+                // Save to localStorage to persist across page reloads
+                localStorage.setItem('searchBoxDisabled', JSON.stringify({
+                    value: chosen,
+                    timestamp: Date.now()
+                }));
+                
                 // Don't navigate automatically - just fill the input field
                 // User needs to manually submit the form
                 inputRef.current?.focus();
@@ -161,6 +167,12 @@ export default function SearchBox({
         // Disable search and remember the selected value
         setSearchDisabled(true);
         setLastSelectedValue(chosen);
+        
+        // Save to localStorage to persist across page reloads
+        localStorage.setItem('searchBoxDisabled', JSON.stringify({
+            value: chosen,
+            timestamp: Date.now()
+        }));
         
         // Don't navigate automatically - just fill the input field
         // User needs to manually submit the form
