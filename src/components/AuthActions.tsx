@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 export default function AuthActions() {
     const [authed, setAuthed] = useState<boolean | null>(null);
     const [checking, setChecking] = useState(false);
+    const pathname = usePathname();
 
     async function check() {
         if (checking) return;
@@ -23,10 +25,16 @@ export default function AuthActions() {
     }
 
     useEffect(() => {
-        void check(); // initial
-        const id = setInterval(check, 30000); // Check every 30 seconds
+        // Check immediately when component mounts
+        void check();
+        
+        // Check immediately when pathname changes (page navigation)
+        void check();
+        
+        // Also check every 5 seconds as backup
+        const id = setInterval(check, 5000);
         return () => clearInterval(id);
-    }, []);
+    }, [pathname]); // Re-run when pathname changes
 
     return (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
