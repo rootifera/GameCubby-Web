@@ -41,6 +41,9 @@ export default function SearchBox({
     const [items, setItems] = useState<string[]>([]);
     const [highlight, setHighlight] = useState(-1);
     const [searchDisabled, setSearchDisabled] = useState(() => {
+        // Only run in browser, not during SSR
+        if (typeof window === 'undefined') return false;
+        
         // Check if search was disabled for this value in localStorage
         const stored = localStorage.getItem('searchBoxDisabled');
         if (stored) {
@@ -174,10 +177,12 @@ export default function SearchBox({
                 setLastSelectedValue(chosen);
                 
                 // Save to localStorage to persist across page reloads
-                localStorage.setItem('searchBoxDisabled', JSON.stringify({
-                    value: chosen,
-                    timestamp: Date.now()
-                }));
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('searchBoxDisabled', JSON.stringify({
+                        value: chosen,
+                        timestamp: Date.now()
+                    }));
+                }
                 
                 // Don't navigate automatically - just fill the input field
                 // User needs to manually submit the form
@@ -198,10 +203,12 @@ export default function SearchBox({
         setLastSelectedValue(chosen);
         
         // Save to localStorage to persist across page reloads
-        localStorage.setItem('searchBoxDisabled', JSON.stringify({
-            value: chosen,
-            timestamp: Date.now()
-        }));
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('searchBoxDisabled', JSON.stringify({
+                value: chosen,
+                timestamp: Date.now()
+            }));
+        }
         
         // Don't navigate automatically - just fill the input field
         // User needs to manually submit the form
