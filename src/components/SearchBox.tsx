@@ -57,6 +57,9 @@ export default function SearchBox({
     
     // Effect to handle page refreshes with search results
     useEffect(() => {
+        // Only run in browser, not during SSR
+        if (typeof window === 'undefined') return;
+        
         const stored = localStorage.getItem('searchBoxDisabled');
         if (stored) {
             const { value, timestamp } = JSON.parse(stored);
@@ -67,7 +70,7 @@ export default function SearchBox({
             }
         }
     }, [q]);
-
+    
     const abortRef = useRef<AbortController | null>(null);
     const wrapRef = useRef<HTMLDivElement | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
