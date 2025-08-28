@@ -285,18 +285,19 @@ export default async function BasicSearchPage({
                         >
                             Apply
                         </button>
-                        <Link
-                            href={{ pathname: "/search" }}
+                        <button
+                            type="reset"
                             style={{
                                 color: "#d8d8d8",
                                 border: "1px solid #2b2b2b",
                                 borderRadius: 8,
                                 padding: "10px 14px",
-                                textDecoration: "none",
+                                background: "transparent",
+                                cursor: "pointer",
                             }}
                         >
                             Reset
-                        </Link>
+                        </button>
                     </div>
                 </form>
             </div>
