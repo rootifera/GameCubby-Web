@@ -136,7 +136,7 @@ export default function SearchBox({
         return () => document.removeEventListener("mousedown", onDocClick);
     }, []);
 
-    // Listen for form reset events to clear the input
+    // Listen for form reset events to clear the input and other form fields
     useEffect(() => {
         function onReset(ev: Event) {
             const form = ev.target as HTMLFormElement | null;
@@ -150,6 +150,19 @@ export default function SearchBox({
             setHighlight(-1);
             setSearchDisabled(false);
             setLastSelectedValue("");
+            
+            // Also clear other form fields since they use defaultValue and don't respond to form reset
+            const yearInput = form.querySelector('[name="year"]') as HTMLInputElement;
+            if (yearInput) yearInput.value = '';
+            
+            const platformSelect = form.querySelector('[name="platform_id"]') as HTMLSelectElement;
+            if (platformSelect) platformSelect.value = '';
+            
+            const matchModeSelect = form.querySelector('[name="match_mode"]') as HTMLSelectElement;
+            if (matchModeSelect) matchModeSelect.value = 'any';
+            
+            const sizeInput = form.querySelector('[name="size"]') as HTMLInputElement;
+            if (sizeInput) sizeInput.value = '20';
         }
         document.addEventListener("reset", onReset, true);
         return () => document.removeEventListener("reset", onReset, true);

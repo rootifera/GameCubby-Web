@@ -203,25 +203,7 @@ export default async function BasicSearchPage({
 
             {/* Basic search form - always visible */}
             <div style={{ border: "1px solid #222", borderRadius: 10, background: "#121212", marginBottom: 16 }}>
-                <form method="GET" action="/search" style={{ display: "grid", gap: 16, padding: "16px", marginBottom: 12, gridTemplateColumns: "1fr 1fr" }} onReset={(e) => {
-                    // Manually clear the SearchBox and TagChipsAutocomplete components
-                    // since they use defaultValue and don't respond to form reset
-                    const searchBox = e.currentTarget.querySelector('[name="q"]') as HTMLInputElement;
-                    if (searchBox) searchBox.value = '';
-                    
-                    // Clear other form fields
-                    const yearInput = e.currentTarget.querySelector('[name="year"]') as HTMLInputElement;
-                    if (yearInput) yearInput.value = '';
-                    
-                    const platformSelect = e.currentTarget.querySelector('[name="platform_id"]') as HTMLSelectElement;
-                    if (platformSelect) platformSelect.value = '';
-                    
-                    const matchModeSelect = e.currentTarget.querySelector('[name="match_mode"]') as HTMLSelectElement;
-                    if (matchModeSelect) matchModeSelect.value = 'any';
-                    
-                    const sizeInput = e.currentTarget.querySelector('[name="size"]') as HTMLInputElement;
-                    if (sizeInput) sizeInput.value = '20';
-                }}>
+                <form method="GET" action="/search" style={{ display: "grid", gap: 16, padding: "16px", marginBottom: 12, gridTemplateColumns: "1fr 1fr" }}>
                     {/* Search input */}
                     <div style={{ gridColumn: "span 2" }}>
                         <label style={{ display: "grid", gap: 6 }}>
