@@ -36,6 +36,8 @@ async function fetchGames(): Promise<GamePreview[]> {
 
 const RATING_FETCH_CONCURRENCY = 8;
 const RATING_FETCH_TIMEOUT_MS = 8000;
+const RATING_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const ratingsCache = new Map<number, { value: number | null; expires: number }>();
 
 /** For rating (not present in preview), fetch minimal details for each game. */
 async function fetchRatings(ids: number[]): Promise<Record<number, number | null>> {
@@ -43,16 +45,30 @@ async function fetchRatings(ids: number[]): Promise<Record<number, number | null
     if (!uniqueIds.length) return {};
 
     const results: Record<number, number | null> = {};
-    let cursor = 0;
+    const now = Date.now();
+    const pending: number[] = [];
 
+    for (const id of uniqueIds) {
+        const cached = ratingsCache.get(id);
+        if (cached && cached.expires > now) {
+            results[id] = cached.value;
+        } else {
+            pending.push(id);
+        }
+    }
+
+    if (!pending.length) return results;
+
+    let cursor = 0;
     async function worker() {
         while (true) {
             const currentIndex = cursor++;
-            if (currentIndex >= uniqueIds.length) break;
-            const id = uniqueIds[currentIndex];
+            if (currentIndex >= pending.length) break;
+            const id = pending[currentIndex];
 
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), RATING_FETCH_TIMEOUT_MS);
+            let value: number | null = null;
             try {
                 const res = await fetch(`${API_BASE_URL}/games/${id}`, {
                     cache: "no-store",
@@ -60,16 +76,18 @@ async function fetchRatings(ids: number[]): Promise<Record<number, number | null
                 });
                 if (!res.ok) throw new Error();
                 const g = (await res.json()) as GameDetails;
-                results[id] = g?.rating ?? null;
+                value = g?.rating ?? null;
             } catch {
-                results[id] = null;
+                value = null;
             } finally {
                 clearTimeout(timeout);
+                ratingsCache.set(id, { value, expires: Date.now() + RATING_CACHE_TTL_MS });
+                results[id] = value;
             }
         }
     }
 
-    const workerCount = Math.min(RATING_FETCH_CONCURRENCY, uniqueIds.length);
+    const workerCount = Math.min(RATING_FETCH_CONCURRENCY, pending.length);
     await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
     return results;
