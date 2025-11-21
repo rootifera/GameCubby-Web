@@ -34,21 +34,44 @@ async function fetchGames(): Promise<GamePreview[]> {
     return Array.isArray(data) ? data : [];
 }
 
+const RATING_FETCH_CONCURRENCY = 8;
+const RATING_FETCH_TIMEOUT_MS = 8000;
+
 /** For rating (not present in preview), fetch minimal details for each game. */
 async function fetchRatings(ids: number[]): Promise<Record<number, number | null>> {
+    const uniqueIds = Array.from(new Set(ids.filter((id) => Number.isFinite(id))));
+    if (!uniqueIds.length) return {};
+
     const results: Record<number, number | null> = {};
-    await Promise.all(
-        ids.map(async (id) => {
+    let cursor = 0;
+
+    async function worker() {
+        while (true) {
+            const currentIndex = cursor++;
+            if (currentIndex >= uniqueIds.length) break;
+            const id = uniqueIds[currentIndex];
+
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), RATING_FETCH_TIMEOUT_MS);
             try {
-                const res = await fetch(`${API_BASE_URL}/games/${id}`, { cache: "no-store" });
+                const res = await fetch(`${API_BASE_URL}/games/${id}`, {
+                    cache: "no-store",
+                    signal: controller.signal,
+                });
                 if (!res.ok) throw new Error();
                 const g = (await res.json()) as GameDetails;
                 results[id] = g?.rating ?? null;
             } catch {
                 results[id] = null;
+            } finally {
+                clearTimeout(timeout);
             }
-        })
-    );
+        }
+    }
+
+    const workerCount = Math.min(RATING_FETCH_CONCURRENCY, uniqueIds.length);
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
     return results;
 }
 
