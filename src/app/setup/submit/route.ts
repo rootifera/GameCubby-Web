@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     const admin_password = String(form.get("admin_password") ?? "").trim();
     const igdb_client_id = String(form.get("igdb_client_id") ?? "").trim();
     const igdb_client_secret = String(form.get("igdb_client_secret") ?? "").trim();
-    const query_limit_raw = String(form.get("query_limit") ?? "50").trim();
+    const query_limit_raw = String(form.get("query_limit") ?? "100").trim();
 
     // New: public downloads (form shows Yes/No; API expects boolean)
     // Defaults to "false" when missing.
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     if (!igdb_client_id) errors.push("IGDB Client ID is required.");
     if (!igdb_client_secret) errors.push("IGDB Client Secret is required.");
 
-    let query_limit = 50;
+    let query_limit = 100;
     const n = Number(query_limit_raw);
     if (!Number.isNaN(n) && n > 0 && n <= 10000) query_limit = Math.floor(n);
 

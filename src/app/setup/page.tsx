@@ -181,7 +181,7 @@ export default async function SetupPage({
                                     <input
                                         type="number"
                                         name="query_limit"
-                                        defaultValue={50}
+                                        defaultValue={100}
                                         min={1}
                                         max={200}
                                         style={inputStyle}
