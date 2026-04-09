@@ -16,6 +16,8 @@ type Props = {
     name?: string;
     /** Optional pre-selected node id to hydrate/expand to */
     defaultSelectedId?: number;
+    /** Optional callback when selection changes */
+    onSelectedIdChange?: (id: number | undefined) => void;
     /** Optional fixed height for the tree panel */
     height?: number;
 };
@@ -32,6 +34,7 @@ export default function LocationTreePicker({
                                                label = "Location",
                                                name = "location_id",
                                                defaultSelectedId,
+                                               onSelectedIdChange,
                                                height = 260
                                            }: Props) {
     // Map parentId -> children
@@ -229,6 +232,10 @@ export default function LocationTreePicker({
         }
         return trail.join(" > ");
     }, [selectedId, childrenMap]);
+
+    useEffect(() => {
+        onSelectedIdChange?.(selectedId);
+    }, [selectedId, onSelectedIdChange]);
 
     return (
         <div style={{ display: "grid", gap: 8 }}>
