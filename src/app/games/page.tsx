@@ -9,11 +9,8 @@ type GamePreview = {
     name: string;
     cover_url?: string | null;
     release_date?: number | null;
-    platforms?: Array<{ id: number; name: string }>;
-};
-type GameDetails = {
-    id: number;
     rating?: number | null;
+    platforms?: Array<{ id: number; name: string }>;
 };
 
 type SortKey =
@@ -34,63 +31,16 @@ async function fetchGames(): Promise<GamePreview[]> {
     return Array.isArray(data) ? data : [];
 }
 
-const RATING_FETCH_CONCURRENCY = 8;
-const RATING_FETCH_TIMEOUT_MS = 8000;
-const RATING_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const ratingsCache = new Map<number, { value: number | null; expires: number }>();
+function previewRating(g: GamePreview): number | null {
+    return typeof g.rating === "number" && Number.isFinite(g.rating) ? g.rating : null;
+}
 
-/** For rating (not present in preview), fetch minimal details for each game. */
-async function fetchRatings(ids: number[]): Promise<Record<number, number | null>> {
-    const uniqueIds = Array.from(new Set(ids.filter((id) => Number.isFinite(id))));
-    if (!uniqueIds.length) return {};
-
-    const results: Record<number, number | null> = {};
-    const now = Date.now();
-    const pending: number[] = [];
-
-    for (const id of uniqueIds) {
-        const cached = ratingsCache.get(id);
-        if (cached && cached.expires > now) {
-            results[id] = cached.value;
-        } else {
-            pending.push(id);
-        }
+function ratingsFromPreviews(games: GamePreview[]): Record<number, number | null> {
+    const ratings: Record<number, number | null> = {};
+    for (const game of games) {
+        ratings[game.id] = previewRating(game);
     }
-
-    if (!pending.length) return results;
-
-    let cursor = 0;
-    async function worker() {
-        while (true) {
-            const currentIndex = cursor++;
-            if (currentIndex >= pending.length) break;
-            const id = pending[currentIndex];
-
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), RATING_FETCH_TIMEOUT_MS);
-            let value: number | null = null;
-            try {
-                const res = await fetch(`${API_BASE_URL}/games/${id}`, {
-                    cache: "no-store",
-                    signal: controller.signal,
-                });
-                if (!res.ok) throw new Error();
-                const g = (await res.json()) as GameDetails;
-                value = g?.rating ?? null;
-            } catch {
-                value = null;
-            } finally {
-                clearTimeout(timeout);
-                ratingsCache.set(id, { value, expires: Date.now() + RATING_CACHE_TTL_MS });
-                results[id] = value;
-            }
-        }
-    }
-
-    const workerCount = Math.min(RATING_FETCH_CONCURRENCY, pending.length);
-    await Promise.all(Array.from({ length: workerCount }, () => worker()));
-
-    return results;
+    return ratings;
 }
 
 /** Year helpers */
@@ -303,14 +253,7 @@ export default async function GamesPage({
 
     const total = error ? 0 : games.length;
 
-    // Ratings:
-    // - If sorting by rating, fetch ratings for ALL games (so sort is correct).
-    // - Otherwise, fetch ratings only for current page slice.
-    let ratingsAll: Record<number, number | null> = {};
-    if (!error && total) {
-        const needAll = sortParam === "rating_desc" || sortParam === "rating_asc";
-        ratingsAll = needAll ? await fetchRatings(games.map((g) => g.id)) : {};
-    }
+    const ratingsAll = !error ? ratingsFromPreviews(games) : {};
 
     // Sort
     const sorted = !error ? sortGames(games, ratingsAll, sortParam) : [];
@@ -320,15 +263,7 @@ export default async function GamesPage({
     const end = Math.min(start + size, sorted.length);
     const pageItems = sorted.slice(start, end);
 
-    // Page ratings (if not already fetched for all)
-    let pageRatings: Record<number, number | null> = {};
-    if (!error && pageItems.length) {
-        if (Object.keys(ratingsAll).length) {
-            pageRatings = Object.fromEntries(pageItems.map((g) => [g.id, ratingsAll[g.id] ?? null]));
-        } else {
-            pageRatings = await fetchRatings(pageItems.map((g) => g.id));
-        }
-    }
+    const pageRatings = !error ? Object.fromEntries(pageItems.map((g) => [g.id, ratingsAll[g.id] ?? null])) : {};
 
     return (
         <div>

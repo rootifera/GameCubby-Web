@@ -12,6 +12,10 @@ export async function GET(
 
     try {
         const locationId = params.location_id;
+        if (!/^\d+$/.test(locationId) || Number(locationId) <= 0) {
+            return NextResponse.json({ error: "invalid location_id" }, { status: 400 });
+        }
+
         const upstreamUrl = `${API_BASE_URL}/locations/${locationId}/games`;
 
         const upstream = await fetch(upstreamUrl, {

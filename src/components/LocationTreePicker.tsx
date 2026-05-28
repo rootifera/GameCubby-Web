@@ -49,6 +49,11 @@ export default function LocationTreePicker({
     
     // Ref for auto-scrolling
     const treeContainerRef = useRef<HTMLDivElement>(null);
+    const onSelectedIdChangeRef = useRef(onSelectedIdChange);
+
+    useEffect(() => {
+        onSelectedIdChangeRef.current = onSelectedIdChange;
+    }, [onSelectedIdChange]);
 
     // Load top level on mount
     useEffect(() => {
@@ -234,8 +239,8 @@ export default function LocationTreePicker({
     }, [selectedId, childrenMap]);
 
     useEffect(() => {
-        onSelectedIdChange?.(selectedId);
-    }, [selectedId, onSelectedIdChange]);
+        onSelectedIdChangeRef.current?.(selectedId);
+    }, [selectedId]);
 
     return (
         <div style={{ display: "grid", gap: 8 }}>

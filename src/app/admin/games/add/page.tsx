@@ -45,6 +45,8 @@ type LocationGameOrderItem = {
     order?: number | null;
 };
 
+type OrderFieldKey = "igdb" | "custom";
+
 /* ---------- Helpers ---------- */
 function toYear(n?: number | null): string {
     if (n == null) return "";
@@ -168,6 +170,10 @@ export default function AdminAddGamePage() {
     const [order, setOrder] = useState<number>(0);
     const [customOrder, setCustomOrder] = useState<number>(0);
     const [locationOrderError, setLocationOrderError] = useState<string | null>(null);
+    const locationOrderRequestRef = useRef<Record<OrderFieldKey, number>>({
+        igdb: 0,
+        custom: 0,
+    });
 
     // Handler for recently used tag clicks
     const handleRecentTagClick = (tagName: string) => {
@@ -252,18 +258,25 @@ export default function AdminAddGamePage() {
 
     async function autofillOrderForLocation(
         locationId: number | undefined,
+        field: OrderFieldKey,
         apply: (nextOrder: number) => void
     ) {
+        const requestId = locationOrderRequestRef.current[field] + 1;
+        locationOrderRequestRef.current[field] = requestId;
+
         if (!locationId) {
             apply(0);
+            setLocationOrderError(null);
             return;
         }
 
         try {
             setLocationOrderError(null);
             const nextOrder = await fetchNextOrderForLocation(locationId);
+            if (locationOrderRequestRef.current[field] !== requestId) return;
             apply(nextOrder);
         } catch (e) {
+            if (locationOrderRequestRef.current[field] !== requestId) return;
             setLocationOrderError(e instanceof Error ? e.message : "Failed to auto-fill order");
         }
     }
@@ -847,7 +860,7 @@ export default function AdminAddGamePage() {
                                                 label="Location"
                                                 name="location_id"
                                                 onSelectedIdChange={(locationId) => {
-                                                    void autofillOrderForLocation(locationId, setOrder);
+                                                    void autofillOrderForLocation(locationId, "igdb", setOrder);
                                                 }}
                                             />
 
@@ -1159,7 +1172,7 @@ export default function AdminAddGamePage() {
                             label="Location"
                             name="location_id"
                             onSelectedIdChange={(locationId) => {
-                                void autofillOrderForLocation(locationId, setCustomOrder);
+                                void autofillOrderForLocation(locationId, "custom", setCustomOrder);
                             }}
                         />
 
