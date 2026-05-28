@@ -15,48 +15,14 @@ export async function GET(req: NextRequest) {
         return new NextResponse('OK', { status: 200 });
     }
 
-    const isProd = process.env.NODE_ENV === "production";
-
     // Determine if cookies should be secure based on PROXY setting
     const shouldBeSecure = shouldUseSecureCookies(req);
 
-    // Small HTML that pings /api/health immediately, then redirects.
-    const html = `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8"/>
-    <title>Logging out…</title>
-    <meta http-equiv="refresh" content="0; url=/admin/login">
-    <script>
-      (function () {
-        try {
-          // Clear any cached authentication state by calling health with cache busting
-          fetch('/api/health?t=' + Date.now(), { 
-            cache: 'no-store', 
-            credentials: 'same-origin',
-            headers: { 'Cache-Control': 'no-cache' }
-          })
-          .finally(function () { window.location.replace('/admin/login'); });
-        } catch (e) {
-          window.location.replace('/admin/login');
-        }
-      })();
-    </script>
-  </head>
-  <body style="background:#0f0f10;color:#eaeaea;font-family:system-ui,Arial,sans-serif;">
-    <div style="max-width:640px;margin:20vh auto 0;padding:16px;text-align:center;">
-      <h1 style="margin:0 0 8px 0;font-size:20px;">Logging out…</h1>
-      <p style="opacity:.8">If you are not redirected, <a href="/admin/login" style="color:#a0c4ff;">click here</a>.</p>
-    </div>
-  </body>
-</html>`;
-
-    // Build response and clear both cookies
-    const res = new NextResponse(html, {
-        status: 200,
+    const res = new NextResponse(null, {
+        status: 303,
         headers: {
-            "content-type": "text/html; charset=utf-8",
-            "cache-control": "no-store",
+            Location: "/admin/login",
+            "Cache-Control": "no-store",
         },
     });
 
