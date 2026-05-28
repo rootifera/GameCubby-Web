@@ -18,4 +18,5 @@ pnpm-debug.log*
 
 # misc
 .DS_Store
+.codex
 release.sh

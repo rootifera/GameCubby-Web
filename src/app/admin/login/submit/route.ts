@@ -7,11 +7,16 @@ const NEW_COOKIE = "__gcub_a";
 const LEGACY_COOKIE = "gc_at";
 const ONE_WEEK = 60 * 60 * 24 * 7;
 
+function safeNextPath(value: string): string {
+    if (!value.startsWith("/") || value.startsWith("//")) return "/admin";
+    return value;
+}
+
 export async function POST(req: NextRequest) {
     const form = await req.formData();
     const username = String(form.get("username") ?? "").trim();
     const password = String(form.get("password") ?? "").trim();
-    const next = String(form.get("next") ?? "/admin");
+    const next = safeNextPath(String(form.get("next") ?? "/admin"));
 
     if (!username || !password) {
         return new NextResponse(null, {
@@ -56,10 +61,12 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        const isProd = process.env.NODE_ENV === "production";
         const res = new NextResponse(null, {
             status: 303,
-            headers: { Location: `/admin/login/success?next=${encodeURIComponent(next)}` },
+            headers: {
+                Location: next,
+                "Cache-Control": "no-store",
+            },
         });
 
         // Determine if cookies should be secure based on PROXY setting

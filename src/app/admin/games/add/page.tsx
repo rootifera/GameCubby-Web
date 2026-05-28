@@ -40,6 +40,13 @@ type IgdbGameDetails = {
     igdb_tags?: Array<{ id: number; name: string }>;
 };
 
+type LocationGameOrderItem = {
+    id: number;
+    order?: number | null;
+};
+
+type OrderFieldKey = "igdb" | "custom";
+
 /* ---------- Helpers ---------- */
 function toYear(n?: number | null): string {
     if (n == null) return "";
@@ -109,6 +116,24 @@ function parseTagIdsFromForm(fd: FormData, name: string): Array<number | string>
     return parseIdsCSV(csv);
 }
 
+async function fetchNextOrderForLocation(locationId: number): Promise<number> {
+    const res = await fetch(`/api/proxy/locations/${locationId}/games`, {
+        cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`Failed to load games for location ${locationId}`);
+
+    const data = (await res.json()) as unknown;
+    const games = Array.isArray(data) ? (data as LocationGameOrderItem[]) : [];
+    if (games.length === 0) return 1;
+
+    const maxOrder = games.reduce((max, game) => {
+        const value = typeof game?.order === "number" && Number.isFinite(game.order) ? game.order : 0;
+        return value > max ? value : max;
+    }, 0);
+
+    return maxOrder > 0 ? maxOrder + 1 : games.length + 1;
+}
+
 /* ================================================================== */
 
 export default function AdminAddGamePage() {
@@ -143,6 +168,12 @@ export default function AdminAddGamePage() {
     // Local mirrors for condition/order so we can package JSON easily
     const [condition, setCondition] = useState<number>(0);
     const [order, setOrder] = useState<number>(0);
+    const [customOrder, setCustomOrder] = useState<number>(0);
+    const [locationOrderError, setLocationOrderError] = useState<string | null>(null);
+    const locationOrderRequestRef = useRef<Record<OrderFieldKey, number>>({
+        igdb: 0,
+        custom: 0,
+    });
 
     // Handler for recently used tag clicks
     const handleRecentTagClick = (tagName: string) => {
@@ -223,6 +254,31 @@ export default function AdminAddGamePage() {
         setSavedMsg(null);
         setSaveError(null);
         setSelectedPlatforms(new Set());
+    }
+
+    async function autofillOrderForLocation(
+        locationId: number | undefined,
+        field: OrderFieldKey,
+        apply: (nextOrder: number) => void
+    ) {
+        const requestId = locationOrderRequestRef.current[field] + 1;
+        locationOrderRequestRef.current[field] = requestId;
+
+        if (!locationId) {
+            apply(0);
+            setLocationOrderError(null);
+            return;
+        }
+
+        try {
+            setLocationOrderError(null);
+            const nextOrder = await fetchNextOrderForLocation(locationId);
+            if (locationOrderRequestRef.current[field] !== requestId) return;
+            apply(nextOrder);
+        } catch (e) {
+            if (locationOrderRequestRef.current[field] !== requestId) return;
+            setLocationOrderError(e instanceof Error ? e.message : "Failed to auto-fill order");
+        }
     }
 
     useEffect(() => {
@@ -337,6 +393,7 @@ export default function AdminAddGamePage() {
             }
             setCustomSaved("Saved!");
             customFormRef.current?.reset();
+            setCustomOrder(0);
         } catch (err) {
             setCustomError(err instanceof Error ? err.message : "Failed to save");
         } finally {
@@ -799,7 +856,13 @@ export default function AdminAddGamePage() {
                                             </div>
 
                                             {/* Location */}
-                                            <LocationTreePicker label="Location" name="location_id" />
+                                            <LocationTreePicker
+                                                label="Location"
+                                                name="location_id"
+                                                onSelectedIdChange={(locationId) => {
+                                                    void autofillOrderForLocation(locationId, "igdb", setOrder);
+                                                }}
+                                            />
 
                                             {/* Recently Used Tags */}
                                             <RecentlyUsedTags onTagClick={handleRecentTagClick} />
@@ -855,6 +918,10 @@ export default function AdminAddGamePage() {
                                                     />
                                                 </label>
                                             </div>
+
+                                            {locationOrderError ? (
+                                                <div style={{ fontSize: 12, color: "#fca5a5" }}>{locationOrderError}</div>
+                                            ) : null}
 
                                             {/* Save / status */}
                                             {saveError ? (
@@ -1068,6 +1135,8 @@ export default function AdminAddGamePage() {
                                 <input
                                     type="number"
                                     name="order"
+                                    value={customOrder}
+                                    onChange={(e) => setCustomOrder(Number(e.target.value) || 0)}
                                     placeholder="0"
                                     style={{
                                         background: "#1a1a1a",
@@ -1099,7 +1168,17 @@ export default function AdminAddGamePage() {
                         </div>
 
                         {/* Location */}
-                        <LocationTreePicker label="Location" name="location_id" />
+                        <LocationTreePicker
+                            label="Location"
+                            name="location_id"
+                            onSelectedIdChange={(locationId) => {
+                                void autofillOrderForLocation(locationId, "custom", setCustomOrder);
+                            }}
+                        />
+
+                        {locationOrderError ? (
+                            <div style={{ fontSize: 12, color: "#fca5a5" }}>{locationOrderError}</div>
+                        ) : null}
 
                         {/* ---- Dropdowns instead of CSV ---- */}
                         <div
