@@ -258,6 +258,10 @@ function ManageFilesPanel({ gameId }: { gameId: number }) {
             setErr("Please choose a file to upload.");
             return;
         }
+        if (!uplLabel.trim() || !uplCat) {
+            setErr("Please enter a label and choose a category for the file.");
+            return;
+        }
         setUploading(true);
         setBusy("Uploading…");
         setNotice(null);
@@ -265,8 +269,8 @@ function ManageFilesPanel({ gameId }: { gameId: number }) {
             const fd = new FormData();
             // Common FastAPI style: field name "file"
             fd.append("file", uplFile);
-            if (uplLabel.trim()) fd.append("label", uplLabel.trim());
-            if (uplCat) fd.append("category", uplCat);
+            fd.append("label", uplLabel.trim());
+            fd.append("category", uplCat);
 
             const res = await fetch(`/api/admin/games/${gameId}/files/upload`, {
                 method: "POST",
@@ -450,8 +454,8 @@ function ManageFilesPanel({ gameId }: { gameId: number }) {
                         />
                     </label>
                     <label style={{ display: "grid", gap: 6 }}>
-                        <span style={{ opacity: 0.85, fontSize: 12 }}>Label (optional)</span>
-                        <input value={uplLabel} onChange={(e) => setUplLabel(e.target.value)} style={input} />
+                        <span style={{ opacity: 0.85, fontSize: 12 }}>Label</span>
+                        <input value={uplLabel} onChange={(e) => setUplLabel(e.target.value)} style={input} required />
                     </label>
                     <label style={{ display: "grid", gap: 6 }}>
                         <span style={{ opacity: 0.85, fontSize: 12 }}>Category</span>
@@ -460,7 +464,7 @@ function ManageFilesPanel({ gameId }: { gameId: number }) {
                             onChange={(e) => setUplCat((e.target.value || "") as FileCategory | "")}
                             style={input}
                         >
-                            <option value="">(none)</option>
+                            <option value="">Choose category</option>
                             {catOptions.map((o) => (
                                 <option key={o.value} value={o.value}>
                                     {o.label}

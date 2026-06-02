@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { API_BASE_URL } from "@/lib/env";
+import { readTokenFromRequest } from "@/lib/auth";
 
 function authForwardHeaders(req: NextRequest) {
     const h: Record<string, string> = { Accept: "application/json" };
     const cookie = req.headers.get("cookie");
     const auth = req.headers.get("authorization");
     if (cookie) h["Cookie"] = cookie;
-    if (auth) h["Authorization"] = auth;
+    if (auth) {
+        h["Authorization"] = auth;
+    } else {
+        const token = readTokenFromRequest(req);
+        if (token) h["Authorization"] = `Bearer ${token}`;
+    }
     return h;
 }
 

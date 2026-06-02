@@ -5,7 +5,7 @@ import { shouldUseSecureCookies } from "@/lib/auth";
 
 const NEW_COOKIE = "__gcub_a";
 const LEGACY_COOKIE = "gc_at";
-const ONE_WEEK = 60 * 60 * 24 * 7;
+const ONE_DAY = 60 * 60 * 24;
 
 function safeNextPath(value: string): string {
     if (!value.startsWith("/") || value.startsWith("//")) return "/admin";
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
             sameSite: "strict",
             secure: shouldBeSecure,
             path: "/",
-            maxAge: ONE_WEEK,
+            maxAge: ONE_DAY,
         });
         res.cookies.set({
             name: LEGACY_COOKIE,
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
             sameSite: "strict",
             secure: shouldBeSecure,
             path: "/",
-            maxAge: ONE_WEEK,
+            maxAge: ONE_DAY,
         });
 
         return res;

@@ -54,10 +54,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         Authorization: `Bearer ${token}`,
     };
 
-    // Prefer /:id/ but fall back to /:id if the backend 404/405s
+    // Prefer /:id/ but fall back to /:id if the backend rejects the method.
+    // A 404 can be the real API response for a missing game, so preserve it.
     for (const url of urlVariants(params.id)) {
         const res = await passthrough(url, { method: "PUT", headers, body });
-        if (res.status !== 405 && res.status !== 404) return res;
+        if (res.status !== 405) return res;
     }
 
     return NextResponse.json(

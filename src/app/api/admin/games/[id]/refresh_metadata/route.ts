@@ -48,10 +48,10 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
         Authorization: `Bearer ${token}`,
     };
 
-    // Try both shapes; return the first non-405/404
+    // Try both shapes; preserve 404 because it can mean "game not found".
     for (const url of urlVariants(params.id)) {
         const res = await passthrough(url, { method: "POST", headers });
-        if (res.status !== 405 && res.status !== 404) return res;
+        if (res.status !== 405) return res;
     }
 
     return NextResponse.json(
