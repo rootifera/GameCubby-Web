@@ -2,7 +2,7 @@ import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
 import { redirect } from "next/navigation";
 import ForceRefreshButton from "@/components/ForceRefreshButton";
-import { cookies } from "next/headers";
+import { isJwtActive, readToken } from "@/lib/auth";
 
 /** ---------- Types from the endpoints ---------- */
 
@@ -103,19 +103,8 @@ async function fetchHealth(): Promise<Health> {
 /** ---------- Check if user is admin ---------- */
 function checkIfAdmin(): boolean {
     try {
-        const token = cookies().get("__gcub_a")?.value || "";
-        if (!token) return false;
-        
-        // Simple JWT expiration check (same logic as admin health endpoint)
-        const parts = token.split(".");
-        if (parts.length < 2) return false;
-        const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-        const pad = b64.length % 4 ? "=".repeat(4 - (b64.length % 4)) : "";
-        const json = atob(b64 + pad);
-        const payload = JSON.parse(json) as { exp?: number };
-        if (typeof payload.exp !== "number") return true; // no exp -> treat as active
-        const now = Math.floor(Date.now() / 1000);
-        return payload.exp > now;
+        const token = readToken();
+        return token ? isJwtActive(token) : false;
     } catch {
         return false;
     }
