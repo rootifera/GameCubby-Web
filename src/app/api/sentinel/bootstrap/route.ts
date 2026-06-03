@@ -1,12 +1,11 @@
 // src/app/api/sentinel/maintenance/bootstrap/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { spawn } from "node:child_process";
+import { hasActiveTokenFromRequest } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
-
-const COOKIE_NAME = "__gcub_a";
 
 const DB_HOST = process.env.DB_HOST || "gamecubby-db";
 const DB_PORT = String(process.env.DB_PORT || "5432");
@@ -28,8 +27,7 @@ function runPsqlCapture(args: string[], env: Record<string, string>): Promise<{ 
 }
 
 export async function POST(req: NextRequest) {
-    const token = req.cookies.get(COOKIE_NAME)?.value ?? "";
-    if (!token) {
+    if (!hasActiveTokenFromRequest(req)) {
         return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
 

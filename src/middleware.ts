@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 const ADMIN_COOKIE = "__gcub_a";
+const LEGACY_ADMIN_COOKIE = "gc_at";
 const MAINT_COOKIE = "__gc_maint";
 
 // Paths always allowed while in maintenance (prefix match)
@@ -56,6 +57,26 @@ function maintenanceHtml(reason?: string | null) {
 
 function escapeHtml(s: string) {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function readAdminToken(req: NextRequest): string {
+    return req.cookies.get(ADMIN_COOKIE)?.value || req.cookies.get(LEGACY_ADMIN_COOKIE)?.value || "";
+}
+
+function isJwtActive(token: string): boolean {
+    try {
+        const parts = token.split(".");
+        if (parts.length < 2) return false;
+
+        const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+        const padded = base64 + "===".slice((base64.length + 3) % 4);
+        const payload = JSON.parse(atob(padded)) as { exp?: number };
+
+        if (typeof payload.exp !== "number") return false;
+        return payload.exp > Math.floor(Date.now() / 1000);
+    } catch {
+        return false;
+    }
 }
 
 export default async function middleware(req: NextRequest) {
@@ -140,12 +161,15 @@ export default async function middleware(req: NextRequest) {
         !pathname.startsWith("/admin/login") &&
         !pathname.startsWith("/admin/logout")
     ) {
-        const token = req.cookies.get(ADMIN_COOKIE)?.value ?? "";
-        if (!token) {
+        const token = readAdminToken(req);
+        if (!token || !isJwtActive(token)) {
             const loginUrl = new URL("/admin/login", req.url);
             const nextPath = `${pathname}${search || ""}`;
             loginUrl.searchParams.set("next", nextPath || "/admin");
-            return NextResponse.redirect(loginUrl);
+            const res = NextResponse.redirect(loginUrl);
+            res.cookies.delete(ADMIN_COOKIE);
+            res.cookies.delete(LEGACY_ADMIN_COOKIE);
+            return res;
         }
     }
 

@@ -15,6 +15,10 @@ function parseIdsCSV(csv: string) {
         .filter(Boolean);
 }
 
+function flattenIds(values: string[]) {
+    return values.flatMap((value) => parseIdsCSV(value));
+}
+
 /**
  * Proxy: GET /api/proxy/search/basic?...  ->  GET {API_BASE_URL}/search/basic?...
  * Accepts:
@@ -37,15 +41,12 @@ export async function GET(req: NextRequest) {
         const year = (sp.get("year") ?? "").trim();
         const match_mode = (sp.get("match_mode") ?? "").trim();
 
-        // Platforms: prefer repeated platform_ids, else single platform_id
-        const platformIdsRepeated = sp.getAll("platform_ids").filter(Boolean);
+        // Platforms: API basic search accepts one platform_id.
+        const platformIdsRepeated = flattenIds(sp.getAll("platform_ids").filter(Boolean));
         const platformIdSingle = (sp.get("platform_id") ?? "").trim();
 
-        // Tags: allow repeated tag_ids OR a single CSV tag_ids
-        const tagIdsRepeated = sp.getAll("tag_ids").filter(Boolean);
-        const tagIdsCsv = (sp.get("tag_ids") ?? "").includes(",")
-            ? parseIdsCSV(sp.get("tag_ids") as string)
-            : [];
+        // Tags: allow repeated tag_ids and/or CSV tag_ids.
+        const tagIds = flattenIds(sp.getAll("tag_ids").filter(Boolean));
 
         const size = Math.min(100, Math.max(5, parsePositiveInt(sp.get("size"), 20)));
         const page = parsePositiveInt(sp.get("page"), 1);
@@ -57,13 +58,13 @@ export async function GET(req: NextRequest) {
         if (match_mode) qs.set("match_mode", match_mode);
 
         if (platformIdsRepeated.length > 0) {
-            platformIdsRepeated.forEach((p) => qs.append("platform_ids", p));
+            qs.set("platform_id", platformIdsRepeated[0]);
         } else if (platformIdSingle) {
             qs.set("platform_id", platformIdSingle);
         }
 
         // Repeat tag_ids
-        (tagIdsRepeated.length ? tagIdsRepeated : tagIdsCsv).forEach((t) => {
+        tagIds.forEach((t) => {
             qs.append("tag_ids", t);
         });
 

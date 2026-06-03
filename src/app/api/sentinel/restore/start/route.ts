@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import crypto from "node:crypto";
+import { hasActiveTokenFromRequest } from "@/lib/auth";
 import {
     getJob,
     setJob,
@@ -17,8 +18,6 @@ import {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
-
-const COOKIE_NAME = "__gcub_a";
 
 const DEFAULT_MAINT_PATH = "/storage/maintenance.json";
 const MAINT_FILE = process.env.GC_MAINT_FILE || DEFAULT_MAINT_PATH;
@@ -89,8 +88,7 @@ function isPathUnder(dir: string, candidate: string) {
 
 export async function POST(req: NextRequest) {
     // ----- Admin auth (same cookie as /admin) -----
-    const token = req.cookies.get(COOKIE_NAME)?.value ?? "";
-    if (!token) {
+    if (!hasActiveTokenFromRequest(req)) {
         return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
 

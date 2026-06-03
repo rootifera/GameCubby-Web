@@ -2,14 +2,12 @@
 import { NextResponse, NextRequest } from "next/server";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { PROXY } from "@/lib/env";
-import { shouldUseSecureCookies } from "@/lib/auth";
+import { hasActiveTokenFromRequest, shouldUseSecureCookies } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
 
-const ADMIN_COOKIE = "__gcub_a";
 const MAINT_COOKIE = "__gc_maint";
 
 const DEFAULT_MAINT_PATH = "/storage/maintenance.json";
@@ -18,8 +16,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://gamecubby-api:8
 
 export async function POST(req: NextRequest) {
     // Admin check (same cookie your /admin area uses)
-    const token = req.cookies.get(ADMIN_COOKIE)?.value ?? "";
-    if (!token) {
+    if (!hasActiveTokenFromRequest(req)) {
         return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
 

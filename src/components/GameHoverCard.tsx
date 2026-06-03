@@ -63,17 +63,26 @@ export default function GameHoverCard({
     const loadedRef = useRef(false);
     const enterTimer = useRef<number | null>(null);
 
-    function onEnter() {
-        enterTimer.current = window.setTimeout(() => setOpen(true), 120);
-    }
-    function onLeave() {
+    function clearEnterTimer() {
         if (enterTimer.current) {
             clearTimeout(enterTimer.current);
             enterTimer.current = null;
         }
+    }
+
+    function scheduleOpen() {
+        if (open || enterTimer.current) return;
+        enterTimer.current = window.setTimeout(() => {
+            enterTimer.current = null;
+            setOpen(true);
+        }, 120);
+    }
+    function onLeave() {
+        clearEnterTimer();
         setOpen(false);
     }
-    function onMove(e: React.MouseEvent) {
+    function onMove(e: React.PointerEvent) {
+        scheduleOpen();
         const pad = 16;
         const w = 320;
         const h = 220;
@@ -86,6 +95,8 @@ export default function GameHoverCard({
         setPos({ x, y });
     }
 
+    useEffect(() => () => clearEnterTimer(), []);
+
     useEffect(() => {
         if (!open || loadedRef.current) return;
         loadedRef.current = true;
@@ -96,9 +107,9 @@ export default function GameHoverCard({
 
     return (
         <span
-            onMouseEnter={onEnter}
-            onMouseLeave={onLeave}
-            onMouseMove={onMove}
+            onPointerEnter={scheduleOpen}
+            onPointerLeave={onLeave}
+            onPointerMove={onMove}
             style={{ position: "relative", display: "inline-block" }}
         >
       {children}

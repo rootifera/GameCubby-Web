@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import LocationTreePicker from "@/components/LocationTreePicker";
 
 type GamePreview = {
@@ -31,10 +31,6 @@ export default function BulkLocationMigrator() {
     const [sourceLocationName, setSourceLocationName] = useState<string>("");
     const [targetLocationName, setTargetLocationName] = useState<string>("");
     
-    // Refs for the location picker containers
-    const sourcePickerRef = useRef<HTMLDivElement | null>(null);
-    const targetPickerRef = useRef<HTMLDivElement | null>(null);
-
     // Fetch games for a specific location
     const fetchGamesByLocation = async (locationId: number): Promise<GamePreview[]> => {
         try {
@@ -112,68 +108,6 @@ export default function BulkLocationMigrator() {
             }
         }
     };
-
-    // Effect to watch for source location picker changes
-    useEffect(() => {
-        const host = sourcePickerRef.current;
-        if (!host) return;
-        
-        const input = host.querySelector('input[name="source_location_id"]') as HTMLInputElement | null;
-        if (!input) return;
-
-        const update = () => {
-            const v = input.value.trim();
-            const n = Number(v);
-            const newId = Number.isFinite(n) && n > 0 ? n : undefined;
-            if (newId !== sourceLocationId) {
-                handleSourceLocationChange(newId);
-            }
-        };
-        
-        update();
-
-        input.addEventListener("input", update);
-        input.addEventListener("change", update);
-        const mo = new MutationObserver(update);
-        mo.observe(input, { attributes: true, attributeFilter: ["value"] });
-
-        return () => {
-            input.removeEventListener("input", update);
-            input.removeEventListener("change", update);
-            mo.disconnect();
-        };
-    }, [sourcePickerRef.current, sourceLocationId]);
-
-    // Effect to watch for target location picker changes
-    useEffect(() => {
-        const host = targetPickerRef.current;
-        if (!host) return;
-        
-        const input = host.querySelector('input[name="target_location_id"]') as HTMLInputElement | null;
-        if (!input) return;
-
-        const update = () => {
-            const v = input.value.trim();
-            const n = Number(v);
-            const newId = Number.isFinite(n) && n > 0 ? n : undefined;
-            if (newId !== targetLocationId) {
-                handleTargetLocationChange(newId);
-            }
-        };
-        
-        update();
-
-        input.addEventListener("input", update);
-        input.addEventListener("change", update);
-        const mo = new MutationObserver(update);
-        mo.observe(input, { attributes: true, attributeFilter: ["value"] });
-
-        return () => {
-            input.removeEventListener("input", update);
-            input.removeEventListener("change", update);
-            mo.disconnect();
-        };
-    }, [targetPickerRef.current, targetLocationId]);
 
     // Execute the migration
     const executeMigration = async () => {
@@ -262,11 +196,14 @@ export default function BulkLocationMigrator() {
             {/* Source Location */}
             <div style={{ marginBottom: 24 }}>
                 <h3 style={{ marginBottom: 12, fontSize: 16, fontWeight: 600 }}>Source Location</h3>
-                <div style={{ position: "relative" }} ref={sourcePickerRef}>
+                <div style={{ position: "relative" }}>
                     <LocationTreePicker
                         label="Select source location"
                         name="source_location_id"
                         defaultSelectedId={sourceLocationId}
+                        onSelectedIdChange={(locationId) => {
+                            void handleSourceLocationChange(locationId);
+                        }}
                         height={200}
                     />
                     {sourceLocationId && (
@@ -313,11 +250,14 @@ export default function BulkLocationMigrator() {
             {/* Target Location */}
             <div style={{ marginBottom: 24 }}>
                 <h3 style={{ marginBottom: 12, fontSize: 16, fontWeight: 600 }}>Target Location</h3>
-                <div style={{ position: "relative" }} ref={targetPickerRef}>
+                <div style={{ position: "relative" }}>
                     <LocationTreePicker
                         label="Select target location"
                         name="target_location_id"
                         defaultSelectedId={targetLocationId}
+                        onSelectedIdChange={(locationId) => {
+                            void handleTargetLocationChange(locationId);
+                        }}
                         height={200}
                     />
                     {targetLocationId && (

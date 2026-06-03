@@ -2,14 +2,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { PROXY } from "@/lib/env";
-import { shouldUseSecureCookies } from "@/lib/auth";
+import { hasActiveTokenFromRequest, shouldUseSecureCookies } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
 
-const ADMIN_COOKIE = "__gcub_a";
 const MAINT_COOKIE = "__gc_maint";
 
 // Maintenance flag file (shared via ./storage:/storage)
@@ -27,8 +25,7 @@ type MaintJson = {
 
 export async function POST(req: NextRequest) {
     // ---- Admin check (same cookie as /admin) ----
-    const token = req.cookies.get(ADMIN_COOKIE)?.value ?? "";
-    if (!token) {
+    if (!hasActiveTokenFromRequest(req)) {
         return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
 

@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import crypto from "node:crypto";
+import { hasActiveTokenFromRequest } from "@/lib/auth";
 import {
     getJob,
     setJob,
@@ -15,8 +16,6 @@ import {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
-
-const COOKIE_NAME = "__gcub_a";
 
 // Directories (inside container; bind-mounted via compose)
 const BACKUPS_DIR = process.env.GC_BACKUPS_DIR || "/storage/backups";
@@ -115,8 +114,7 @@ async function pruneOldBackups(root: string, logFile: string): Promise<number> {
 
 export async function POST(req: NextRequest) {
     // ----- Admin auth -----
-    const token = req.cookies.get(COOKIE_NAME)?.value ?? "";
-    if (!token) {
+    if (!hasActiveTokenFromRequest(req)) {
         return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
 

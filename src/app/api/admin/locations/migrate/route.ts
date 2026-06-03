@@ -49,32 +49,17 @@ export async function POST(req: NextRequest) {
                 Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({
-                source: source_location_id,
-                target: target_location_id,
+                source_location_id,
+                target_location_id,
             }),
         });
 
         const text = await upstream.text();
-        
-        if (!upstream.ok) {
-            return NextResponse.json({ 
-                detail: `Migration failed: ${upstream.status} ${text}` 
-            }, { status: upstream.status });
-        }
 
-        // Parse the response to get the migrated count
-        let result;
-        try {
-            result = JSON.parse(text);
-        } catch {
-            // If response is not JSON, assume it's just a number
-            result = { migrated: parseInt(text) || 0 };
-        }
-
-        return NextResponse.json(result, {
-            status: 200,
+        return new NextResponse(text, {
+            status: upstream.status,
             headers: {
-                "content-type": "application/json",
+                "content-type": upstream.headers.get("content-type") ?? "application/json",
                 "cache-control": "no-store",
             },
         });
