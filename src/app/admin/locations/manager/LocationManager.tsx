@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import LocationTreePicker from "@/components/LocationTreePicker";
 
 /* ---------- types & tiny fetch helper ---------- */
@@ -22,8 +22,6 @@ async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
 
 /* ---------- component ---------- */
 export default function LocationManager() {
-    // Observe selection from LocationTreePicker via its hidden input
-    const pickerHostRef = useRef<HTMLDivElement | null>(null);
     const [selectedId, setSelectedId] = useState<number | undefined>(undefined);
     const [selected, setSelected] = useState<LocationNode | null>(null);
     const [children, setChildren] = useState<LocationNode[] | null>(null);
@@ -43,32 +41,6 @@ export default function LocationManager() {
 
     // rename form
     const [renameVal, setRenameVal] = useState("");
-
-    // wire up hidden input changes from the picker
-    useEffect(() => {
-        const host = pickerHostRef.current;
-        if (!host) return;
-        const input = host.querySelector('input[name="location_id"]') as HTMLInputElement | null;
-        if (!input) return;
-
-        const update = () => {
-            const v = input.value.trim();
-            const n = Number(v);
-            setSelectedId(Number.isFinite(n) && n > 0 ? n : undefined);
-        };
-        update();
-
-        input.addEventListener("input", update);
-        input.addEventListener("change", update);
-        const mo = new MutationObserver(update);
-        mo.observe(input, { attributes: true, attributeFilter: ["value"] });
-
-        return () => {
-            input.removeEventListener("input", update);
-            input.removeEventListener("change", update);
-            mo.disconnect();
-        };
-    }, [pickerHostRef.current, treeKey]);
 
     // load details for selected node (and its children list)
     useEffect(() => {
@@ -291,7 +263,6 @@ export default function LocationManager() {
 
             {/* Top: Locations card (full width) */}
             <div
-                ref={pickerHostRef}
                 style={{
                     background: "#141414",
                     border: "1px solid #262626",
@@ -306,6 +277,7 @@ export default function LocationManager() {
                         label="Pick a location"
                         name="location_id"
                         defaultSelectedId={selectedId}
+                        onSelectedIdChange={setSelectedId}
                         height={400}
                     />
                 </div>

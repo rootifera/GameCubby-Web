@@ -2,12 +2,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { hasActiveTokenFromRequest } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
 
-const COOKIE_NAME = "__gcub_a";
 const BACKUPS_DIR = process.env.GC_BACKUPS_DIR || "/storage/backups";
 
 const ALLOWED_EXT = new Set([
@@ -29,8 +29,7 @@ type FileItem = {
 
 export async function GET(req: NextRequest) {
     // Admin auth (same cookie as /admin)
-    const token = req.cookies.get(COOKIE_NAME)?.value ?? "";
-    if (!token) {
+    if (!hasActiveTokenFromRequest(req)) {
         return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
 

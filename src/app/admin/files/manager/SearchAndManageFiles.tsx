@@ -1,7 +1,7 @@
 // src/app/admin/files/manager/SearchAndManageFiles.tsx
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import TagChipsAutocomplete from "@/components/TagChipsAutocomplete";
 import CoverThumb from "@/components/CoverThumb";
 import {
@@ -640,7 +640,7 @@ export default function SearchAndManageFiles({
     const [q, setQ] = useState("");
     const [year, setYear] = useState("");
     const [platformId, setPlatformId] = useState<string>(""); // SINGLE
-    const [tagCsv, setTagCsv] = useState(""); // synced from hidden input rendered by TagChipsAutocomplete
+    const [tagCsv, setTagCsv] = useState("");
     const [matchMode, setMatchMode] = useState<"any" | "all" | "exact">("any");
     const [size, setSize] = useState(20);
 
@@ -657,31 +657,6 @@ export default function SearchAndManageFiles({
     const [gErr, setGErr] = useState<string | null>(null);
     const [gNotice, setGNotice] = useState<string | null>(null);
 
-    // Observe TagChipsAutocomplete's hidden input value (name="tag_ids")
-    const tagsHostRef = useRef<HTMLDivElement | null>(null);
-    useEffect(() => {
-        const host = tagsHostRef.current;
-        if (!host) return;
-
-        const input = host.querySelector('input[name="tag_ids"]') as HTMLInputElement | null;
-        if (!input) return;
-
-        const updateFromInput = () => setTagCsv(input.value || "");
-        updateFromInput();
-
-        input.addEventListener("input", updateFromInput);
-        input.addEventListener("change", updateFromInput);
-
-        const mo = new MutationObserver(updateFromInput);
-        mo.observe(input, { attributes: true, attributeFilter: ["value"] });
-
-        return () => {
-            input.removeEventListener("input", updateFromInput);
-            input.removeEventListener("change", updateFromInput);
-            mo.disconnect();
-        };
-    }, [tagsHostRef.current, resetKey]);
-
     // Reset everything (including Tags) — remount the tags widget
     function resetAll() {
         setQ("");
@@ -693,14 +668,6 @@ export default function SearchAndManageFiles({
         setResults(null);
         setErr(null);
         setResetKey((k) => k + 1);
-
-        const host = tagsHostRef.current;
-        const input = host?.querySelector('input[name="tag_ids"]') as HTMLInputElement | null;
-        if (input) {
-            input.value = "";
-            input.dispatchEvent(new Event("input", { bubbles: true }));
-            input.dispatchEvent(new Event("change", { bubbles: true }));
-        }
     }
 
     // Run search with debounce when filters change
@@ -883,8 +850,17 @@ export default function SearchAndManageFiles({
 
                 <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 160px" }}>
                     {/* Tags — uses existing component; we read its hidden input value */}
-                    <div ref={tagsHostRef} key={resetKey}>
-                        <TagChipsAutocomplete label="Tags" name="tag_ids" suggestKind="tags" defaultSelectedIds={[]} />
+                    <div key={resetKey}>
+                        <TagChipsAutocomplete
+                            label="Tags"
+                            name="tag_ids"
+                            suggestKind="tags"
+                            defaultSelectedIds={[]}
+                            searchOnly
+                            onTagsChange={({ existing }) => {
+                                setTagCsv(existing.map((tag) => tag.id).join(","));
+                            }}
+                        />
                     </div>
 
                     <label style={{ display: "grid", gap: 6 }}>

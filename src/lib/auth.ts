@@ -23,6 +23,11 @@ export function readTokenFromRequest(req: NextRequest): string {
     return req.cookies.get("__gcub_a")?.value || req.cookies.get("gc_at")?.value || "";
 }
 
+export function hasActiveTokenFromRequest(req: NextRequest): boolean {
+    const token = readTokenFromRequest(req);
+    return token ? isJwtActive(token) : false;
+}
+
 export function requireAuth(): string {
     const token = readToken();
     if (!token) {
