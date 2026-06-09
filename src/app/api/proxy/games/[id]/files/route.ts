@@ -5,7 +5,8 @@ import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
 
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         const id = encodeURIComponent(params.id);
 
         // Pass token if present (endpoint is public, but token enables locked-down servers)
-        const token = readToken();
+        const token = await readToken();
 
         const headers: Record<string, string> = { Accept: "application/json" };
         if (token) headers.Authorization = `Bearer ${token}`;

@@ -4,12 +4,13 @@ import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
-function readToken() {
-    return cookies().get("__gcub_a")?.value || cookies().get("gc_at")?.value || "";
+async function readToken() {
+    const cookieStore = await cookies();
+    return cookieStore.get("__gcub_a")?.value || cookieStore.get("gc_at")?.value || "";
 }
 
 export async function GET(_req: NextRequest) {
-    const token = readToken();
+    const token = await readToken();
     if (!token) return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
 
     let upstream: Response;

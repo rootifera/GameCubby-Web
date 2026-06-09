@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { API_BASE_URL } from "@/lib/env";
 
 // GET /api/proxy/locations/:location_id -> GET {API_BASE_URL}/locations/:location_id
-export async function GET(
-    _req: NextRequest,
-    { params }: { params: { location_id: string } }
-) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ location_id: string }> }) {
+    const params = await props.params;
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 5000);
 

@@ -4,15 +4,17 @@ import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
-function readToken(): string {
-    return cookies().get("__gcub_a")?.value || cookies().get("gc_at")?.value || "";
+async function readToken(): Promise<string> {
+    const cookieStore = await cookies();
+    return cookieStore.get("__gcub_a")?.value || cookieStore.get("gc_at")?.value || "";
 }
 
 export async function DELETE(
     _req: NextRequest,
-    { params }: { params: { id: string; file_id: string } }
+    props: { params: Promise<{ id: string; file_id: string }> }
 ) {
-    const token = readToken();
+    const params = await props.params;
+    const token = await readToken();
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
     }

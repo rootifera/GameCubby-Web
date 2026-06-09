@@ -5,7 +5,7 @@ import { isJwtActive, readToken } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-    const token = readToken();
+    const token = await readToken();
     const authed = token ? isJwtActive(token) : false;
 
     return NextResponse.json(

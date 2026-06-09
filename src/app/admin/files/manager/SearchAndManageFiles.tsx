@@ -267,10 +267,11 @@ function ManageFilesPanel({ gameId }: { gameId: number }) {
         setNotice(null);
         try {
             const fd = new FormData();
-            // Common FastAPI style: field name "file"
-            fd.append("file", uplFile);
+            // Put metadata first so upstream validation still sees it if a proxy interrupts a large file stream.
             fd.append("label", uplLabel.trim());
             fd.append("category", uplCat);
+            // Common FastAPI style: field name "file"
+            fd.append("file", uplFile);
 
             const res = await fetch(`/api/admin/games/${gameId}/files/upload`, {
                 method: "POST",
@@ -281,8 +282,11 @@ function ManageFilesPanel({ gameId }: { gameId: number }) {
             if (!res.ok) {
                 // Parse error response to provide user-friendly messages
                 let errorMessage = `Upload failed (${res.status})`;
+                if (res.status === 413) {
+                    errorMessage = "Upload failed: the selected file is larger than the server or proxy allows.";
+                }
                 try {
-                    if (text) {
+                    if (text && res.status !== 413) {
                         const errorData = JSON.parse(text);
                         if (errorData.detail && Array.isArray(errorData.detail)) {
                             const missingFields = errorData.detail

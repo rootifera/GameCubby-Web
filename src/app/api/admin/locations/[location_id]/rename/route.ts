@@ -6,8 +6,9 @@ import { API_BASE_URL } from "@/lib/env";
 export const dynamic = "force-dynamic";
 
 /** PUT /api/admin/locations/:location_id/rename -> PUT {API_BASE_URL}/locations/:id/rename (bearer) */
-export async function PUT(req: NextRequest, { params }: { params: { location_id: string } }) {
-    const token = readToken();
+export async function PUT(req: NextRequest, props: { params: Promise<{ location_id: string }> }) {
+    const params = await props.params;
+    const token = await readToken();
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
     }

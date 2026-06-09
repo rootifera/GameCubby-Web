@@ -4,11 +4,9 @@ import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-    _req: Request,
-    { params }: { params: { igdb_id: string } }
-) {
-    const token = readToken();
+export async function GET(_req: Request, props: { params: Promise<{ igdb_id: string }> }) {
+    const params = await props.params;
+    const token = await readToken();
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
     }

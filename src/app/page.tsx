@@ -101,9 +101,9 @@ async function fetchHealth(): Promise<Health> {
 }
 
 /** ---------- Check if user is admin ---------- */
-function checkIfAdmin(): boolean {
+async function checkIfAdmin(): Promise<boolean> {
     try {
-        const token = readToken();
+        const token = await readToken();
         return token ? isJwtActive(token) : false;
     } catch {
         return false;
@@ -119,7 +119,7 @@ export default async function HomePage() {
     let overview: Overview | null = null;
     let health: Health | null = null;
     let error: string | null = null;
-    const isAdmin = checkIfAdmin();
+    const isAdmin = await checkIfAdmin();
 
     try {
         [overview, health] = await Promise.all([fetchOverview(), fetchHealth()]);

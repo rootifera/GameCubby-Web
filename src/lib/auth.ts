@@ -12,11 +12,13 @@ import { PROXY } from "./env";
  * @returns true if cookies should be secure, false otherwise
  */
 export function shouldUseSecureCookies(req: NextRequest): boolean {
-    return PROXY || req.nextUrl.protocol === "https:";
+    const forwardedProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim().toLowerCase();
+    return PROXY || forwardedProto === "https" || req.nextUrl.protocol === "https:";
 }
 
-export function readToken(): string {
-    return cookies().get("__gcub_a")?.value || cookies().get("gc_at")?.value || "";
+export async function readToken(): Promise<string> {
+    const cookieStore = await cookies();
+    return cookieStore.get("__gcub_a")?.value || cookieStore.get("gc_at")?.value || "";
 }
 
 export function readTokenFromRequest(req: NextRequest): string {
@@ -28,8 +30,8 @@ export function hasActiveTokenFromRequest(req: NextRequest): boolean {
     return token ? isJwtActive(token) : false;
 }
 
-export function requireAuth(): string {
-    const token = readToken();
+export async function requireAuth(): Promise<string> {
+    const token = await readToken();
     if (!token) {
         throw new Error("Authentication required");
     }

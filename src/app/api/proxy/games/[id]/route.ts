@@ -17,7 +17,8 @@ function baseHeaders(token?: string) {
 }
 
 // GET /api/proxy/games/:id  ->  GET {API_BASE_URL}/games/:id
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 10000);
 
@@ -49,7 +50,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 }
 
 // PUT /api/proxy/games/:id  ->  PUT {API_BASE_URL}/games/:id
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     const token = readToken(req);
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
@@ -96,7 +98,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 }
 
 // DELETE /api/proxy/games/:id  ->  DELETE {API_BASE_URL}/games/:id
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     const token = readToken(req);
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });

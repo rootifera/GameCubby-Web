@@ -29,11 +29,12 @@ async function isFirstRunDone(): Promise<boolean> {
     }
 }
 
-export default async function SetupPage({
-                                            searchParams,
-                                        }: {
-    searchParams?: { error?: string };
-}) {
+export default async function SetupPage(
+    props: {
+        searchParams?: Promise<{ error?: string }>;
+    }
+) {
+    const searchParams = await props.searchParams;
     const alreadyDone = await isFirstRunDone();
     const errorMsg = searchParams?.error ? decodeURIComponent(searchParams.error) : "";
 

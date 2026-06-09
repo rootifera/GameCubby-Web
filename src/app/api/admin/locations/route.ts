@@ -62,7 +62,7 @@ export async function GET() {
  *  - or query params on this route (?name=...&parent_id=...&type=...)
  */
 export async function POST(req: NextRequest) {
-    const token = readToken();
+    const token = await readToken();
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
     }

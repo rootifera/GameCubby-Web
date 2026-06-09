@@ -5,7 +5,7 @@ import { API_BASE_URL } from "@/lib/env";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-    const token = readToken();
+    const token = await readToken();
 
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });

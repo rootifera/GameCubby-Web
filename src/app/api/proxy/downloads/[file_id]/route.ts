@@ -21,9 +21,9 @@ function errorHtml(title: string, message: string) {
 
 export async function GET(
     _req: NextRequest,
-    ctx: { params: { file_id: string } }
+    ctx: { params: Promise<{ file_id: string }> }
 ) {
-    const fileId = (ctx.params.file_id || "").trim();
+    const fileId = ((await ctx.params).file_id || "").trim();
     
     // Validate file ID format to prevent path traversal
     if (!fileId || !/^[a-zA-Z0-9\-_\.]+$/.test(fileId)) {
@@ -40,7 +40,7 @@ export async function GET(
     }
 
     // Pass admin token if present so admins can always download even if public is disabled
-    const token = readToken();
+    const token = await readToken();
     const headers: Record<string, string> = {};
     if (token) headers["Authorization"] = `Bearer ${token}`;
 

@@ -51,16 +51,16 @@ type Lookups = {
     collections: IdName[];
 };
 
-function baseUrl() {
-    const h = headers();
+async function baseUrl() {
+    const h = await headers();
     const host = h.get("x-forwarded-host") ?? h.get("host");
     const proto = h.get("x-forwarded-proto") ?? "http";
     if (!host) throw new Error("Missing Host header");
     return `${proto}://${host}`;
 }
 
-function authHeaders() {
-    const c = cookies();
+async function authHeaders() {
+    const c = await cookies();
     return {
         Accept: "application/json",
         Cookie: c.toString(), // forward all incoming cookies (admin/session)
@@ -68,7 +68,7 @@ function authHeaders() {
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
-    const res = await fetch(url, { cache: "no-store", headers: authHeaders() });
+    const res = await fetch(url, { cache: "no-store", headers: await authHeaders() });
     if (!res.ok) {
         const t = await res.text().catch(() => "");
         throw new Error(`GET ${url} -> ${res.status} ${res.statusText} ${t}`);
@@ -82,7 +82,7 @@ async function fetchGame(id: number): Promise<Game> {
 }
 
 async function fetchLookups(): Promise<Lookups> {
-    const base = baseUrl();
+    const base = await baseUrl();
     const [platforms, modes, genres, perspectives, collections, companies] = await Promise.all([
         fetchJson<IdName[]>(`${base}/api/admin/lookups/platforms`),
         fetchJson<IdName[]>(`${base}/api/admin/lookups/modes`),
@@ -107,7 +107,8 @@ export const metadata = {
     description: "Edit game",
 };
 
-export default async function AdminGameEditorPage({ params }: { params: { id: string } }) {
+export default async function AdminGameEditorPage(props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     const idNum = Number(params.id);
     if (!Number.isFinite(idNum) || idNum <= 0) {
         throw new Error("Invalid game id");
@@ -141,7 +142,6 @@ export default async function AdminGameEditorPage({ params }: { params: { id: st
                 <Link href="/admin/games/update" style={buttonStyle}>← Back</Link>
                 <div style={titleStyle}>Edit Game #{params.id}</div>
             </div>
-
             <div style={panel}>
                 {error ? (
                     <div style={{ color: "#ff6666" }}>{error}</div>
@@ -150,11 +150,11 @@ export default async function AdminGameEditorPage({ params }: { params: { id: st
                         <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
                             {game.cover_url ? (
                                 // eslint-disable-next-line @next/next/no-img-element
-                                <img
+                                (<img
                                     src={game.cover_url}
                                     alt={game.name}
                                     style={{ width: 96, height: 128, objectFit: "cover", borderRadius: 8, border: "1px solid #262626" }}
-                                />
+                                />)
                             ) : (
                                 <div
                                     style={{

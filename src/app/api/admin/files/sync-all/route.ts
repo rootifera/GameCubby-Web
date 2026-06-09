@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 // POST /api/admin/files/sync-all  ->  POST {API_BASE_URL}/files/sync-all  (Bearer)
 export async function POST(_req: NextRequest) {
-    const token = readToken();
+    const token = await readToken();
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
     }

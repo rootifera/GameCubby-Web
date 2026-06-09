@@ -14,10 +14,8 @@ const MAP: Record<string, string> = {
     tags: "/tags/",
 };
 
-export async function GET(
-    req: NextRequest,
-    { params }: { params: { kind: string } }
-) {
+export async function GET(req: NextRequest, props: { params: Promise<{ kind: string }> }) {
+    const params = await props.params;
     const kind = params.kind?.toLowerCase();
     const upstreamPath = kind && MAP[kind];
 

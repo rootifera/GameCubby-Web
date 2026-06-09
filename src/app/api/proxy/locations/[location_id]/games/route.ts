@@ -3,10 +3,8 @@ import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-    req: NextRequest,
-    { params }: { params: { location_id: string } }
-) {
+export async function GET(req: NextRequest, props: { params: Promise<{ location_id: string }> }) {
+    const params = await props.params;
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 10000);
 

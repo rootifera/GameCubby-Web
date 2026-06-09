@@ -374,11 +374,12 @@ function hrefWith(
     return { pathname: "/search/advanced", query };
 }
 
-export default async function AdvancedSearchPage({
-                                                     searchParams,
-                                                 }: {
-    searchParams?: Record<string, string | string[] | undefined>;
-}) {
+export default async function AdvancedSearchPage(
+    props: {
+        searchParams?: Promise<Record<string, string | string[] | undefined>>;
+    }
+) {
+    const searchParams = await props.searchParams;
     const sp = searchParams ?? {};
 
     // server-side understanding of whether filters are used

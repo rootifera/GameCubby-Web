@@ -5,8 +5,8 @@ type Kind = "tags" | "igdb_tags" | "modes" | "collections" | "companies";
 
 const noStore = { "Cache-Control": "no-store" };
 
-export async function GET(req: NextRequest, ctx: { params: { kind: string } }) {
-    const kind = (ctx.params.kind || "").toLowerCase() as Kind;
+export async function GET(req: NextRequest, ctx: { params: Promise<{ kind: string }> }) {
+    const kind = ((await ctx.params).kind || "").toLowerCase() as Kind;
     const allowed: Kind[] = ["tags", "igdb_tags", "modes", "collections", "companies"];
     if (!allowed.includes(kind)) {
         return NextResponse.json([], { status: 200, headers: noStore });
