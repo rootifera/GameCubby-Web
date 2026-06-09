@@ -9,6 +9,7 @@ import {
     UiFile,
 } from "@/lib/files";
 import BackButton from "@/components/BackButton";
+import GameFileUploadButton from "@/components/GameFileUploadButton";
 
 type LocationNode = { id: string; name: string };
 
@@ -172,14 +173,17 @@ export default async function GameDetailsPage(props: { params: Promise<{ id: str
                         position: "relative",
                     }}
                 >
-                    {/* Edit Button - Top Right Corner */}
+                    {/* Admin actions - Top Right Corner */}
                     {isAdmin && (
                         <div style={{
                             position: "absolute",
                             top: 16,
                             right: 16,
                             zIndex: 10,
+                            display: "flex",
+                            gap: 8,
                         }}>
+                            <GameFileUploadButton gameId={game.id} />
                             <Link
                                 href={`/admin/games/update/${game.id}`}
                                 style={{

@@ -660,6 +660,30 @@ export default function SearchAndManageFiles({
     const [gBusy, setGBusy] = useState(false);
     const [gErr, setGErr] = useState<string | null>(null);
     const [gNotice, setGNotice] = useState<string | null>(null);
+    const [storageBackend, setStorageBackend] = useState<"local" | "s3">("local");
+    const [pendingStorageBackend, setPendingStorageBackend] = useState<"local" | "s3">("local");
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch("/api/admin/app_config", { cache: "no-store" });
+                const text = await res.text();
+                if (!res.ok) return;
+                const entries = text ? (JSON.parse(text) as Array<{ key: string; value: string }>) : [];
+                const value = entries.find((e) => e.key === "file_storage_backend")?.value === "s3" ? "s3" : "local";
+                if (!cancelled) {
+                    setStorageBackend(value);
+                    setPendingStorageBackend(value);
+                }
+            } catch {
+                /* keep local default */
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     // Reset everything (including Tags) — remount the tags widget
     function resetAll() {
@@ -778,6 +802,56 @@ export default function SearchAndManageFiles({
         }
     }
 
+    async function saveStorageBackend() {
+        setGBusy(true);
+        setGErr(null);
+        setGNotice(null);
+        try {
+            const res = await fetch("/api/admin/app_config", {
+                method: "POST",
+                cache: "no-store",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ key: "file_storage_backend", value: pendingStorageBackend }),
+            });
+            const text = await res.text();
+            if (!res.ok) throw new Error(`Storage switch failed (${res.status}) ${text}`);
+            setStorageBackend(pendingStorageBackend);
+            setGNotice(`File storage switched to ${pendingStorageBackend.toUpperCase()}.`);
+        } catch (e: any) {
+            setGErr(e?.message ?? "Storage switch failed");
+        } finally {
+            setGBusy(false);
+        }
+    }
+
+    async function doBackendCopy(source: "local" | "s3", target: "local" | "s3") {
+        setGBusy(true);
+        setGErr(null);
+        setGNotice(null);
+        try {
+            const res = await fetch("/api/admin/files/sync-storage", {
+                method: "POST",
+                cache: "no-store",
+                headers: { "Content-Type": "application/json", Accept: "application/json" },
+                body: JSON.stringify({ source, target }),
+            });
+            const text = await res.text();
+            if (!res.ok) throw new Error(`Storage copy failed (${res.status}) ${text}`);
+            let detail = `Copy from ${source} to ${target} started.`;
+            try {
+                const obj = text ? (JSON.parse(text) as Record<string, any>) : {};
+                if (typeof obj.detail === "string") detail = obj.detail;
+            } catch {
+                /* ignore */
+            }
+            setGNotice(detail);
+        } catch (e: any) {
+            setGErr(e?.message ?? "Storage copy failed");
+        } finally {
+            setGBusy(false);
+        }
+    }
+
     /* ---- styles ---- */
     const input = {
         background: "#121212",
@@ -810,6 +884,47 @@ export default function SearchAndManageFiles({
 
     return (
         <div>
+            <section
+                style={{
+                    background: "#141414",
+                    border: "1px solid #262626",
+                    borderRadius: 10,
+                    padding: 12,
+                    marginBottom: 12,
+                    display: "grid",
+                    gap: 10,
+                }}
+            >
+                <div style={{ fontWeight: 700 }}>Storage Backend</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "end" }}>
+                    <label style={{ display: "grid", gap: 6 }}>
+                        <span style={{ opacity: 0.85, fontSize: 12 }}>Active backend</span>
+                        <select
+                            value={pendingStorageBackend}
+                            onChange={(e) => setPendingStorageBackend(e.target.value === "s3" ? "s3" : "local")}
+                            style={{ ...input, minWidth: 160 }}
+                        >
+                            <option value="local">Local</option>
+                            <option value="s3">S3</option>
+                        </select>
+                    </label>
+                    <button
+                        type="button"
+                        style={primaryBtn}
+                        onClick={() => void saveStorageBackend()}
+                        disabled={gBusy || pendingStorageBackend === storageBackend}
+                    >
+                        Switch
+                    </button>
+                    <button type="button" style={btn} onClick={() => void doBackendCopy("local", "s3")} disabled={gBusy}>
+                        Sync Local to S3
+                    </button>
+                    <button type="button" style={btn} onClick={() => void doBackendCopy("s3", "local")} disabled={gBusy}>
+                        Sync S3 to Local
+                    </button>
+                </div>
+            </section>
+
             {/* Filters — Basic Search with single-select platform */}
             <div style={{ display: "grid", gap: 12, marginBottom: 12 }}>
                 <input

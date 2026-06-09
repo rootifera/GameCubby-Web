@@ -209,6 +209,96 @@ export default async function SetupPage(
                             </div>
                         </fieldset>
 
+                        <fieldset style={{ border: "none", padding: 0, margin: 0 }}>
+                            <legend style={{ fontWeight: 600, marginBottom: 10 }}>Storage</legend>
+                            <div style={{ display: "grid", gap: 8, marginBottom: 16 }}>
+                                <label style={labelStyle}>
+                                    <span>File Storage</span>
+                                    <select id="file-storage-backend" name="file_storage_backend" defaultValue="local" style={inputStyle}>
+                                        <option value="local">Local</option>
+                                        <option value="s3">S3</option>
+                                    </select>
+                                </label>
+
+                                <label style={labelStyle}>
+                                    <span>Backup Storage</span>
+                                    <select id="backup-storage-backend" name="backup_storage_backend" defaultValue="local" style={inputStyle}>
+                                        <option value="local">Local</option>
+                                        <option value="s3">S3</option>
+                                    </select>
+                                </label>
+                            </div>
+                        </fieldset>
+
+                        <fieldset
+                            id="s3-credentials"
+                            style={{ border: "none", padding: 0, margin: 0, display: "none" }}
+                        >
+                            <legend style={{ fontWeight: 600, marginBottom: 10 }}>S3 Credentials</legend>
+                            <div style={{ display: "grid", gap: 8, marginBottom: 16 }}>
+                                <label style={labelStyle}>
+                                    <span>S3 Bucket</span>
+                                    <input name="s3_bucket" type="text" placeholder="gamecubby-files" style={inputStyle} />
+                                </label>
+
+                                <label style={labelStyle}>
+                                    <span>S3 Region</span>
+                                    <input name="s3_region" type="text" placeholder="us-east-1" style={inputStyle} />
+                                </label>
+
+                                <label style={labelStyle}>
+                                    <span>S3 Endpoint URL</span>
+                                    <input name="s3_endpoint_url" type="url" placeholder="https://s3.example.com" style={inputStyle} />
+                                </label>
+
+                                <label style={labelStyle}>
+                                    <span>S3 Access Key</span>
+                                    <input name="s3_access_key_id" type="text" placeholder="access key" style={inputStyle} />
+                                </label>
+
+                                <label style={labelStyle}>
+                                    <span>S3 Secret Key</span>
+                                    <input name="s3_secret_access_key" type="password" placeholder="secret key" style={inputStyle} />
+                                </label>
+
+                                <label style={labelStyle}>
+                                    <span>S3 Prefix</span>
+                                    <input name="s3_prefix" type="text" placeholder="gamecubby" style={inputStyle} />
+                                </label>
+
+                                <label style={labelStyle}>
+                                    <span>Presigned URL Expiry</span>
+                                    <input
+                                        type="number"
+                                        name="s3_presigned_url_expires"
+                                        defaultValue={900}
+                                        min={60}
+                                        max={604800}
+                                        style={inputStyle}
+                                    />
+                                </label>
+                            </div>
+                        </fieldset>
+                        <script
+                            dangerouslySetInnerHTML={{
+                                __html: `
+(() => {
+  const fileSelect = document.getElementById("file-storage-backend");
+  const backupSelect = document.getElementById("backup-storage-backend");
+  const credentials = document.getElementById("s3-credentials");
+  function updateS3Fields() {
+    if (!credentials) return;
+    const needsS3 = fileSelect?.value === "s3" || backupSelect?.value === "s3";
+    credentials.style.display = needsS3 ? "block" : "none";
+  }
+  fileSelect?.addEventListener("change", updateS3Fields);
+  backupSelect?.addEventListener("change", updateS3Fields);
+  updateS3Fields();
+})();
+`,
+                            }}
+                        />
+
                         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                             <button type="submit" style={buttonStyle}>
                                 Run Setup

@@ -6,6 +6,7 @@ type BackupFile = {
     name: string;
     relpath: string;
     abspath: string;
+    source?: "local" | "s3" | string;
     size: number;
     mtime: string; // ISO
 };
@@ -34,6 +35,7 @@ export default function BackupsPage() {
     const [ensureMsg, setEnsureMsg] = React.useState<string | null>(null);
 
     const [starting, setStarting] = React.useState(false);
+    const [syncing, setSyncing] = React.useState<string | null>(null);
 
     const [jobStatus, setJobStatus] = React.useState<StatusResp | null>(null);
     const [polling, setPolling] = React.useState(false);
@@ -198,6 +200,26 @@ export default function BackupsPage() {
         }
     };
 
+    const syncBackups = async (source: "local" | "s3", target: "local" | "s3") => {
+        setError(null);
+        setSyncing(`${source}-${target}`);
+        try {
+            const res = await fetch("/api/sentinel/backups/sync-storage", {
+                method: "POST",
+                cache: "no-store",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ source, target }),
+            });
+            const j = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(j?.detail || j?.error || `Failed: ${res.status}`);
+            await loadBackups();
+        } catch (e: any) {
+            setError(e?.message || "Failed to sync backups");
+        } finally {
+            setSyncing(null);
+        }
+    };
+
     const running = jobStatus?.status === "running";
 
     return (
@@ -243,6 +265,20 @@ export default function BackupsPage() {
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <button onClick={startBackup} style={btnPrimary} disabled={running || starting}>
                         {starting ? "Starting…" : running ? "Backup running…" : "Start backup"}
+                    </button>
+                    <button
+                        onClick={() => syncBackups("local", "s3")}
+                        style={btnSecondary}
+                        disabled={running || starting || !!syncing}
+                    >
+                        {syncing === "local-s3" ? "Syncing…" : "Sync Local to S3"}
+                    </button>
+                    <button
+                        onClick={() => syncBackups("s3", "local")}
+                        style={btnSecondary}
+                        disabled={running || starting || !!syncing}
+                    >
+                        {syncing === "s3-local" ? "Syncing…" : "Sync S3 to Local"}
                     </button>
                     <button onClick={() => { setLogText(""); setLogOffset(0); }} style={btnSecondary} disabled={starting}>
                         Clear logs
@@ -309,11 +345,12 @@ export default function BackupsPage() {
                 </div>
 
                 {!backups.length ? (
-                    <p style={{ opacity: 0.8 }}>No backups found in <code>/storage/backups</code>.</p>
+                    <p style={{ opacity: 0.8 }}>No backups found locally or in configured S3 backup storage.</p>
                 ) : (
                     <div style={{ maxHeight: 360, overflow: "auto", border: "1px solid #222", borderRadius: 8 }}>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, padding: "8px 10px", opacity: 0.8, fontSize: 12, borderBottom: "1px solid #1f1f1f" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: 8, padding: "8px 10px", opacity: 0.8, fontSize: 12, borderBottom: "1px solid #1f1f1f" }}>
                             <div>File</div>
+                            <div>Source</div>
                             <div>Size</div>
                             <div>Modified</div>
                         </div>
@@ -322,7 +359,7 @@ export default function BackupsPage() {
                                 key={f.abspath}
                                 style={{
                                     display: "grid",
-                                    gridTemplateColumns: "1fr auto auto",
+                                    gridTemplateColumns: "1fr auto auto auto",
                                     gap: 8,
                                     alignItems: "center",
                                     padding: "8px 10px",
@@ -334,6 +371,7 @@ export default function BackupsPage() {
                                     <div style={{ fontWeight: 600 }}>{f.name}</div>
                                     <div style={{ fontSize: 12, opacity: 0.8 }}>{f.relpath}</div>
                                 </div>
+                                <div style={{ fontSize: 12, opacity: 0.85, textTransform: "uppercase" }}>{f.source || "local"}</div>
                                 <div style={{ fontSize: 12, opacity: 0.85 }}>{fmtBytes(f.size)}</div>
                                 <div style={{ fontSize: 12, opacity: 0.85 }}>{fmtDate(f.mtime)}</div>
                             </div>

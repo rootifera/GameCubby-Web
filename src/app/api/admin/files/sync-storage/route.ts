@@ -1,0 +1,43 @@
+// src/app/api/admin/files/sync-storage/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { readToken } from "@/lib/auth";
+import { API_BASE_URL } from "@/lib/env";
+
+export const dynamic = "force-dynamic";
+
+export async function POST(req: NextRequest) {
+    const token = await readToken();
+    if (!token) {
+        return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
+    }
+
+    let body: string;
+    try {
+        body = await req.text();
+    } catch {
+        return NextResponse.json({ detail: "Invalid request body" }, { status: 400 });
+    }
+
+    try {
+        const upstream = await fetch(`${API_BASE_URL}/files/sync-storage`, {
+            method: "POST",
+            cache: "no-store",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body,
+        });
+
+        const text = await upstream.text();
+        return new NextResponse(text, {
+            status: upstream.status,
+            headers: {
+                "content-type": upstream.headers.get("content-type") ?? "application/json",
+                "cache-control": "no-store",
+            },
+        });
+    } catch {
+        return NextResponse.json({ detail: "Failed to reach API /files/sync-storage" }, { status: 502 });
+    }
+}
