@@ -1,4 +1,4 @@
-FROM node:20-trixie-slim AS builder
+FROM node:25-trixie-slim AS builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY . .
 
 RUN npm run build
 
-FROM node:20-trixie-slim AS production
+FROM node:25-trixie-slim AS production
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends postgresql-client ca-certificates tzdata tini && \

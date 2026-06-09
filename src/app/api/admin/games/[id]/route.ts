@@ -5,9 +5,10 @@ import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
-function readToken(): string {
+async function readToken(): Promise<string> {
     // Same cookie names as your working Add flow
-    return cookies().get("__gcub_a")?.value || cookies().get("gc_at")?.value || "";
+    const cookieStore = await cookies();
+    return cookieStore.get("__gcub_a")?.value || cookieStore.get("gc_at")?.value || "";
 }
 
 function urlVariants(id: string) {
@@ -36,8 +37,9 @@ async function passthrough(url: string, init: RequestInit, timeoutMs = 15000) {
 
 /* ---------------- PUT (existing behavior) ---------------- */
 // PUT /api/admin/games/:id  — forwards to  PUT {API_BASE_URL}/games/:id[/]  with Bearer from cookie
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-    const token = readToken();
+export async function PUT(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
+    const token = await readToken();
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
     }
@@ -69,8 +71,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
 /* ---------------- NEW: DELETE ---------------- */
 // DELETE /api/admin/games/:id  — forwards to  DELETE {API_BASE_URL}/games/:id[/]  with Bearer
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-    const token = readToken();
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
+    const token = await readToken();
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
     }

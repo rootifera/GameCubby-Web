@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const name = (searchParams.get("name") || "").trim();
-    const token = readToken();
+    const token = await readToken();
 
     if (!name) return NextResponse.json({ error: "Missing name" }, { status: 400 });
 

@@ -24,8 +24,8 @@ const MAINT_FILE = process.env.GC_MAINT_FILE || DEFAULT_MAINT_PATH;
 
 // Directories for dumps/logs (must be writable by the container)
 const BACKUPS_DIR = process.env.GC_BACKUPS_DIR || "/storage/backups";
-const LOGS_DIR = path.join(BACKUPS_DIR, "logs");
-const PRERESTORE_DIR = path.join(BACKUPS_DIR, "prerestore");
+const LOGS_DIR = path.join(/* turbopackIgnore: true */ BACKUPS_DIR, "logs");
+const PRERESTORE_DIR = path.join(/* turbopackIgnore: true */ BACKUPS_DIR, "prerestore");
 
 // DB config (from environment)
 const DB_HOST = process.env.DB_HOST || "gamecubby-db";
@@ -81,8 +81,8 @@ async function readMaintenanceEnabled(): Promise<boolean> {
 }
 
 function isPathUnder(dir: string, candidate: string) {
-    const a = path.resolve(dir) + path.sep;
-    const b = path.resolve(candidate);
+    const a = path.resolve(/* turbopackIgnore: true */ dir) + path.sep;
+    const b = path.resolve(/* turbopackIgnore: true */ candidate);
     return b.startsWith(a);
 }
 
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Ensure the dump path exists and is under BACKUPS_DIR (safety)
-    const resolvedDump = path.resolve(dumpPath);
+    const resolvedDump = path.resolve(/* turbopackIgnore: true */ dumpPath);
     if (!isPathUnder(BACKUPS_DIR, resolvedDump)) {
         return NextResponse.json(
             { ok: false, error: "invalid_path", message: "dump_path must be under backups directory" },
@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
         .replace(/[:-]/g, "")
         .replace(/\..+$/, "")
         .replace("T", "_");
-    const logFile = path.join(LOGS_DIR, `restore_${stamp}.log`);
+    const logFile = path.join(/* turbopackIgnore: true */ LOGS_DIR, `restore_${stamp}.log`);
     await fs.writeFile(logFile, `# Restore job ${jobId} started ${nowIso()}\n`, "utf8");
 
     const job: CurrentJob = {
@@ -213,7 +213,7 @@ export async function POST(req: NextRequest) {
             // 3) Optional pre-restore snapshot
             if (body.pre_dump) {
                 setPhase("pre_dump");
-                const preFile = path.join(PRERESTORE_DIR, `prerestore_${DB_NAME}_${stamp}.dump`);
+                const preFile = path.join(/* turbopackIgnore: true */ PRERESTORE_DIR, `prerestore_${DB_NAME}_${stamp}.dump`);
                 updateJob({ pre_dump_file: preFile });
                 await logLine(logFile, `== Pre-restore snapshot -> ${preFile} ==`);
                 const code = await runCmd(

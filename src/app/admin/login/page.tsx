@@ -6,11 +6,12 @@ export const metadata = {
     description: "Sign in to manage your library",
 };
 
-export default function AdminLoginPage({
-                                           searchParams,
-                                       }: {
-    searchParams?: { error?: string; next?: string };
-}) {
+export default async function AdminLoginPage(
+    props: {
+        searchParams?: Promise<{ error?: string; next?: string }>;
+    }
+) {
+    const searchParams = await props.searchParams;
     const errorMsg = searchParams?.error ? decodeURIComponent(searchParams.error) : "";
     const next = searchParams?.next || "/admin";
 

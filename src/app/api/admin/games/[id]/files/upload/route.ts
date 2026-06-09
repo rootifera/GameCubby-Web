@@ -6,12 +6,16 @@ import { API_BASE_URL } from "@/lib/env";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function readToken(): string {
-    return cookies().get("__gcub_a")?.value || cookies().get("gc_at")?.value || "";
+const UPLOAD_TIMEOUT_MS = 2 * 60 * 60 * 1000;
+
+async function readToken(): Promise<string> {
+    const cookieStore = await cookies();
+    return cookieStore.get("__gcub_a")?.value || cookieStore.get("gc_at")?.value || "";
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-    const token = readToken();
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
+    const token = await readToken();
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
     }
@@ -19,7 +23,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const contentType = req.headers.get("content-type") ?? "application/octet-stream";
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000); // allow large uploads
+    const timeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
 
     try {
         const upstream = await fetch(

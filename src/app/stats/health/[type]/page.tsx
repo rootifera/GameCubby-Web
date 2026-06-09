@@ -89,19 +89,20 @@ function toYearLabel(n?: number | null): string {
     return String(n);
 }
 
-export default async function HealthIssuePage({ params }: { params: { type: string } }) {
+export default async function HealthIssuePage(props: { params: Promise<{ type: string }> }) {
+    const params = await props.params;
     const type = params.type as HealthType;
-    
+
     // Validate the type parameter
     if (!VALID_TYPES.includes(type)) {
         notFound();
     }
-    
+
     const metadata = HEALTH_TYPE_METADATA[type];
     let healthData: IdList | null = null;
     let games: GamePreview[] = [];
     let error: string | null = null;
-    
+
     try {
         healthData = await fetchHealthIssueIds(type);
         if (healthData.ids.length > 0) {
@@ -110,7 +111,7 @@ export default async function HealthIssuePage({ params }: { params: { type: stri
     } catch (e: unknown) {
         error = e instanceof Error ? e.message : "Unknown error loading health data";
     }
-    
+
     return (
         <div>
             {/* Header */}

@@ -36,7 +36,7 @@ export async function GET() {
 
 // POST /games/ — REQUIRES bearer per OpenAPI
 export async function POST(req: NextRequest) {
-    const token = readToken();
+    const token = await readToken();
 
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });

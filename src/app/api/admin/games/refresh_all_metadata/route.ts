@@ -5,8 +5,9 @@ import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
-function readToken(): string {
-    return cookies().get("__gcub_a")?.value || cookies().get("gc_at")?.value || "";
+async function readToken(): Promise<string> {
+    const cookieStore = await cookies();
+    return cookieStore.get("__gcub_a")?.value || cookieStore.get("gc_at")?.value || "";
 }
 
 function urlVariants() {
@@ -36,7 +37,7 @@ async function passthrough(url: string, init: RequestInit, timeoutMs = 300000 /*
 
 /** POST /api/admin/games/refresh_all_metadata -> POST {API_BASE_URL}/games/refresh_all_metadata[/] */
 export async function POST(_req: NextRequest) {
-    const token = readToken();
+    const token = await readToken();
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
     }

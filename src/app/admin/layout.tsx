@@ -12,13 +12,10 @@ export const metadata = {
 /* ---- minimal JWT decode just to read `exp` ---- */
 type JwtPayload = { exp?: number };
 
-function readAuthToken(): string | null {
+async function readAuthToken(): Promise<string | null> {
     // Accept either cookie name (back-compat)
-    return (
-        cookies().get("__gcub_a")?.value ||
-        cookies().get("gc_at")?.value ||
-        null
-    );
+    const cookieStore = await cookies();
+    return cookieStore.get("__gcub_a")?.value || cookieStore.get("gc_at")?.value || null;
 }
 
 function decodeJwtPayload(token: string): JwtPayload | null {
@@ -47,7 +44,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     await bootstrapOnce();
 
     // Server-side, no hydration race: validate the JWT, not just its presence
-    const token = readAuthToken();
+    const token = await readAuthToken();
     const isAuthed = token ? isTokenValidNow(token) : false;
 
     const panelStyle: React.CSSProperties = {

@@ -6,7 +6,8 @@ import { API_BASE_URL } from "@/lib/env";
 export const dynamic = "force-dynamic";
 
 /** GET /api/admin/locations/:location_id  ->  GET {API_BASE_URL}/locations/:id (public) */
-export async function GET(_req: NextRequest, { params }: { params: { location_id: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ location_id: string }> }) {
+    const params = await props.params;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
 
@@ -34,8 +35,9 @@ export async function GET(_req: NextRequest, { params }: { params: { location_id
 }
 
 /** DELETE /api/admin/locations/:location_id  ->  DELETE {API_BASE_URL}/locations/:id (bearer) */
-export async function DELETE(_req: NextRequest, { params }: { params: { location_id: string } }) {
-    const token = readToken();
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ location_id: string }> }) {
+    const params = await props.params;
+    const token = await readToken();
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
     }

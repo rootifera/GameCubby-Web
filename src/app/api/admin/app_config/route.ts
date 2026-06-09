@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 // GET /api/admin/app_config  -> GET {API_BASE_URL}/app_config/
 export async function GET() {
-    const token = readToken();
+    const token = await readToken();
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
     }
@@ -37,7 +37,7 @@ export async function GET() {
 
 // POST /api/admin/app_config  -> POST {API_BASE_URL}/app_config/  (AppConfigEntry: { key, value })
 export async function POST(req: NextRequest) {
-    const token = readToken();
+    const token = await readToken();
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
     }

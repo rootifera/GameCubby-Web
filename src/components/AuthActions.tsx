@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { isJwtActive, readToken } from "@/lib/auth";
 
-export default function AuthActions() {
-    const token = readToken();
+export default async function AuthActions() {
+    const token = await readToken();
     const authed = token ? isJwtActive(token) : false;
 
     return (

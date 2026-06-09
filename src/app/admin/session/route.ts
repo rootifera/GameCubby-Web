@@ -26,7 +26,7 @@ function decodeJwtPayload(token: string): JwtPayload | null {
 }
 
 export async function GET() {
-    const token = readToken();
+    const token = await readToken();
 
     if (!token) {
         return NextResponse.json(

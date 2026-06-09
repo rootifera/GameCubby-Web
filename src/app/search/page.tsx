@@ -126,11 +126,12 @@ function buildPageUrl(
     return { pathname: "/search", query };
 }
 
-export default async function BasicSearchPage({
-                                                  searchParams,
-                                              }: {
-    searchParams?: Record<string, string | string[] | undefined>;
-}) {
+export default async function BasicSearchPage(
+    props: {
+        searchParams?: Promise<Record<string, string | string[] | undefined>>;
+    }
+) {
+    const searchParams = await props.searchParams;
     const sp = searchParams ?? {};
 
     // pagination (default page=1, size=20)

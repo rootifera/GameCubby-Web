@@ -1,4 +1,4 @@
-// src/middleware.ts
+// src/proxy.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -79,7 +79,24 @@ function isJwtActive(token: string): boolean {
     }
 }
 
-export default async function middleware(req: NextRequest) {
+function externalUrl(req: NextRequest, pathname: string): URL {
+    const url = req.nextUrl.clone();
+    const forwardedHost = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+    const forwardedProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+
+    if (forwardedHost) {
+        url.host = forwardedHost;
+    }
+    if (forwardedProto) {
+        url.protocol = `${forwardedProto}:`;
+    }
+
+    url.pathname = pathname;
+    url.search = "";
+    return url;
+}
+
+export default async function proxy(req: NextRequest) {
     const { pathname, search } = req.nextUrl;
 
     // --- Skip static assets quickly (handled by matcher too) ---
@@ -140,9 +157,7 @@ export default async function middleware(req: NextRequest) {
 
             // Admin pages (except the restore console) → redirect to restore
             if (pathname.startsWith("/admin") && pathname !== "/admin/sentinel/restore") {
-                const restoreUrl = new URL(req.url);
-                restoreUrl.pathname = "/admin/sentinel/restore";
-                restoreUrl.search = "";
+                const restoreUrl = externalUrl(req, "/admin/sentinel/restore");
                 return NextResponse.redirect(restoreUrl, 302);
             }
 
@@ -163,7 +178,7 @@ export default async function middleware(req: NextRequest) {
     ) {
         const token = readAdminToken(req);
         if (!token || !isJwtActive(token)) {
-            const loginUrl = new URL("/admin/login", req.url);
+            const loginUrl = externalUrl(req, "/admin/login");
             const nextPath = `${pathname}${search || ""}`;
             loginUrl.searchParams.set("next", nextPath || "/admin");
             const res = NextResponse.redirect(loginUrl);
@@ -178,5 +193,5 @@ export default async function middleware(req: NextRequest) {
 
 export const config = {
     // Run on everything except Next internals & common public files
-    matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
+    matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|api/admin/games/[^/]+/files/upload).*)"],
 };

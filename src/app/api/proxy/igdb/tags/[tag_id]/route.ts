@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { API_BASE_URL } from "@/lib/env";
 
-export async function GET(
-    _req: Request,
-    { params }: { params: { tag_id: string } }
-) {
+export async function GET(_req: Request, props: { params: Promise<{ tag_id: string }> }) {
+    const params = await props.params;
     const { tag_id } = params;
 
     // basic guard

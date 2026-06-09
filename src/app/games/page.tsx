@@ -233,11 +233,12 @@ function coerceSortKey(s: unknown): SortKey {
     return allowed.includes(s as SortKey) ? (s as SortKey) : "recent_desc";
 }
 
-export default async function GamesPage({
-                                            searchParams,
-                                        }: {
-    searchParams?: { sort?: string; page?: string; size?: string };
-}) {
+export default async function GamesPage(
+    props: {
+        searchParams?: Promise<{ sort?: string; page?: string; size?: string }>;
+    }
+) {
+    const searchParams = await props.searchParams;
     let games: GamePreview[] = [];
     let error: string | null = null;
 

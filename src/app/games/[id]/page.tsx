@@ -70,8 +70,9 @@ function igdbSearchUrl(name: string) {
 }
 
 /** Check if user is authenticated as admin */
-function isAdminAuthenticated(): boolean {
-    const token = cookies().get("__gcub_a")?.value || cookies().get("gc_at")?.value;
+async function isAdminAuthenticated(): Promise<boolean> {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("__gcub_a")?.value || cookieStore.get("gc_at")?.value;
     if (!token) return false;
     
     try {
@@ -105,7 +106,8 @@ function suggestFilename(f: UiFile): string {
     return raw.replace(/[\\/:*?"<>|]/g, "_");
 }
 
-export default async function GameDetailsPage({ params }: { params: { id: string } }) {
+export default async function GameDetailsPage(props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     let game: Game | null = null;
     let files: UiFile[] = [];
     let error: string | null = null;
@@ -122,6 +124,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
     } catch (e: unknown) {
         filesError = e instanceof Error ? e.message : "Unknown error";
     }
+    const isAdmin = await isAdminAuthenticated();
 
     const grouped = groupFiles(files);
     const groupOrder: GroupKey[] = [
@@ -140,7 +143,6 @@ export default async function GameDetailsPage({ params }: { params: { id: string
             <div style={{ marginBottom: 16 }}>
                 <BackButton />
             </div>
-
             {error ? (
                 <div
                     style={{
@@ -156,7 +158,6 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                     <div style={{ marginTop: 6, fontSize: 12, opacity: 0.9 }}>{error}</div>
                 </div>
             ) : null}
-
             {!error && game && (
                 <article
                     style={{
@@ -172,7 +173,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                     }}
                 >
                     {/* Edit Button - Top Right Corner */}
-                    {isAdminAuthenticated() && (
+                    {isAdmin && (
                         <div style={{
                             position: "absolute",
                             top: 16,
@@ -205,7 +206,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                     <div>
                         {game.cover_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img
+                            (<img
                                 src={game.cover_url}
                                 alt={game.name}
                                 width={180}
@@ -218,7 +219,7 @@ export default async function GameDetailsPage({ params }: { params: { id: string
                                     border: "1px solid #2b2b2b",
                                     background: "#141414",
                                 }}
-                            />
+                            />)
                         ) : (
                             <div
                                 style={{
