@@ -139,7 +139,7 @@ function Modal({
 }
 
 /* ------------ Manage panel inside modal ------------ */
-function ManageFilesPanel({ gameId }: { gameId: number }) {
+export function ManageFilesPanel({ gameId }: { gameId: number }) {
     const [files, setFiles] = useState<UiFile[] | null>(null);
     const [loading, setLoading] = useState(true);
     const [err, setErr] = useState<string | null>(null);
