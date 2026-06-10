@@ -3,6 +3,7 @@ import { API_BASE_URL } from "@/lib/env";
 import { redirect } from "next/navigation";
 import ForceRefreshButton from "@/components/ForceRefreshButton";
 import { isJwtActive, readToken } from "@/lib/auth";
+import SearchBox from "@/components/SearchBox";
 
 /** ---------- Types from the endpoints ---------- */
 
@@ -163,6 +164,11 @@ export default async function HomePage() {
                     <div style={{ marginTop: 6, fontSize: 12, opacity: 0.9 }}>{error}</div>
                 </div>
             ) : null}
+
+            <section className="gc-mobile-lookup">
+                <div className="gc-mobile-lookup-title">Find a game</div>
+                <SearchBox placeholder="Search by title..." />
+            </section>
 
             {/* Consistent spacing wrapper for all sections */}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

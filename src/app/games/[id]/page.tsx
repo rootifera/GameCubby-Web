@@ -161,6 +161,7 @@ export default async function GameDetailsPage(props: { params: Promise<{ id: str
             ) : null}
             {!error && game && (
                 <article
+                    className="gc-game-detail"
                     style={{
                         display: "grid",
                         gridTemplateColumns: "180px 1fr",
@@ -175,7 +176,7 @@ export default async function GameDetailsPage(props: { params: Promise<{ id: str
                 >
                     {/* Admin actions - Top Right Corner */}
                     {isAdmin && (
-                        <div style={{
+                        <div className="gc-admin-actions" style={{
                             position: "absolute",
                             top: 16,
                             right: 16,
@@ -207,7 +208,7 @@ export default async function GameDetailsPage(props: { params: Promise<{ id: str
                     )}
 
                     {/* Cover */}
-                    <div>
+                    <div className="gc-game-cover">
                         {game.cover_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             (<img
@@ -239,7 +240,7 @@ export default async function GameDetailsPage(props: { params: Promise<{ id: str
 
                     {/* Info */}
                     <div>
-                        <h1 style={{ fontSize: 24, margin: "0 0 10px 0", letterSpacing: 0.2 }}>
+                        <h1 className="gc-game-title" style={{ fontSize: 24, margin: "0 0 10px 0", letterSpacing: 0.2 }}>
                             {game.name}
                         </h1>
 
@@ -279,6 +280,7 @@ export default async function GameDetailsPage(props: { params: Promise<{ id: str
 
                         {/* Location (with Order) */}
                         <section
+                            className="gc-location-card"
                             style={{
                                 margin: "10px 0 14px 0",
                                 padding: "10px 12px",

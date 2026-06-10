@@ -330,7 +330,7 @@ export default function SearchBox({
     );
 
     return (
-        <div ref={wrapRef} style={{ position: "relative" }}>
+        <div ref={wrapRef} className="gc-searchbox" style={{ position: "relative" }}>
             {wrapWithForm ? (
                 <form action={onSelectNavigateTo ?? undefined} method="GET" onSubmit={onSubmit}>
                     {InputEl}

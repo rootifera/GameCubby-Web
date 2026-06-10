@@ -64,7 +64,7 @@ export default function NavBar() {
     ];
 
     return (
-        <div style={{ display: "flex", gap: 12, marginLeft: 12 }}>
+        <div className="gc-nav-links" style={{ display: "flex", gap: 12, marginLeft: 12 }}>
             {links.map((l) => (
                 <NavItem key={l.href} href={l.href} label={l.label} />
             ))}
