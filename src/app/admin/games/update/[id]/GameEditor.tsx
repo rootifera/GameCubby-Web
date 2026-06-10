@@ -237,6 +237,7 @@ export default function GameEditor({
     }, [initialData.tag_ids, initialData.tags]);
 
     const [saving, setSaving] = useState(false);
+    const [converting, setConverting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Prefer tag_ids_mix JSON if present, else fallback to CSV
@@ -477,6 +478,33 @@ export default function GameEditor({
         window.location.replace(url);
     }
 
+    async function convertToCustom() {
+        const ok = window.confirm(
+            "Convert this IGDB-linked game to a custom game? Current data will be kept, but future IGDB refreshes will no longer update it. This cannot be reversed automatically."
+        );
+        if (!ok) return;
+
+        setConverting(true);
+        setError(null);
+        try {
+            const res = await fetch(`/api/admin/games/${initialData.id}/convert_to_custom`, {
+                method: "POST",
+                headers: { Accept: "application/json" },
+                cache: "no-store",
+            });
+            const text = await res.text();
+            if (!res.ok) {
+                throw new Error(`Convert to custom failed (${res.status}) ${text}`);
+            }
+
+            navigatingRef.current = true;
+            window.location.replace(`${window.location.pathname}?_=${Date.now()}`);
+        } catch (err: any) {
+            setError(err?.message ?? "Failed to convert game");
+            setConverting(false);
+        }
+    }
+
     /* ---------- UI ---------- */
 
     return (
@@ -490,6 +518,35 @@ export default function GameEditor({
                         ? "Editable: Condition, Location, Order, Platforms, Tags. Other fields are read-only (from IGDB)."
                         : "All fields are editable for custom games."}
                 </div>
+                {isIGDB ? (
+                    <div
+                        style={{
+                            marginTop: 10,
+                            marginBottom: 12,
+                            padding: 10,
+                            background: "#141414",
+                            border: "1px solid #262626",
+                            borderRadius: 8,
+                            display: "flex",
+                            gap: 10,
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            flexWrap: "wrap",
+                        }}
+                    >
+                        <div style={{ ...hint, maxWidth: 680 }}>
+                            Need to edit missing IGDB data? Convert this record to a custom game. Existing details are kept, but IGDB refresh will stop updating it.
+                        </div>
+                        <button
+                            type="button"
+                            style={!saving && !converting ? btn : btnDisabled}
+                            onClick={() => void convertToCustom()}
+                            disabled={saving || converting}
+                        >
+                            {converting ? "Converting…" : "Convert to Custom"}
+                        </button>
+                    </div>
+                ) : null}
 
                 {/* ----- Basics ----- */}
                 <div style={sectionTitle}>Basics</div>
@@ -747,6 +804,11 @@ export default function GameEditor({
             {saving ? (
                 <div style={overlayWrap} role="alert" aria-live="assertive">
                     <div style={overlayCard}>Saving…</div>
+                </div>
+            ) : null}
+            {converting ? (
+                <div style={overlayWrap} role="alert" aria-live="assertive">
+                    <div style={overlayCard}>Converting…</div>
                 </div>
             ) : null}
         </>
