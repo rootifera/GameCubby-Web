@@ -18,6 +18,15 @@ export async function POST(req: NextRequest) {
     const igdb_client_id = String(form.get("igdb_client_id") ?? "").trim();
     const igdb_client_secret = String(form.get("igdb_client_secret") ?? "").trim();
     const query_limit_raw = String(form.get("query_limit") ?? "100").trim();
+    const file_storage_backend = String(form.get("file_storage_backend") ?? "local").trim().toLowerCase();
+    const backup_storage_backend = String(form.get("backup_storage_backend") ?? "local").trim().toLowerCase();
+    const s3_bucket = String(form.get("s3_bucket") ?? "").trim();
+    const s3_region = String(form.get("s3_region") ?? "").trim();
+    const s3_endpoint_url = String(form.get("s3_endpoint_url") ?? "").trim();
+    const s3_access_key_id = String(form.get("s3_access_key_id") ?? "").trim();
+    const s3_secret_access_key = String(form.get("s3_secret_access_key") ?? "").trim();
+    const s3_prefix = String(form.get("s3_prefix") ?? "").trim().replace(/^\/+|\/+$/g, "");
+    const s3_presigned_raw = String(form.get("s3_presigned_url_expires") ?? "900").trim();
 
     // New: public downloads (form shows Yes/No; API expects boolean)
     // Defaults to "false" when missing.
@@ -36,10 +45,27 @@ export async function POST(req: NextRequest) {
     if (admin_password.length < 6) errors.push("Password must be at least 6 characters.");
     if (!igdb_client_id) errors.push("IGDB Client ID is required.");
     if (!igdb_client_secret) errors.push("IGDB Client Secret is required.");
+    if (!["local", "s3"].includes(file_storage_backend)) errors.push("File storage backend must be local or S3.");
+    if (!["local", "s3"].includes(backup_storage_backend)) errors.push("Backup storage backend must be local or S3.");
+    if ((file_storage_backend === "s3" || backup_storage_backend === "s3") && !s3_bucket) {
+        errors.push("S3 bucket is required when S3 is enabled.");
+    }
+    if ((file_storage_backend === "s3" || backup_storage_backend === "s3") && !s3_access_key_id) {
+        errors.push("S3 access key is required when S3 is enabled.");
+    }
+    if ((file_storage_backend === "s3" || backup_storage_backend === "s3") && !s3_secret_access_key) {
+        errors.push("S3 secret key is required when S3 is enabled.");
+    }
 
     let query_limit = 100;
     const n = Number(query_limit_raw);
     if (!Number.isNaN(n) && n > 0 && n <= 10000) query_limit = Math.floor(n);
+
+    let s3_presigned_url_expires = 900;
+    const presign = Number(s3_presigned_raw);
+    if (!Number.isNaN(presign) && presign >= 60 && presign <= 604800) {
+        s3_presigned_url_expires = Math.floor(presign);
+    }
 
     if (errors.length) {
         return new NextResponse(null, {
@@ -55,6 +81,15 @@ export async function POST(req: NextRequest) {
         igdb_client_secret,
         query_limit,
         public_downloads_enabled, // ← send boolean to API
+        file_storage_backend,
+        backup_storage_backend,
+        s3_bucket,
+        s3_region,
+        s3_endpoint_url,
+        s3_access_key_id,
+        s3_secret_access_key,
+        s3_prefix,
+        s3_presigned_url_expires,
     };
 
     try {

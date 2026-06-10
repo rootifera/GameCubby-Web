@@ -205,9 +205,9 @@ export default async function BasicSearchPage(
 
             {/* Basic search form - always visible */}
             <div style={{ border: "1px solid #222", borderRadius: 10, background: "#121212", marginBottom: 16 }}>
-                <form method="GET" action="/search" style={{ display: "grid", gap: 16, padding: "16px", marginBottom: 12, gridTemplateColumns: "1fr 1fr" }}>
+                <form className="gc-search-form" method="GET" action="/search" style={{ display: "grid", gap: 16, padding: "16px", marginBottom: 12, gridTemplateColumns: "1fr 1fr" }}>
                     {/* Search input */}
-                    <div style={{ gridColumn: "span 2" }}>
+                    <div className="gc-search-span" style={{ gridColumn: "span 2" }}>
                         <label style={{ display: "grid", gap: 6 }}>
                             <span style={{ opacity: 0.85 }}>Search games</span>
                             <SearchBox 
@@ -219,7 +219,7 @@ export default async function BasicSearchPage(
                     </div>
 
                     {/* Row 1 — Year + Platform */}
-                    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "200px 1fr", gridColumn: "span 2" }}>
+                    <div className="gc-search-row" style={{ display: "grid", gap: 16, gridTemplateColumns: "200px 1fr", gridColumn: "span 2" }}>
                         <label style={{ display: "grid", gap: 6 }}>
                             <span style={{ opacity: 0.85 }}>Year (exact)</span>
                             <input
@@ -227,13 +227,14 @@ export default async function BasicSearchPage(
                                 defaultValue={year}
                                 inputMode="numeric"
                                 placeholder="1998"
+                                className="gc-mobile-field"
                                 style={inputShort}
                             />
                         </label>
 
                         <label style={{ display: "grid", gap: 6 }}>
                             <span style={{ opacity: 0.85 }}>Platform</span>
-                            <select name="platform_id" defaultValue={platform_id} style={selectStyle}>
+                            <select className="gc-mobile-field" name="platform_id" defaultValue={platform_id} style={selectStyle}>
                                 <option value="">Any</option>
                                 {platforms
                                     .slice()
@@ -248,7 +249,7 @@ export default async function BasicSearchPage(
                     </div>
 
                     {/* Row 2 — Tags + Match mode */}
-                    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 200px", gridColumn: "span 2" }}>
+                    <div className="gc-search-row" style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 200px", gridColumn: "span 2" }}>
                         <TagChipsAutocomplete
                             label="Tags"
                             name="tag_ids"
@@ -258,7 +259,7 @@ export default async function BasicSearchPage(
                         />
                         <label style={{ display: "grid", gap: 6 }}>
                             <span style={{ opacity: 0.85 }}>Tag match</span>
-                            <select name="match_mode" defaultValue={match_mode} style={selectStyle}>
+                            <select className="gc-mobile-field" name="match_mode" defaultValue={match_mode} style={selectStyle}>
                                 <option value="any">Any</option>
                                 <option value="all">All</option>
                                 <option value="exact">Exact</option>
@@ -267,12 +268,12 @@ export default async function BasicSearchPage(
                     </div>
 
                     {/* Page size control */}
-                    <div style={{ display: "grid", gap: 6, maxWidth: 200, gridColumn: "span 2" }}>
+                    <div className="gc-search-size" style={{ display: "grid", gap: 6, maxWidth: 200, gridColumn: "span 2" }}>
                         <span style={{ opacity: 0.85 }}>Page size</span>
-                        <input name="size" defaultValue={String(size)} inputMode="numeric" style={inputShort} />
+                        <input className="gc-mobile-field" name="size" defaultValue={String(size)} inputMode="numeric" style={inputShort} />
                     </div>
 
-                    <div style={{ display: "flex", gap: 8, gridColumn: "span 2" }}>
+                    <div className="gc-search-actions" style={{ display: "flex", gap: 8, gridColumn: "span 2" }}>
                         <button
                             type="submit"
                             style={{
@@ -342,6 +343,7 @@ export default async function BasicSearchPage(
                     {results.map((g) => (
                         <li
                             key={g.id}
+                            className="gc-result-item"
                             style={{
                                 display: "flex",
                                 gap: 12,
@@ -364,7 +366,7 @@ export default async function BasicSearchPage(
                             </GameHoverCard>
 
                             {/* Info */}
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%" }}>
+                            <div className="gc-result-info" style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%" }}>
                                 <div>
                                     <Link href={`/games/${g.id}`} style={{ color: "#fff", textDecoration: "none", fontWeight: 600 }}>
                                         {g.name}
@@ -373,7 +375,7 @@ export default async function BasicSearchPage(
                                         Platforms: {(g.platforms ?? []).map((p) => p.name).join(", ") || "—"}
                                     </div>
                                 </div>
-                                <div style={{ textAlign: "right", fontSize: 12, opacity: 0.9 }}>
+                                <div className="gc-result-meta" style={{ textAlign: "right", fontSize: 12, opacity: 0.9 }}>
                                     <div>Year: {toYearLabel(g.release_date)}</div>
                                 </div>
                             </div>
@@ -413,6 +415,7 @@ function BasicPager({
 }) {
     return (
         <div
+            className="gc-pager"
             style={{
                 display: "flex",
                 gap: 8,
@@ -426,7 +429,7 @@ function BasicPager({
                 {start ? <>Showing {start}–{end}</> : <>No results</>}
             </div>
 
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="gc-pager-links" style={{ display: "flex", gap: 8 }}>
                 <Link href={hrefBuilder(1)} aria-disabled={page <= 1} style={page <= 1 ? btnDisabled : btn}>
                     « First
                 </Link>

@@ -49,6 +49,7 @@ export async function GET(
         upstream = await fetch(`${API_BASE_URL}/downloads/${encodeURIComponent(fileId)}`, {
             cache: "no-store",
             headers,
+            redirect: "manual",
         });
     } catch {
         return new NextResponse(
@@ -58,6 +59,13 @@ export async function GET(
                 headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
             }
         );
+    }
+
+    if (upstream.status >= 300 && upstream.status < 400) {
+        const location = upstream.headers.get("location");
+        if (location) {
+            return NextResponse.redirect(location, upstream.status);
+        }
     }
 
     // 403: public downloads disabled / unauthorized

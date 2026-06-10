@@ -154,6 +154,7 @@ function PaginationBar({
 
     return (
         <div
+            className="gc-pager"
             style={{
                 display: "flex",
                 gap: 8,
@@ -167,7 +168,7 @@ function PaginationBar({
                 Showing {start}–{end} of {total}
             </div>
 
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="gc-pager-links" style={{ display: "flex", gap: 8 }}>
                 <Link href={link(1)} aria-disabled={page <= 1} style={page <= 1 ? btnDisabled : btn}>
                     « First
                 </Link>
@@ -274,6 +275,7 @@ export default async function GamesPage(
 
             {/* Sort bar + page size selector */}
             <div
+                className="gc-sort-bar"
                 style={{
                     display: "flex",
                     flexWrap: "wrap",
@@ -295,7 +297,7 @@ export default async function GamesPage(
                 <div style={{ flex: 1 }} />
 
                 {/* Page size (GET form so no client JS needed) */}
-                <form action="/games" method="get" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <form className="gc-page-size-form" action="/games" method="get" style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <input type="hidden" name="sort" value={sortParam} />
                     <input type="hidden" name="page" value={1} />
                     <label htmlFor="size" style={{ opacity: 0.8, fontSize: 13 }}>Page size:</label>
@@ -367,6 +369,7 @@ export default async function GamesPage(
                         return (
                             <li
                                 key={g.id}
+                                className="gc-game-list-item"
                                 style={{
                                     display: "flex",
                                     gap: 12,
@@ -389,7 +392,7 @@ export default async function GamesPage(
                                 </GameHoverCard>
 
                                 {/* Text block */}
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%" }}>
+                                <div className="gc-game-list-info" style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%" }}>
                                     <div>
                                         <Link href={`/games/${g.id}`} style={{ color: "#fff", textDecoration: "none", fontWeight: 600 }}>
                                             {g.name}
@@ -398,7 +401,7 @@ export default async function GamesPage(
                                     </div>
 
                                     {/* Right aligned meta */}
-                                    <div style={{ textAlign: "right", fontSize: 12, opacity: 0.9 }}>
+                                    <div className="gc-game-list-meta" style={{ textAlign: "right", fontSize: 12, opacity: 0.9 }}>
                                         <div>Year: {year}</div>
                                         <div>Rating: {rating ?? "—"}</div>
                                     </div>

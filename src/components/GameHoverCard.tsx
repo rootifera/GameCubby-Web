@@ -57,11 +57,15 @@ export default function GameHoverCard({
     children: React.ReactNode;
 }) {
     const [open, setOpen] = useState(false);
+    const [touchMode, setTouchMode] = useState(false);
     const [pos, setPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const [data, setData] = useState<GameDetails | null>(null);
     const [error, setError] = useState<string | null>(null);
     const loadedRef = useRef(false);
     const enterTimer = useRef<number | null>(null);
+    const wrapRef = useRef<HTMLSpanElement | null>(null);
+    const cardRef = useRef<HTMLDivElement | null>(null);
+    const lastPointerType = useRef<string>("");
 
     function clearEnterTimer() {
         if (enterTimer.current) {
@@ -72,16 +76,19 @@ export default function GameHoverCard({
 
     function scheduleOpen() {
         if (open || enterTimer.current) return;
+        setTouchMode(false);
         enterTimer.current = window.setTimeout(() => {
             enterTimer.current = null;
             setOpen(true);
         }, 120);
     }
     function onLeave() {
+        if (touchMode) return;
         clearEnterTimer();
         setOpen(false);
     }
     function onMove(e: React.PointerEvent) {
+        if (e.pointerType === "touch") return;
         scheduleOpen();
         const pad = 16;
         const w = 320;
@@ -95,7 +102,48 @@ export default function GameHoverCard({
         setPos({ x, y });
     }
 
+    function openForTouch() {
+        clearEnterTimer();
+        const pad = 12;
+        const vw = window.innerWidth;
+        const width = Math.min(360, vw - pad * 2);
+        setPos({
+            x: Math.max(pad, Math.floor((vw - width) / 2)),
+            y: 88,
+        });
+        setTouchMode(true);
+        setOpen(true);
+    }
+
+    function onPointerDownCapture(e: React.PointerEvent) {
+        lastPointerType.current = e.pointerType;
+    }
+
+    function onClickCapture(e: React.MouseEvent) {
+        const isTouchLike =
+            lastPointerType.current === "touch" ||
+            (typeof window !== "undefined" && window.matchMedia("(hover: none)").matches);
+        if (!isTouchLike) return;
+        if (!open || !touchMode) {
+            e.preventDefault();
+            e.stopPropagation();
+            openForTouch();
+        }
+    }
+
     useEffect(() => () => clearEnterTimer(), []);
+
+    useEffect(() => {
+        if (!open || !touchMode) return;
+        function onDocPointerDown(e: PointerEvent) {
+            const target = e.target as Node;
+            if (wrapRef.current?.contains(target) || cardRef.current?.contains(target)) return;
+            setOpen(false);
+            setTouchMode(false);
+        }
+        document.addEventListener("pointerdown", onDocPointerDown);
+        return () => document.removeEventListener("pointerdown", onDocPointerDown);
+    }, [open, touchMode]);
 
     useEffect(() => {
         if (!open || loadedRef.current) return;
@@ -107,6 +155,9 @@ export default function GameHoverCard({
 
     return (
         <span
+            ref={wrapRef}
+            onPointerDownCapture={onPointerDownCapture}
+            onClickCapture={onClickCapture}
             onPointerEnter={scheduleOpen}
             onPointerLeave={onLeave}
             onPointerMove={onMove}
@@ -116,11 +167,13 @@ export default function GameHoverCard({
 
             {open ? (
                 <div
+                    ref={cardRef}
                     style={{
                         position: "fixed",
                         left: pos.x,
                         top: pos.y,
-                        width: 320,
+                        width: touchMode ? "calc(100vw - 24px)" : 320,
+                        maxWidth: touchMode ? 360 : undefined,
                         zIndex: 9999,
                         background: "#0f0f0f",
                         border: "1px solid #2b2b2b",
@@ -128,15 +181,38 @@ export default function GameHoverCard({
                         boxShadow: "0 6px 20px rgba(0,0,0,0.45)",
                         padding: 10,
                         color: "#eaeaea",
-                        pointerEvents: "none",
+                        pointerEvents: touchMode ? "auto" : "none",
                     }}
                 >
+                    {touchMode ? (
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setOpen(false);
+                                    setTouchMode(false);
+                                }}
+                                aria-label="Close preview"
+                                style={{
+                                    background: "#171717",
+                                    border: "1px solid #303030",
+                                    borderRadius: 8,
+                                    color: "#eaeaea",
+                                    cursor: "pointer",
+                                    fontSize: 12,
+                                    padding: "4px 8px",
+                                }}
+                            >
+                                Close
+                            </button>
+                        </div>
+                    ) : null}
                     {!data && !error ? (
                         <div style={{ fontSize: 12, opacity: 0.8 }}>Loading…</div>
                     ) : error ? (
                         <div style={{ fontSize: 12, color: "#fca5a5" }}>Failed to load</div>
                     ) : data ? (
-                        <CardContent g={data} />
+                        <CardContent g={data} touchMode={touchMode} />
                     ) : null}
                 </div>
             ) : null}
@@ -146,7 +222,7 @@ export default function GameHoverCard({
 
 /* ------- inner content ------- */
 
-function CardContent({ g }: { g: GameDetails }) {
+function CardContent({ g, touchMode = false }: { g: GameDetails; touchMode?: boolean }) {
     const platforms = (g.platforms ?? []).map((p) => p.name).join(", ") || "—";
     const locationStr =
         (g.location_path && g.location_path.length
@@ -197,6 +273,26 @@ function CardContent({ g }: { g: GameDetails }) {
                     {typeof g.order === "number" && g.order > 0 ? ` > ${g.order}` : ""}
                 </div>
             </div>
+
+            {touchMode ? (
+                <a
+                    href={`/games/${g.id}`}
+                    style={{
+                        gridColumn: "1 / span 2",
+                        textAlign: "center",
+                        textDecoration: "none",
+                        background: "#1e293b",
+                        border: "1px solid #3b82f6",
+                        color: "#e5f0ff",
+                        padding: "9px 10px",
+                        borderRadius: 8,
+                        fontSize: 13,
+                        fontWeight: 600,
+                    }}
+                >
+                    Open details
+                </a>
+            ) : null}
         </div>
     );
 }

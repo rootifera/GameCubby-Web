@@ -6,7 +6,7 @@ export default async function AuthActions() {
     const authed = token ? isJwtActive(token) : false;
 
     return (
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="gc-auth-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {authed ? (
                 <>
                     <Link href="/admin" style={btnPrimary}>Admin Panel</Link>
