@@ -25,6 +25,19 @@ type GameListItem = {
     igdb_id?: number | null;
 };
 
+type SyncAllStatus = {
+    status: "idle" | "running" | "completed" | "failed" | string;
+    detail?: string | null;
+    started_at?: string | null;
+    finished_at?: string | null;
+    result?: {
+        total_added?: number;
+        total_skipped?: number;
+        game_results?: Record<string, { added?: number; skipped?: number }>;
+    } | null;
+    error?: string | null;
+};
+
 /* ------------ helpers ------------ */
 function toYearNumber(n?: number | null): number | null {
     if (n == null) return null;
@@ -660,6 +673,7 @@ export default function SearchAndManageFiles({
     const [gBusy, setGBusy] = useState(false);
     const [gErr, setGErr] = useState<string | null>(null);
     const [gNotice, setGNotice] = useState<string | null>(null);
+    const [syncStatus, setSyncStatus] = useState<SyncAllStatus | null>(null);
     const [storageBackend, setStorageBackend] = useState<"local" | "s3">("local");
     const [pendingStorageBackend, setPendingStorageBackend] = useState<"local" | "s3">("local");
 
@@ -684,6 +698,58 @@ export default function SearchAndManageFiles({
             cancelled = true;
         };
     }, []);
+
+    async function loadSyncStatus(): Promise<SyncAllStatus | null> {
+        const res = await fetch("/api/admin/files/sync-all", {
+            method: "GET",
+            cache: "no-store",
+            headers: { Accept: "application/json" },
+        });
+        const text = await res.text();
+        if (!res.ok) throw new Error(`Sync status failed (${res.status}) ${text}`);
+        const status = text ? (JSON.parse(text) as SyncAllStatus) : null;
+        setSyncStatus(status);
+        return status;
+    }
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const status = await loadSyncStatus();
+                if (!cancelled && status?.status === "running") {
+                    setGBusy(true);
+                    setGNotice(status.detail || "Full filesystem sync is running.");
+                }
+            } catch {
+                /* status is nice-to-have on initial load */
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (syncStatus?.status !== "running") return;
+        const interval = window.setInterval(async () => {
+            try {
+                const status = await loadSyncStatus();
+                if (status?.status === "completed") {
+                    const added = status.result?.total_added ?? 0;
+                    const skipped = status.result?.total_skipped ?? 0;
+                    setGNotice(`COMPLETED: ${added} added, ${skipped} skipped.`);
+                    setGBusy(false);
+                } else if (status?.status === "failed") {
+                    setGErr(status.error || "Sync-all failed.");
+                    setGBusy(false);
+                }
+            } catch (e: any) {
+                setGErr(e?.message ?? "Sync status failed");
+            }
+        }, 2000);
+        return () => window.clearInterval(interval);
+    }, [syncStatus?.status]);
 
     // Reset everything (including Tags) — remount the tags widget
     function resetAll() {
@@ -787,17 +853,22 @@ export default function SearchAndManageFiles({
             // API returns something like { status: "started", detail: "..."}
             let status = "started";
             let detail = "Sync requested.";
+            let parsed: SyncAllStatus | null = null;
             try {
-                const obj = text ? (JSON.parse(text) as Record<string, any>) : {};
-                if (typeof obj.status === "string") status = obj.status;
-                if (typeof obj.detail === "string") detail = obj.detail;
+                const obj = text ? (JSON.parse(text) as SyncAllStatus) : null;
+                parsed = obj;
+                if (typeof obj?.status === "string") status = obj.status;
+                if (typeof obj?.detail === "string") detail = obj.detail;
             } catch {
                 /* ignore parse errors */
             }
+            setSyncStatus(parsed);
             setGNotice(`${status.toUpperCase()}: ${detail}`);
+            if (status !== "running") {
+                setGBusy(false);
+            }
         } catch (e: any) {
             setGErr(e?.message ?? "Sync-all failed");
-        } finally {
             setGBusy(false);
         }
     }
@@ -1103,8 +1174,43 @@ export default function SearchAndManageFiles({
                     </div>
                 )}
 
+                {syncStatus && syncStatus.status !== "idle" && (
+                    <div
+                        style={{
+                            display: "grid",
+                            gap: 4,
+                            background: "#101010",
+                            border: "1px solid #262626",
+                            borderRadius: 8,
+                            padding: 10,
+                            marginBottom: 8,
+                            fontSize: 13,
+                        }}
+                    >
+                        <div>
+                            <strong>Status:</strong> {syncStatus.status}
+                        </div>
+                        {syncStatus.started_at && (
+                            <div style={{ opacity: 0.8 }}>
+                                Started: {new Date(syncStatus.started_at).toLocaleString()}
+                            </div>
+                        )}
+                        {syncStatus.finished_at && (
+                            <div style={{ opacity: 0.8 }}>
+                                Finished: {new Date(syncStatus.finished_at).toLocaleString()}
+                            </div>
+                        )}
+                        {syncStatus.result && (
+                            <div style={{ opacity: 0.9 }}>
+                                Added: {syncStatus.result.total_added ?? 0} · Skipped: {syncStatus.result.total_skipped ?? 0}
+                            </div>
+                        )}
+                        {syncStatus.error && <div style={{ color: "#ffd7d7" }}>{syncStatus.error}</div>}
+                    </div>
+                )}
+
                 <button type="button" onClick={() => void doGlobalSync()} style={primaryBtn} disabled={gBusy}>
-                    {gBusy ? "Starting…" : "Sync All Files"}
+                    {syncStatus?.status === "running" ? "Sync Running…" : gBusy ? "Starting…" : "Sync All Files"}
                 </button>
                 <div style={{ fontSize: 12, opacity: 0.75, marginTop: 6 }}>
                     Triggers a full scan/sync of files for all games on the server.

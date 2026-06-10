@@ -19,6 +19,19 @@ type GameListItem = {
 type DetailsLite = { id: number; igdb_id?: number | null };
 type RefreshResult = { updated: boolean; message: string };
 type BulkInfo = { status?: string; detail?: string };
+type MetadataRefreshStatus = {
+    status: "idle" | "running" | "completed" | "failed" | string;
+    kind?: "refresh_all" | "force_refresh" | string | null;
+    detail?: string | null;
+    started_at?: string | null;
+    finished_at?: string | null;
+    result?: {
+        updated?: number;
+        skipped?: number;
+        errors?: number;
+    } | null;
+    error?: string | null;
+};
 
 /* ------------ helpers ------------ */
 function toYearNumber(n?: number | null): number | null {
@@ -93,6 +106,61 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
     const [bulkBusy, setBulkBusy] = useState<null | "refresh_all" | "force_refresh">(null);
     const [bulkMsg, setBulkMsg] = useState<string | null>(null);
     const [bulkInfo, setBulkInfo] = useState<BulkInfo | null>(null); // ← pretty JSON banner
+    const [metadataStatus, setMetadataStatus] = useState<MetadataRefreshStatus | null>(null);
+
+    async function loadMetadataStatus(): Promise<MetadataRefreshStatus | null> {
+        const res = await fetch("/api/admin/games/refresh_all_metadata", {
+            method: "GET",
+            cache: "no-store",
+            headers: { Accept: "application/json" },
+        });
+        const text = await res.text();
+        if (!res.ok) throw new Error(`Metadata status failed (${res.status}) ${text}`);
+        const status = text ? (JSON.parse(text) as MetadataRefreshStatus) : null;
+        setMetadataStatus(status);
+        return status;
+    }
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const status = await loadMetadataStatus();
+                if (!cancelled && status?.status === "running") {
+                    setBulkBusy(status.kind === "force_refresh" ? "force_refresh" : "refresh_all");
+                    setBulkInfo({ status: status.status, detail: status.detail || undefined });
+                }
+            } catch {
+                /* status is nice-to-have on initial load */
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (metadataStatus?.status !== "running") return;
+        const interval = window.setInterval(async () => {
+            try {
+                const status = await loadMetadataStatus();
+                if (status?.status === "completed") {
+                    const updated = status.result?.updated ?? 0;
+                    const skipped = status.result?.skipped ?? 0;
+                    const errors = status.result?.errors ?? 0;
+                    setBulkInfo({ status: "completed", detail: `Updated: ${updated} · Skipped: ${skipped} · Errors: ${errors}` });
+                    setBulkBusy(null);
+                } else if (status?.status === "failed") {
+                    setBulkInfo(null);
+                    setBulkMsg(status.error || "Metadata refresh failed.");
+                    setBulkBusy(null);
+                }
+            } catch (e: any) {
+                setBulkMsg(e?.message ?? "Metadata status failed");
+            }
+        }, 2000);
+        return () => window.clearInterval(interval);
+    }, [metadataStatus?.status]);
 
     // Observe TagChipsAutocomplete's hidden input value (name="tag_ids")
     const tagsHostRef = useRef<HTMLDivElement | null>(null);
@@ -334,10 +402,13 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
 
             // Pretty: if JSON with {status, detail}, show a nice banner; else fallback to raw text.
             const ct = res.headers.get("content-type") || "";
+            let responseStatus: string | null = null;
             if (ct.includes("application/json")) {
-                const data = (await res.json().catch(() => null)) as { status?: string; detail?: string } | null;
+                const data = (await res.json().catch(() => null)) as MetadataRefreshStatus | null;
+                responseStatus = data?.status ?? null;
+                setMetadataStatus(data);
                 if (data && (data.status || data.detail)) {
-                    setBulkInfo({ status: data.status, detail: data.detail });
+                    setBulkInfo({ status: data.status || undefined, detail: data.detail || undefined });
                     setBulkMsg(null);
                 } else {
                     setBulkInfo(null);
@@ -348,10 +419,12 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
                 setBulkInfo(null);
                 setBulkMsg(text || "Bulk action completed.");
             }
+            if (responseStatus !== "running") {
+                setBulkBusy(null);
+            }
         } catch (e: any) {
             setBulkInfo(null);
             setBulkMsg(e?.message ?? "Bulk action failed");
-        } finally {
             setBulkBusy(null);
         }
     }
@@ -572,6 +645,42 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
                         {bulkInfo.detail ? (
                             <div style={{ marginTop: 4, color: "#e5e7eb" }}>{bulkInfo.detail}</div>
                         ) : null}
+                    </div>
+                ) : null}
+
+                {metadataStatus && metadataStatus.status !== "idle" ? (
+                    <div
+                        style={{
+                            display: "grid",
+                            gap: 4,
+                            background: "#101010",
+                            border: "1px solid #262626",
+                            borderRadius: 8,
+                            padding: 10,
+                            marginTop: 6,
+                            fontSize: 13,
+                        }}
+                    >
+                        <div>
+                            <strong>Status:</strong> {metadataStatus.status}
+                            {metadataStatus.kind ? ` (${metadataStatus.kind === "force_refresh" ? "force refresh" : "refresh all"})` : ""}
+                        </div>
+                        {metadataStatus.started_at ? (
+                            <div style={{ opacity: 0.8 }}>
+                                Started: {new Date(metadataStatus.started_at).toLocaleString()}
+                            </div>
+                        ) : null}
+                        {metadataStatus.finished_at ? (
+                            <div style={{ opacity: 0.8 }}>
+                                Finished: {new Date(metadataStatus.finished_at).toLocaleString()}
+                            </div>
+                        ) : null}
+                        {metadataStatus.result ? (
+                            <div style={{ opacity: 0.9 }}>
+                                Updated: {metadataStatus.result.updated ?? 0} · Skipped: {metadataStatus.result.skipped ?? 0} · Errors: {metadataStatus.result.errors ?? 0}
+                            </div>
+                        ) : null}
+                        {metadataStatus.error ? <div style={{ color: "#ffd7d7" }}>{metadataStatus.error}</div> : null}
                     </div>
                 ) : null}
 

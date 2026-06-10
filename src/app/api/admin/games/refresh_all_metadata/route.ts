@@ -59,9 +59,24 @@ export async function POST(_req: NextRequest) {
     );
 }
 
+/** GET /api/admin/games/refresh_all_metadata -> GET {API_BASE_URL}/games/refresh_all_metadata/status */
+export async function GET(_req: NextRequest) {
+    const token = await readToken();
+    if (!token) {
+        return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
+    }
+
+    const headers: HeadersInit = {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+    };
+
+    return passthrough(`${API_BASE_URL}/games/refresh_all_metadata/status`, { method: "GET", headers }, 20000);
+}
+
 export function OPTIONS() {
     return new NextResponse(null, {
         status: 204,
-        headers: { Allow: "POST, OPTIONS", "cache-control": "no-store" },
+        headers: { Allow: "GET, POST, OPTIONS", "cache-control": "no-store" },
     });
 }
