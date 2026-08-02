@@ -30,17 +30,20 @@ export async function GET(req: NextRequest) {
         // reflects S3 immediately after it is selected in settings.
         try {
             const authorization = `Bearer ${readTokenFromRequest(req)}`;
-            const [configRes, listRes] = await Promise.all([
-                fetch(`${API_BASE}/app_config/`, {
+            // Keep these sequential. On a brand-new database the first
+            // authenticated API request initializes SECRET_KEY; parallel first
+            // requests can race when talking to an older API deployment.
+            const configRes = await fetch(`${API_BASE}/app_config/`, {
+                cache: "no-store",
+                headers: { Accept: "application/json", Authorization: authorization },
+            });
+            const listRes = configRes.ok
+                ? await fetch(`${API_BASE}/backup/list`, {
                     cache: "no-store",
                     headers: { Accept: "application/json", Authorization: authorization },
-                }),
-                fetch(`${API_BASE}/backup/list`, {
-                    cache: "no-store",
-                    headers: { Accept: "application/json", Authorization: authorization },
-                }),
-            ]);
-            if (configRes.ok && listRes.ok) {
+                })
+                : null;
+            if (configRes.ok && listRes?.ok) {
                 const entries = await configRes.json() as Array<{ key?: string; value?: string }>;
                 const backend = entries.find((entry) => entry.key === "backup_storage_backend")?.value || "local";
                 const data = await listRes.json() as { files?: Array<{ source?: string }> };

@@ -34,7 +34,15 @@ async function loadBackupStorage(req: NextRequest): Promise<MaintJson["backup_st
             Authorization: `Bearer ${readTokenFromRequest(req)}`,
         },
     });
-    if (!res.ok) throw new Error(`Unable to read backup storage configuration (${res.status})`);
+    if (!res.ok) {
+        const error = new Error(
+            res.status === 401
+                ? "Your admin session is no longer valid. Sign in again before enabling maintenance."
+                : `Unable to read backup storage configuration (${res.status})`
+        ) as Error & { status?: number };
+        error.status = res.status;
+        throw error;
+    }
     const entries = await res.json() as Array<{ key?: string; value?: string }>;
     const values = new Map(entries.map((entry) => [entry.key || "", entry.value || ""]));
     const backend = (values.get("backup_storage_backend") || "local").toLowerCase();
@@ -98,10 +106,18 @@ export async function POST(req: NextRequest) {
         backupStorage = await loadBackupStorage(req);
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Unable to prepare backup storage";
-        return NextResponse.json(
+        const status = typeof (err as { status?: unknown })?.status === "number"
+            ? (err as { status: number }).status
+            : 502;
+        const res = NextResponse.json(
             { ok: false, error: "backup_storage_unavailable", message },
-            { status: 502 }
+            { status }
         );
+        if (status === 401) {
+            res.cookies.delete("__gcub_a");
+            res.cookies.delete("gc_at");
+        }
+        return res;
     }
 
     const payload: MaintJson = {

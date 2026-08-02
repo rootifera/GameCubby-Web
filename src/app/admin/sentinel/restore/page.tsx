@@ -183,7 +183,11 @@ export default function RestorePage() {
         });
         if (!res.ok) {
             const j = await res.json().catch(() => ({}));
-            throw new Error(j?.error || `Failed: ${res.status}`);
+            const error = new Error(j?.message || j?.error || `Failed: ${res.status}`) as Error & {
+                status?: number;
+            };
+            error.status = res.status;
+            throw error;
         }
     }, []);
 
@@ -207,6 +211,9 @@ export default function RestorePage() {
             await loadMaint();
         } catch (e: any) {
             setError(e?.message || "Failed to change maintenance mode");
+            if (e?.status === 401) {
+                window.location.assign("/admin/login?next=/admin/sentinel/restore");
+            }
         } finally {
             setToggling(false);
         }
@@ -415,7 +422,7 @@ export default function RestorePage() {
                         <Toggle
                             checked={maintOn}
                             onChange={onToggleMaint}
-                            disabled={loadingMaint || toggling || running}
+                            disabled={loadingMaint || loadingBackups || toggling || running}
                             labelOn="Enabled"
                             labelOff="Disabled"
                         />
