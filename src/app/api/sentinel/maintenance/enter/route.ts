@@ -2,7 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { hasActiveTokenFromRequest, shouldUseSecureCookies } from "@/lib/auth";
+import { hasActiveTokenFromRequest, readTokenFromRequest, shouldUseSecureCookies } from "@/lib/auth";
+import type { S3BackupConfig } from "@/lib/s3Backup";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,6 +14,7 @@ const MAINT_COOKIE = "__gc_maint";
 // Maintenance flag file (shared via ./storage:/storage)
 const DEFAULT_MAINT_PATH = "/storage/maintenance.json";
 const MAINT_FILE = process.env.GC_MAINT_FILE || DEFAULT_MAINT_PATH;
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://gamecubby-api:8000";
 
 type MaintJson = {
     enabled: boolean;
@@ -21,7 +23,35 @@ type MaintJson = {
     started_at?: string | null;
     allow?: string[];         // routes that remain reachable while in maintenance
     nonce?: string;           // optional, if you ever want to rotate a guard token
+    backup_storage?: S3BackupConfig | { backend: "local" };
 };
+
+async function loadBackupStorage(req: NextRequest): Promise<MaintJson["backup_storage"]> {
+    const res = await fetch(`${API_BASE}/app_config/`, {
+        cache: "no-store",
+        headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${readTokenFromRequest(req)}`,
+        },
+    });
+    if (!res.ok) throw new Error(`Unable to read backup storage configuration (${res.status})`);
+    const entries = await res.json() as Array<{ key?: string; value?: string }>;
+    const values = new Map(entries.map((entry) => [entry.key || "", entry.value || ""]));
+    const backend = (values.get("backup_storage_backend") || "local").toLowerCase();
+    if (backend !== "s3") return { backend: "local" };
+
+    const bucket = values.get("s3_bucket") || "";
+    if (!bucket) throw new Error("S3 backup storage is selected but s3_bucket is not configured");
+    return {
+        backend: "s3",
+        bucket,
+        prefix: values.get("s3_prefix") || "",
+        endpoint_url: values.get("s3_endpoint_url") || "",
+        region: values.get("s3_region") || "",
+        access_key_id: values.get("s3_access_key_id") || "",
+        secret_access_key: values.get("s3_secret_access_key") || "",
+    };
+}
 
 export async function POST(req: NextRequest) {
     // ---- Admin check (same cookie as /admin) ----
@@ -63,16 +93,29 @@ export async function POST(req: NextRequest) {
         // ignore
     }
 
+    let backupStorage: MaintJson["backup_storage"];
+    try {
+        backupStorage = await loadBackupStorage(req);
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unable to prepare backup storage";
+        return NextResponse.json(
+            { ok: false, error: "backup_storage_unavailable", message },
+            { status: 502 }
+        );
+    }
+
     const payload: MaintJson = {
         enabled: true,
         reason: reason || null,
         by,
         started_at: new Date().toISOString(),
         allow,
+        backup_storage: backupStorage,
     };
 
     // ---- Write maintenance flag ----
     await fs.writeFile(MAINT_FILE, JSON.stringify(payload, null, 2), "utf8");
+    await fs.chmod(MAINT_FILE, 0o600);
 
     // ---- Respond + set cookie so middleware blocks immediately ----
     const res = NextResponse.json(

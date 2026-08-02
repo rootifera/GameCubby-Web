@@ -6,6 +6,14 @@ import { spawn } from "node:child_process";
 import crypto from "node:crypto";
 import { hasActiveTokenFromRequest } from "@/lib/auth";
 import {
+    backupPrefix,
+    getS3BackupObject,
+    parseS3Uri,
+    readS3BackupConfig,
+    uploadS3Backup,
+    type S3BackupConfig,
+} from "@/lib/s3Backup";
+import {
     getJob,
     setJob,
     updateJob,
@@ -24,7 +32,7 @@ const MAINT_FILE = process.env.GC_MAINT_FILE || DEFAULT_MAINT_PATH;
 
 // Directories for dumps/logs (must be writable by the container)
 const BACKUPS_DIR = process.env.GC_BACKUPS_DIR || "/storage/backups";
-const LOGS_DIR = path.join(/* turbopackIgnore: true */ BACKUPS_DIR, "logs");
+const LOGS_DIR = "/tmp/gamecubby-sentinel/logs";
 const PRERESTORE_DIR = path.join(/* turbopackIgnore: true */ BACKUPS_DIR, "prerestore");
 
 // DB config (from environment)
@@ -41,9 +49,9 @@ function nowIso() {
     return new Date().toISOString();
 }
 
-async function ensureDirs() {
+async function ensureDirs(usingS3: boolean) {
     await fs.mkdir(LOGS_DIR, { recursive: true });
-    await fs.mkdir(PRERESTORE_DIR, { recursive: true });
+    if (!usingS3) await fs.mkdir(PRERESTORE_DIR, { recursive: true });
 }
 
 /** Append a line to the job log. */
@@ -56,9 +64,16 @@ function runCmd(
     jobLog: string,
     cmd: string,
     args: string[],
-    env: Record<string, string>
+    env: Record<string, string>,
+    input?: NodeJS.ReadableStream
 ): Promise<number> {
     return new Promise((resolve) => {
+        let settled = false;
+        const finish = (code: number) => {
+            if (settled) return;
+            settled = true;
+            resolve(code);
+        };
         const child = spawn(cmd, args, { env: { ...process.env, ...env } });
         child.stdout.on("data", (d) => {
             logLine(jobLog, `[${cmd}] ${d.toString()}`).catch(() => {});
@@ -66,8 +81,40 @@ function runCmd(
         child.stderr.on("data", (d) => {
             logLine(jobLog, `[${cmd} ERR] ${d.toString()}`).catch(() => {});
         });
-        child.on("close", (code) => resolve(code ?? 0));
+        if (input) {
+            input.pipe(child.stdin);
+        }
+        child.on("error", (err) => {
+            logLine(jobLog, `[${cmd} ERR] Failed to start: ${err.message}`).catch(() => {});
+            finish(127);
+        });
+        child.on("close", (code) => finish(code ?? 1));
     });
+}
+
+async function runPgDumpToS3(
+    jobLog: string,
+    args: string[],
+    env: Record<string, string>,
+    config: S3BackupConfig,
+    key: string
+): Promise<{ code: number; uri: string }> {
+    const child = spawn("pg_dump", args, { env: { ...process.env, ...env } });
+    child.stderr.on("data", (data) => {
+        logLine(jobLog, `[pg_dump ERR] ${data.toString()}`).catch(() => {});
+    });
+    const close = new Promise<number>((resolve) => {
+        child.on("error", (err) => {
+            logLine(jobLog, `[pg_dump ERR] Failed to start: ${err.message}`).catch(() => {});
+            resolve(127);
+        });
+        child.on("close", (code) => resolve(code ?? 1));
+    });
+    const [code, uri] = await Promise.all([
+        close,
+        uploadS3Backup(config, key, child.stdout),
+    ]);
+    return { code, uri };
 }
 
 async function readMaintenanceEnabled(): Promise<boolean> {
@@ -86,7 +133,7 @@ function isPathUnder(dir: string, candidate: string) {
     return b.startsWith(a);
 }
 
-export async function POST(req: NextRequest) {
+async function startRestore(req: NextRequest) {
     // ----- Admin auth (same cookie as /admin) -----
     if (!hasActiveTokenFromRequest(req)) {
         return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
@@ -121,29 +168,44 @@ export async function POST(req: NextRequest) {
         // ignore
     }
 
-    const dumpPath = (body.dump_path || "").trim();
-    if (!dumpPath) {
+    const requestedDump = (body.dump_path || "").trim();
+    if (!requestedDump) {
         return NextResponse.json({ ok: false, error: "missing_dump_path" }, { status: 400 });
     }
 
-    // Ensure the dump path exists and is under BACKUPS_DIR (safety)
-    const resolvedDump = path.resolve(/* turbopackIgnore: true */ dumpPath);
-    if (!isPathUnder(BACKUPS_DIR, resolvedDump)) {
-        return NextResponse.json(
-            { ok: false, error: "invalid_path", message: "dump_path must be under backups directory" },
-            { status: 400 }
-        );
-    }
-    try {
-        const st = await fs.stat(resolvedDump);
-        if (!st.isFile()) {
-            return NextResponse.json({ ok: false, error: "not_a_file" }, { status: 400 });
+    const selectedS3 = parseS3Uri(requestedDump);
+    const s3Config = selectedS3 ? await readS3BackupConfig() : null;
+    let resolvedDump = requestedDump;
+
+    if (selectedS3) {
+        if (!s3Config || selectedS3.bucket !== s3Config.bucket) {
+            return NextResponse.json(
+                { ok: false, error: "invalid_s3_backup", message: "S3 backup configuration is unavailable." },
+                { status: 400 }
+            );
         }
-    } catch {
-        return NextResponse.json({ ok: false, error: "file_not_found" }, { status: 404 });
+    } else {
+        // Relative local paths are resolved beneath BACKUPS_DIR and contained there.
+        resolvedDump = path.isAbsolute(requestedDump)
+            ? path.resolve(/* turbopackIgnore: true */ requestedDump)
+            : path.resolve(/* turbopackIgnore: true */ BACKUPS_DIR, requestedDump);
+        if (!isPathUnder(BACKUPS_DIR, resolvedDump)) {
+            return NextResponse.json(
+                { ok: false, error: "invalid_path", message: "dump_path must be under backups directory" },
+                { status: 400 }
+            );
+        }
+        try {
+            const st = await fs.stat(resolvedDump);
+            if (!st.isFile()) {
+                return NextResponse.json({ ok: false, error: "not_a_file" }, { status: 400 });
+            }
+        } catch {
+            return NextResponse.json({ ok: false, error: "file_not_found" }, { status: 404 });
+        }
     }
 
-    await ensureDirs();
+    await ensureDirs(!!s3Config);
 
     // ----- Initialize job -----
     const jobId = crypto.randomUUID();
@@ -174,6 +236,13 @@ export async function POST(req: NextRequest) {
         const setPhase = (p: JobPhase) => updateJob({ phase: p });
 
         try {
+            const runPgRestore = async (args: string[]) => {
+                if (!s3Config) return runCmd(logFile, "pg_restore", [...args, resolvedDump], PRE);
+                const object = await getS3BackupObject(s3Config, resolvedDump);
+                if (!object.Body) throw new Error("S3 returned an empty backup object");
+                return runCmd(logFile, "pg_restore", args, PRE, object.Body as NodeJS.ReadableStream);
+            };
+
             await logLine(logFile, `DB target: ${DB_HOST}:${DB_PORT} db=${DB_NAME}`);
             await logLine(logFile, `Dump: ${resolvedDump}`);
 
@@ -213,24 +282,33 @@ export async function POST(req: NextRequest) {
             // 3) Optional pre-restore snapshot
             if (body.pre_dump) {
                 setPhase("pre_dump");
-                const preFile = path.join(/* turbopackIgnore: true */ PRERESTORE_DIR, `prerestore_${DB_NAME}_${stamp}.dump`);
+                const preName = `prerestore_${DB_NAME}_${stamp}.dump`;
+                const preFile = s3Config
+                    ? `s3://${s3Config.bucket}/${backupPrefix(s3Config)}prerestore/${preName}`
+                    : path.join(/* turbopackIgnore: true */ PRERESTORE_DIR, preName);
                 updateJob({ pre_dump_file: preFile });
                 await logLine(logFile, `== Pre-restore snapshot -> ${preFile} ==`);
-                const code = await runCmd(
-                    logFile,
-                    "pg_dump",
-                    ["-h", DB_HOST, "-p", DB_PORT, "-U", MAINT_USER, "-d", DB_NAME, "-Fc", "-f", preFile],
-                    PRE
-                );
+                const code = s3Config
+                    ? (await runPgDumpToS3(
+                        logFile,
+                        ["-h", DB_HOST, "-p", DB_PORT, "-U", MAINT_USER, "-d", DB_NAME, "-Fc"],
+                        PRE,
+                        s3Config,
+                        `${backupPrefix(s3Config)}prerestore/${preName}`
+                    )).code
+                    : await runCmd(
+                        logFile,
+                        "pg_dump",
+                        ["-h", DB_HOST, "-p", DB_PORT, "-U", MAINT_USER, "-d", DB_NAME, "-Fc", "-f", preFile],
+                        PRE
+                    );
                 if (code !== 0) throw new Error(`Pre-restore dump failed (exit ${code})`);
             }
 
             // 4) Try database-level restore with --create
             setPhase("restore_create");
             await logLine(logFile, "== pg_restore (database-level, --create) ==");
-            let code = await runCmd(
-                logFile,
-                "pg_restore",
+            let code = await runPgRestore(
                 [
                     "--clean",
                     "--if-exists",
@@ -245,9 +323,7 @@ export async function POST(req: NextRequest) {
                     MAINT_USER,
                     "-d",
                     "postgres",
-                    resolvedDump,
-                ],
-                PRE
+                ]
             );
 
             // 5) Fallback: in-place restore
@@ -284,9 +360,7 @@ $$;`;
 
                 // 5c) Restore into DB
                 setPhase("restore_inplace");
-                code = await runCmd(
-                    logFile,
-                    "pg_restore",
+                code = await runPgRestore(
                     [
                         "--clean",
                         "--if-exists",
@@ -300,9 +374,7 @@ $$;`;
                         MAINT_USER,
                         "-d",
                         DB_NAME,
-                        resolvedDump,
-                    ],
-                    PRE
+                    ]
                 );
                 if (code !== 0) throw new Error(`In-place pg_restore failed (exit ${code})`);
             }
@@ -383,4 +455,17 @@ $$;`;
         },
         { status: 202, headers: { "Cache-Control": "no-store" } }
     );
+}
+
+export async function POST(req: NextRequest) {
+    try {
+        return await startRestore(req);
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unknown restore error";
+        console.error("Failed to start database restore:", err);
+        return NextResponse.json(
+            { ok: false, error: "restore_start_failed", message },
+            { status: 500, headers: { "Cache-Control": "no-store" } }
+        );
+    }
 }

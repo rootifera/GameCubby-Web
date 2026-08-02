@@ -15,6 +15,8 @@ type BackupFile = {
     name: string;
     relpath: string;
     abspath: string;
+    uri?: string;
+    source?: "local" | "s3" | string;
     size: number;
     mtime: string; // ISO
 };
@@ -36,6 +38,24 @@ type StatusResp = {
         error: string | null;
     };
 };
+
+async function readJsonResponse<T>(res: Response): Promise<T> {
+    const text = await res.text();
+    const contentType = res.headers.get("content-type") || "";
+
+    if (!contentType.toLowerCase().includes("application/json")) {
+        const detail = text.trim().startsWith("<!doctype") || text.trim().startsWith("<html")
+            ? "the server returned an HTML page"
+            : "the server returned a non-JSON response";
+        throw new Error(`Request failed (${res.status}): ${detail}. Check the web server logs.`);
+    }
+
+    try {
+        return JSON.parse(text) as T;
+    } catch {
+        throw new Error(`Request failed (${res.status}): the server returned invalid JSON.`);
+    }
+}
 
 /* ---------- small UI atoms ---------- */
 
@@ -140,7 +160,8 @@ export default function RestorePage() {
             const res = await fetch("/api/sentinel/maintenance/status", {
                 cache: "no-store",
             });
-            const j = await res.json();
+            const j = await readJsonResponse<MaintStatus>(res);
+            if (!res.ok) throw new Error(`Failed to load maintenance status: ${res.status}`);
             setMaint({
                 enabled: !!j.enabled,
                 reason: j.reason,
@@ -197,12 +218,15 @@ export default function RestorePage() {
             const res = await fetch("/api/sentinel/backups/list", {
                 cache: "no-store",
             });
-            const j = await res.json();
+            const j = await readJsonResponse<{ files?: BackupFile[]; error?: string }>(res);
+            if (!res.ok) throw new Error(j.error || `Failed to load backups: ${res.status}`);
             const files: BackupFile[] = Array.isArray(j.files) ? j.files : [];
             setBackups(files);
             if (files.length) {
                 // default to first file if none selected
-                setDumpPath((prev) => prev || files[0].abspath);
+                setDumpPath((prev) => prev || (files[0].source === "s3"
+                    ? files[0].uri || files[0].abspath
+                    : files[0].relpath || files[0].name));
             }
         } catch (e: any) {
             setError(e?.message || "Failed to load backups");
@@ -216,7 +240,8 @@ export default function RestorePage() {
             const res = await fetch("/api/sentinel/restore/status", {
                 cache: "no-store",
             });
-            const j: StatusResp = await res.json();
+            const j = await readJsonResponse<StatusResp>(res);
+            if (!res.ok) throw new Error(`Failed to load restore status: ${res.status}`);
             setJobStatus(j);
             if (j.status === "running") setPolling(true);
         } catch {
@@ -238,14 +263,20 @@ export default function RestorePage() {
                 const sRes = await fetch("/api/sentinel/restore/status", {
                     cache: "no-store",
                 });
-                const s: StatusResp = await sRes.json();
+                const s = await readJsonResponse<StatusResp>(sRes);
+                if (!sRes.ok) throw new Error(`Failed to poll restore status: ${sRes.status}`);
                 if (!cancelled) setJobStatus(s);
 
                 const lRes = await fetch(
                     `/api/sentinel/restore/logs?offset=${logOffset}`,
                     { cache: "no-store" }
                 );
-                const l = await lRes.json();
+                const l = await readJsonResponse<{
+                    chunk?: string;
+                    next_offset?: number;
+                    eof?: boolean;
+                }>(lRes);
+                if (!lRes.ok) throw new Error(`Failed to load restore logs: ${lRes.status}`);
                 if (!cancelled) {
                     if (l.chunk) setLogText((t) => t + l.chunk);
                     if (typeof l.next_offset === "number") setLogOffset(l.next_offset);
@@ -288,8 +319,17 @@ export default function RestorePage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ dump_path: dumpPath, pre_dump: preDump }),
             });
-            const j = await res.json();
-            if (!res.ok) throw new Error(j?.error || `Failed: ${res.status}`);
+            const j = await readJsonResponse<{
+                error?: string;
+                message?: string;
+                status: StatusResp["status"];
+                phase?: string;
+                job_id: string;
+                started_at: string;
+                log_file?: string;
+                dump_path?: string;
+            }>(res);
+            if (!res.ok) throw new Error(j.message || j.error || `Failed: ${res.status}`);
             setJobStatus({
                 ok: true,
                 status: j.status,
@@ -433,12 +473,12 @@ export default function RestorePage() {
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 220px", gap: 12 }}>
                             <label style={{ display: "grid", gap: 6 }}>
                 <span style={{ opacity: 0.85 }}>
-                  Backup file (absolute path inside container)
+                  Backup source
                 </span>
                                 <input
                                     value={dumpPath}
                                     onChange={(e) => setDumpPath(e.currentTarget.value)}
-                                    placeholder="/storage/backups/backup_gamecubby_YYYYMMDD_HHMMSS.dump"
+                                    placeholder="backup file or s3://bucket/key"
                                     style={input}
                                 />
                             </label>
@@ -476,12 +516,15 @@ export default function RestorePage() {
                                 <div>Modified</div>
                             </div>
                             {backups.map((f) => {
-                                const selected = dumpPath === f.abspath;
+                                const restorePath = f.source === "s3"
+                                    ? f.uri || f.abspath
+                                    : f.relpath || f.name;
+                                const selected = dumpPath === restorePath;
                                 return (
                                     <button
                                         type="button"
-                                        key={f.abspath}
-                                        onClick={() => setDumpPath(f.abspath)}
+                                        key={restorePath}
+                                        onClick={() => setDumpPath(restorePath)}
                                         style={{
                                             display: "grid",
                                             gridTemplateColumns: "1fr auto auto",
@@ -496,11 +539,13 @@ export default function RestorePage() {
                                             borderBottom: "1px solid #1f1f1f",
                                             cursor: "pointer",
                                         }}
-                                        title={f.abspath}
+                                        title={restorePath}
                                     >
                                         <div>
                                             <div style={{ fontWeight: 600 }}>{f.name}</div>
-                                            <div style={{ fontSize: 12, opacity: 0.8 }}>{f.relpath}</div>
+                                            <div style={{ fontSize: 12, opacity: 0.8 }}>
+                                                {f.source === "s3" ? restorePath : f.relpath}
+                                            </div>
                                         </div>
                                         <div style={{ fontSize: 12, opacity: 0.85 }}>{fmtBytes(f.size)}</div>
                                         <div style={{ fontSize: 12, opacity: 0.85 }}>{fmtDate(f.mtime)}</div>
