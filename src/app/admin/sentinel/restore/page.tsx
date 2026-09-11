@@ -86,8 +86,8 @@ function Toggle({
                 gap: 8,
                 padding: 4,
                 borderRadius: 999,
-                border: "1px solid #2b2b2b",
-                background: checked ? "#10243d" : "#151515",
+                border: "1px solid var(--gc-border)",
+                background: checked ? "#10243d" : "var(--gc-surface-raised)",
                 cursor: disabled ? "not-allowed" : "pointer",
                 opacity: disabled ? 0.6 : 1,
             }}
@@ -96,7 +96,7 @@ function Toggle({
           style={{
               width: 38,
               height: 20,
-              background: checked ? "#3b82f6" : "#333",
+              background: checked ? "var(--gc-accent)" : "#333",
               borderRadius: 999,
               position: "relative",
               transition: "background 120ms ease",
@@ -110,7 +110,7 @@ function Toggle({
                 width: 16,
                 height: 16,
                 borderRadius: "50%",
-                background: "#eaeaea",
+                background: "var(--gc-text)",
                 transition: "left 120ms ease",
             }}
         />
@@ -456,8 +456,8 @@ export default function RestorePage() {
                             ...btnSecondary,
                             ...(loadingBackups
                                 ? {
-                                    background: "#1e293b",
-                                    borderColor: "#3b82f6",
+                                    background: "var(--gc-accent-soft)",
+                                    borderColor: "var(--gc-accent)",
                                     opacity: 0.9,
                                     cursor: "wait",
                                 }
@@ -503,7 +503,7 @@ export default function RestorePage() {
                             style={{
                                 maxHeight: 300,
                                 overflow: "auto",
-                                border: "1px solid #222",
+                                border: "1px solid var(--gc-border)",
                                 borderRadius: 8,
                             }}
                         >
@@ -515,7 +515,7 @@ export default function RestorePage() {
                                     padding: "8px 10px",
                                     opacity: 0.8,
                                     fontSize: 12,
-                                    borderBottom: "1px solid #1f1f1f",
+                                    borderBottom: "1px solid var(--gc-border-subtle)",
                                 }}
                             >
                                 <div>File</div>
@@ -540,10 +540,10 @@ export default function RestorePage() {
                                             padding: "8px 10px",
                                             width: "100%",
                                             textAlign: "left",
-                                            background: selected ? "#1e293b" : "#0f0f0f",
-                                            color: "#eaeaea",
+                                            background: selected ? "var(--gc-accent-soft)" : "#0f0f0f",
+                                            color: "var(--gc-text)",
                                             border: "none",
-                                            borderBottom: "1px solid #1f1f1f",
+                                            borderBottom: "1px solid var(--gc-border-subtle)",
                                             cursor: "pointer",
                                         }}
                                         title={restorePath}
@@ -623,8 +623,8 @@ export default function RestorePage() {
                             maxWidth: "100%",
                             minHeight: 260,
                             background: "#0f0f0f",
-                            color: "#eaeaea",
-                            border: "1px solid #222",
+                            color: "var(--gc-text)",
+                            border: "1px solid var(--gc-border)",
                             borderRadius: 8,
                             padding: 10,
                             fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
@@ -653,8 +653,8 @@ export default function RestorePage() {
 
 /* ------------- styles ------------- */
 const cardStyle: React.CSSProperties = {
-    background: "#111",
-    border: "1px solid #262626",
+    background: "var(--gc-surface)",
+    border: "1px solid var(--gc-border)",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -671,9 +671,9 @@ const rowHeader: React.CSSProperties = {
 const h2: React.CSSProperties = { margin: 0, fontSize: 18 };
 
 const input: React.CSSProperties = {
-    background: "#1a1a1a",
-    color: "#eaeaea",
-    border: "1px solid #2b2b2b",
+    background: "var(--gc-field)",
+    color: "var(--gc-text)",
+    border: "1px solid var(--gc-border)",
     borderRadius: 8,
     padding: "10px 12px",
     outline: "none",
@@ -682,9 +682,9 @@ const input: React.CSSProperties = {
 const btnBase: React.CSSProperties = {
     borderRadius: 8,
     padding: "8px 12px",
-    border: "1px solid #2b2b2b",
-    background: "#151515",
-    color: "#eaeaea",
+    border: "1px solid var(--gc-border)",
+    background: "var(--gc-surface-raised)",
+    color: "var(--gc-text)",
     cursor: "pointer",
     fontWeight: 600,
     fontSize: 13,
@@ -693,8 +693,8 @@ const btnBase: React.CSSProperties = {
 
 const btnPrimary: React.CSSProperties = {
     ...btnBase,
-    background: "#1e293b",
-    borderColor: "#3b82f6",
+    background: "var(--gc-accent-soft)",
+    borderColor: "var(--gc-accent)",
 };
 
 const btnSecondary: React.CSSProperties = { ...btnBase };

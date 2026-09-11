@@ -44,7 +44,7 @@ export function SortableResults({ results, sortByOrder, locationId }: SortableRe
                         display: "flex",
                         gap: 12,
                         padding: "12px 8px",
-                        borderBottom: "1px solid #1f1f1f",
+                        borderBottom: "1px solid var(--gc-border-subtle)",
                         alignItems: "center",
                     }}
                 >

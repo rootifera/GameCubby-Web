@@ -312,9 +312,9 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
 
     /* ---- styles ---- */
     const input = {
-        background: "#121212",
-        color: "#eaeaea",
-        border: "1px solid #262626",
+        background: "var(--gc-surface)",
+        color: "var(--gc-text)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 8,
         padding: "8px 10px",
         outline: "none",
@@ -322,9 +322,9 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
 
     const btn: React.CSSProperties = {
         display: "inline-block",
-        background: "#1b1b1b",
-        color: "#eaeaea",
-        border: "1px solid #2e2e2e",
+        background: "var(--gc-field)",
+        color: "var(--gc-text)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 8,
         padding: "8px 12px",
         textDecoration: "none",
@@ -334,15 +334,15 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
 
     const ghostBtn: React.CSSProperties = {
         ...btn,
-        background: "#151515",
-        border: "1px solid #2b2b2b",
-        color: "#d8d8d8",
+        background: "var(--gc-surface-raised)",
+        border: "1px solid var(--gc-border)",
+        color: "var(--gc-text-secondary)",
     };
 
     const primaryBtn: React.CSSProperties = {
         ...btn,
-        background: "#1e293b",
-        border: "1px solid #3b82f6",
+        background: "var(--gc-accent-soft)",
+        border: "1px solid var(--gc-accent)",
         color: "#fff",
         fontWeight: 600,
     };
@@ -535,7 +535,7 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
                                     gridTemplateColumns: "auto 1fr auto",
                                     gap: 12,
                                     alignItems: "center",
-                                    border: "1px solid #262626",
+                                    border: "1px solid var(--gc-border)",
                                     borderRadius: 10,
                                     padding: 8,
                                     background: "#0f0f0f",
@@ -597,7 +597,7 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
             <div
                 style={{
                     marginTop: 16,
-                    borderTop: "1px solid #262626",
+                    borderTop: "1px solid var(--gc-border)",
                     paddingTop: 12,
                     display: "grid",
                     gap: 10,
@@ -633,7 +633,7 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
                             marginTop: 6,
                             padding: 10,
                             background: "#0f172a",
-                            border: "1px solid #1e293b",
+                            border: "1px solid var(--gc-accent-soft)",
                             borderRadius: 8,
                         }}
                     >
@@ -654,7 +654,7 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
                             display: "grid",
                             gap: 4,
                             background: "#101010",
-                            border: "1px solid #262626",
+                            border: "1px solid var(--gc-border)",
                             borderRadius: 8,
                             padding: 10,
                             marginTop: 6,
@@ -693,8 +693,8 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
                             fontSize: 12,
                             whiteSpace: "pre-wrap",
                             padding: 8,
-                            background: "#111",
-                            border: "1px solid #262626",
+                            background: "var(--gc-surface)",
+                            border: "1px solid var(--gc-border)",
                             borderRadius: 8,
                         }}
                     >
@@ -744,9 +744,9 @@ function SingleSelectDropdown({
     }, []);
 
     const base: React.CSSProperties = {
-        background: "#121212",
-        color: "#eaeaea",
-        border: "1px solid #262626",
+        background: "var(--gc-surface)",
+        color: "var(--gc-text)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 8,
         padding: "8px 10px",
         outline: "none",
@@ -768,7 +768,7 @@ function SingleSelectDropdown({
         zIndex: 30,
         marginTop: 6,
         background: "#0e0e0e",
-        border: "1px solid #262626",
+        border: "1px solid var(--gc-border)",
         borderRadius: 10,
         boxShadow: "0 10px 20px rgba(0,0,0,0.5)",
         minWidth: menuWidth,
@@ -798,7 +798,7 @@ function SingleSelectDropdown({
 
     const divider: React.CSSProperties = {
         height: 1,
-        background: "#1f1f1f",
+        background: "var(--gc-border-subtle)",
         margin: "6px 0",
     };
 

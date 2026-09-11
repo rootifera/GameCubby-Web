@@ -203,9 +203,9 @@ export default function LocationManager() {
 
     /* ---------- styles ---------- */
     const input = {
-        background: "#121212",
-        color: "#eaeaea",
-        border: "1px solid #262626",
+        background: "var(--gc-surface)",
+        color: "var(--gc-text)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 8,
         padding: "8px 10px",
         outline: "none",
@@ -213,9 +213,9 @@ export default function LocationManager() {
 
     const btn: React.CSSProperties = {
         display: "inline-block",
-        background: "#1b1b1b",
-        color: "#eaeaea",
-        border: "1px solid #2e2e2e",
+        background: "var(--gc-field)",
+        color: "var(--gc-text)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 8,
         padding: "8px 12px",
         textDecoration: "none",
@@ -225,8 +225,8 @@ export default function LocationManager() {
 
     const primaryBtn: React.CSSProperties = {
         ...btn,
-        background: "#1e293b",
-        border: "1px solid #3b82f6",
+        background: "var(--gc-accent-soft)",
+        border: "1px solid var(--gc-accent)",
         color: "#fff",
         fontWeight: 600,
     };
@@ -244,7 +244,7 @@ export default function LocationManager() {
             {(busy || notice || err) && (
                 <div style={{ display: "grid", gap: 8 }}>
                     {busy && (
-                        <div style={{ background: "#1b1b1b", border: "1px solid #2e2e2e", padding: 10, borderRadius: 8 }}>
+                        <div style={{ background: "var(--gc-field)", border: "1px solid var(--gc-border)", padding: 10, borderRadius: 8 }}>
                             {busy}
                         </div>
                     )}
@@ -264,8 +264,8 @@ export default function LocationManager() {
             {/* Top: Locations card (full width) */}
             <div
                 style={{
-                    background: "#141414",
-                    border: "1px solid #262626",
+                    background: "var(--gc-surface-raised)",
+                    border: "1px solid var(--gc-border)",
                     borderRadius: 10,
                     padding: 16,
                 }}
@@ -288,8 +288,8 @@ export default function LocationManager() {
                 {/* Selected Location Details */}
                 <section
                     style={{
-                        background: "#141414",
-                        border: "1px solid #262626",
+                        background: "var(--gc-surface-raised)",
+                        border: "1px solid var(--gc-border)",
                         borderRadius: 10,
                         padding: 16,
                     }}
@@ -339,7 +339,7 @@ export default function LocationManager() {
                                                         alignItems: "center",
                                                         gap: 8,
                                                         padding: "4px 6px",
-                                                        background: "#1a1a1a",
+                                                        background: "var(--gc-field)",
                                                         borderRadius: 4,
                                                         fontSize: "13px"
                                                     }}
@@ -374,8 +374,8 @@ export default function LocationManager() {
                 {/* Add Location */}
                 <section
                     style={{
-                        background: "#141414",
-                        border: "1px solid #262626",
+                        background: "var(--gc-surface-raised)",
+                        border: "1px solid var(--gc-border)",
                         borderRadius: 10,
                         padding: 16,
                     }}
@@ -403,8 +403,8 @@ export default function LocationManager() {
                 {/* Rename */}
                 <section
                     style={{
-                        background: "#141414",
-                        border: "1px solid #262626",
+                        background: "var(--gc-surface-raised)",
+                        border: "1px solid var(--gc-border)",
                         borderRadius: 10,
                         padding: 16,
                     }}
@@ -427,8 +427,8 @@ export default function LocationManager() {
                 {/* Delete */}
                 <section
                     style={{
-                        background: "#141414",
-                        border: "1px solid #262626",
+                        background: "var(--gc-surface-raised)",
+                        border: "1px solid var(--gc-border)",
                         borderRadius: 10,
                         padding: 16,
                         display: "flex",

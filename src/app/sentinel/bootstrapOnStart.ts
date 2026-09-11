@@ -12,11 +12,12 @@ declare global {
 
 function runPsql(args: string[], env: Record<string, string>): Promise<{ code: number; out: string; err: string }> {
     return new Promise((resolve) => {
-        const child = spawn("psql", args, { env: { ...process.env, ...env } });
+        const child = spawn("psql", args, { env: { ...process.env, ...env, PGCONNECT_TIMEOUT: "5" }, timeout: 10000 });
         let out = "";
         let err = "";
         child.stdout.on("data", (d) => (out += d.toString()));
         child.stderr.on("data", (d) => (err += d.toString()));
+        child.on("error", (error) => resolve({ code: 1, out, err: error.message }));
         child.on("close", (code) => resolve({ code: code ?? 0, out, err }));
     });
 }

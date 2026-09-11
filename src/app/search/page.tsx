@@ -1,3 +1,4 @@
+import PageIntro from "@/components/PageIntro";
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
 import SearchBox from "@/components/SearchBox";
@@ -180,11 +181,7 @@ export default async function BasicSearchPage(
 
     return (
         <div>
-            {/* Top header (match /games) */}
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                <h1 style={{ fontSize: 24, margin: 0 }}>Search</h1>
-            </div>
-
+            <PageIntro eyebrow="Find your next game" title="Search" description="Narrow down your collection by title, platform, year, or tags." />
             {/* Basic / Advanced toggle below header */}
             <div
                 style={{
@@ -203,8 +200,9 @@ export default async function BasicSearchPage(
                 </Link>
             </div>
 
+            <div className="gc-search-workspace">
             {/* Basic search form - always visible */}
-            <div style={{ border: "1px solid #222", borderRadius: 10, background: "#121212", marginBottom: 16 }}>
+            <aside className="gc-filter-panel"><header><span className="gc-eyebrow">Refine your search</span><h2>Filters</h2></header>
                 <form className="gc-search-form" method="GET" action="/search" style={{ display: "grid", gap: 16, padding: "16px", marginBottom: 12, gridTemplateColumns: "1fr 1fr" }}>
                     {/* Search input */}
                     <div className="gc-search-span" style={{ gridColumn: "span 2" }}>
@@ -277,9 +275,9 @@ export default async function BasicSearchPage(
                         <button
                             type="submit"
                             style={{
-                                background: "#1e293b",
+                                background: "var(--gc-accent-soft)",
                                 color: "#fff",
-                                border: "1px solid #3b82f6",
+                                border: "1px solid var(--gc-accent)",
                                 borderRadius: 8,
                                 padding: "10px 14px",
                                 fontWeight: 600,
@@ -291,8 +289,8 @@ export default async function BasicSearchPage(
                         <button
                             type="reset"
                             style={{
-                                color: "#d8d8d8",
-                                border: "1px solid #2b2b2b",
+                                color: "var(--gc-text-secondary)",
+                                border: "1px solid var(--gc-border)",
                                 borderRadius: 8,
                                 padding: "10px 14px",
                                 background: "transparent",
@@ -303,7 +301,10 @@ export default async function BasicSearchPage(
                         </button>
                     </div>
                 </form>
-            </div>
+            </aside>
+            <section className="gc-search-results" aria-label="Search results">
+            <h2>Results</h2>
+            {!hasAnyParam && <div className="gc-empty-state"><span className="gc-empty-symbol" aria-hidden="true">⌕</span><h3>A whole collection to explore</h3><p>Enter a title or choose a filter to find your next game.</p></div>}
 
             {/* Pagination (top) */}
             {hasAnyParam && !error ? (
@@ -348,7 +349,7 @@ export default async function BasicSearchPage(
                                 display: "flex",
                                 gap: 12,
                                 padding: "12px 8px",
-                                borderBottom: "1px solid #1f1f1f",
+                                borderBottom: "1px solid var(--gc-border-subtle)",
                                 alignItems: "center",
                             }}
                         >
@@ -394,6 +395,8 @@ export default async function BasicSearchPage(
                     hrefBuilder={(p) => buildPageUrl(sp, p, size)}
                 />
             ) : null}
+            </section>
+            </div>
         </div>
     );
 }
@@ -438,10 +441,10 @@ function BasicPager({
                 </Link>
                 <div
                     style={{
-                        border: "1px solid #2b2b2b",
+                        border: "1px solid var(--gc-border)",
                         borderRadius: 8,
                         padding: "6px 10px",
-                        background: "#151515",
+                        background: "var(--gc-surface-raised)",
                         fontSize: 13,
                     }}
                 >
@@ -461,9 +464,9 @@ function BasicPager({
 
 const btn: React.CSSProperties = {
     textDecoration: "none",
-    color: "#d8d8d8",
-    border: "1px solid #2b2b2b",
-    background: "#151515",
+    color: "var(--gc-text-secondary)",
+    border: "1px solid var(--gc-border)",
+    background: "var(--gc-surface-raised)",
     padding: "6px 10px",
     borderRadius: 8,
     fontSize: 13,
@@ -475,25 +478,25 @@ const toggleBase: React.CSSProperties = {
     padding: "6px 10px",
     borderRadius: 999,
     fontSize: 13,
-    border: "1px solid #2b2b2b",
+    border: "1px solid var(--gc-border)",
 };
 const toggleActive: React.CSSProperties = {
     ...toggleBase,
-    background: "#1e293b",
-    borderColor: "#3b82f6",
+    background: "var(--gc-accent-soft)",
+    borderColor: "var(--gc-accent)",
     color: "#fff",
     fontWeight: 600,
 };
 const toggleInactive: React.CSSProperties = {
     ...toggleBase,
-    background: "#151515",
-    color: "#d8d8d8",
+    background: "var(--gc-surface-raised)",
+    color: "var(--gc-text-secondary)",
 };
 
 const inputShort: React.CSSProperties = {
-    background: "#1a1a1a",
-    color: "#eaeaea",
-    border: "1px solid #2b2b2b",
+    background: "var(--gc-field)",
+    color: "var(--gc-text)",
+    border: "1px solid var(--gc-border)",
     borderRadius: 8,
     padding: "12px 16px",
     outline: "none",
@@ -501,9 +504,9 @@ const inputShort: React.CSSProperties = {
 };
 
 const selectStyle: React.CSSProperties = {
-    background: "#1a1a1a",
-    color: "#eaeaea",
-    border: "1px solid #2b2b2b",
+    background: "var(--gc-field)",
+    color: "var(--gc-text)",
+    border: "1px solid var(--gc-border)",
     borderRadius: 8,
     padding: "12px 16px",
     outline: "none",

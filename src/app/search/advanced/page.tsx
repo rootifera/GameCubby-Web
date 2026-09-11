@@ -1,3 +1,5 @@
+import PageIntro from "@/components/PageIntro";
+import FormSection from "@/components/FormSection";
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
 import MultiSelectDropdown, {
@@ -473,18 +475,7 @@ export default async function AdvancedSearchPage(
 
     return (
         <div>
-            {/* Top header (match /games & basic search) */}
-            <div
-                style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    marginBottom: 12,
-                }}
-            >
-                <h1 style={{ fontSize: 24, margin: 0 }}>Search</h1>
-            </div>
-
+            <PageIntro eyebrow="Find your next game" title="Search" description="Build a precise search across your collection, metadata, and storage locations." />
             {/* Basic / Advanced toggle below header (consistent spacing) */}
             <div
                 style={{
@@ -513,7 +504,7 @@ export default async function AdvancedSearchPage(
                     <ToggleButton isOpen={openFilters} />
                 </summary>
 
-                <form
+                <form className="gc-advanced-form"
                     method="GET"
                     action="/search/advanced"
                     style={{
@@ -523,6 +514,7 @@ export default async function AdvancedSearchPage(
                         marginBottom: 16,
                     }}
                 >
+                    <FormSection title="Game details" description="Start with a name or release date, then refine by platform and genre.">
                     {/* Row 1 — Name | Year (exact) - aligned with Platform row */}
                     <div
                         style={{
@@ -682,6 +674,8 @@ export default async function AdvancedSearchPage(
                         </label>
                     </div>
 
+                    </FormSection>
+                    <FormSection title="People & collections" description="Find games by their companies, collections, or the tags you use to organise them.">
                     {/* Row 5 — Company Dropdown | Company match */}
                     <div
                         style={{
@@ -782,6 +776,8 @@ export default async function AdvancedSearchPage(
                         </label>
                     </div>
 
+                    </FormSection>
+                    <FormSection title="Your library" description="Choose a location and control which records appear in your results.">
                     {/* Row 8 — Location */}
                     <div>
                         <LocationTreePicker
@@ -842,14 +838,15 @@ export default async function AdvancedSearchPage(
                         />
                     </div>
 
+                    </FormSection>
                     {/* Buttons */}
                     <div style={{ display: "flex", gap: 8 }}>
                         <button
                             type="submit"
                             style={{
-                                background: "#1e293b",
+                                background: "var(--gc-accent-soft)",
                                 color: "#fff",
-                                border: "1px solid #3b82f6",
+                                border: "1px solid var(--gc-accent)",
                                 borderRadius: 8,
                                 padding: "10px 14px",
                                 fontWeight: 600,
@@ -870,7 +867,7 @@ export default async function AdvancedSearchPage(
                 <div
                     style={{
                         background: "#1f2937",
-                        border: "1px solid #3b82f6",
+                        border: "1px solid var(--gc-accent)",
                         color: "#dbeafe",
                         padding: 10,
                         borderRadius: 8,
@@ -976,9 +973,9 @@ function LabeledInput(
             <input
                 {...inputProps}
                 style={{
-                    background: "#1a1a1a",
-                    color: "#eaeaea",
-                    border: "1px solid #2b2b2b",
+                    background: "var(--gc-field)",
+                    color: "var(--gc-text)",
+                    border: "1px solid var(--gc-border)",
                     borderRadius: 8,
                     padding: "10px 12px",
                     outline: "none",
@@ -992,9 +989,9 @@ function LabeledInput(
 }
 
 const selectStyle: React.CSSProperties = {
-    background: "#1a1a1a",
-    color: "#eaeaea",
-    border: "1px solid #2b2b2b",
+    background: "var(--gc-field)",
+    color: "var(--gc-text)",
+    border: "1px solid var(--gc-border)",
     borderRadius: 8,
     padding: "12px 12px",
     outline: "none",
@@ -1002,9 +999,9 @@ const selectStyle: React.CSSProperties = {
 
 /* Shared styles (match Basic Search & Games) */
 const detailsWrap: React.CSSProperties = {
-    border: "1px solid #222",
+    border: "1px solid var(--gc-border)",
     borderRadius: 10,
-    background: "#121212",
+    background: "var(--gc-surface)",
     marginBottom: 16,
 };
 const summaryBar: React.CSSProperties = {
@@ -1015,16 +1012,16 @@ const summaryBar: React.CSSProperties = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    borderBottom: "1px solid #222",
-    color: "#eaeaea",
+    borderBottom: "1px solid var(--gc-border)",
+    color: "var(--gc-text)",
     fontWeight: 600,
 };
 
 const btn: React.CSSProperties = {
     textDecoration: "none",
-    color: "#d8d8d8",
-    border: "1px solid #2b2b2b",
-    background: "#151515",
+    color: "var(--gc-text-secondary)",
+    border: "1px solid var(--gc-border)",
+    background: "var(--gc-surface-raised)",
     padding: "6px 10px",
     borderRadius: 8,
     fontSize: 13,
@@ -1040,17 +1037,17 @@ const toggleBase: React.CSSProperties = {
     padding: "6px 10px",
     borderRadius: 999,
     fontSize: 13,
-    border: "1px solid #2b2b2b",
+    border: "1px solid var(--gc-border)",
 };
 const toggleActive: React.CSSProperties = {
     ...toggleBase,
-    background: "#1e293b",
-    borderColor: "#3b82f6",
+    background: "var(--gc-accent-soft)",
+    borderColor: "var(--gc-accent)",
     color: "#fff",
     fontWeight: 600,
 };
 const toggleInactive: React.CSSProperties = {
     ...toggleBase,
-    background: "#151515",
-    color: "#d8d8d8",
+    background: "var(--gc-surface-raised)",
+    color: "var(--gc-text-secondary)",
 };

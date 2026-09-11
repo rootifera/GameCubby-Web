@@ -323,8 +323,8 @@ export default function BackupsPage() {
                             width: "100%",
                             minHeight: 260,
                             background: "#0f0f0f",
-                            color: "#eaeaea",
-                            border: "1px solid #222",
+                            color: "var(--gc-text)",
+                            border: "1px solid var(--gc-border)",
                             borderRadius: 8,
                             padding: 10,
                             fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
@@ -347,8 +347,8 @@ export default function BackupsPage() {
                 {!backups.length ? (
                     <p style={{ opacity: 0.8 }}>No backups found locally or in configured S3 backup storage.</p>
                 ) : (
-                    <div style={{ maxHeight: 360, overflow: "auto", border: "1px solid #222", borderRadius: 8 }}>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: 8, padding: "8px 10px", opacity: 0.8, fontSize: 12, borderBottom: "1px solid #1f1f1f" }}>
+                    <div style={{ maxHeight: 360, overflow: "auto", border: "1px solid var(--gc-border)", borderRadius: 8 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: 8, padding: "8px 10px", opacity: 0.8, fontSize: 12, borderBottom: "1px solid var(--gc-border-subtle)" }}>
                             <div>File</div>
                             <div>Source</div>
                             <div>Size</div>
@@ -363,7 +363,7 @@ export default function BackupsPage() {
                                     gap: 8,
                                     alignItems: "center",
                                     padding: "8px 10px",
-                                    borderBottom: "1px solid #1f1f1f",
+                                    borderBottom: "1px solid var(--gc-border-subtle)",
                                 }}
                                 title={f.abspath}
                             >
@@ -386,8 +386,8 @@ export default function BackupsPage() {
 /* ---------------- styles ---------------- */
 
 const cardStyle: React.CSSProperties = {
-    background: "#111",
-    border: "1px solid #262626",
+    background: "var(--gc-surface)",
+    border: "1px solid var(--gc-border)",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -406,9 +406,9 @@ const h2: React.CSSProperties = { margin: 0, fontSize: 18 };
 const btnBase: React.CSSProperties = {
     borderRadius: 8,
     padding: "8px 12px",
-    border: "1px solid #2b2b2b",
-    background: "#151515",
-    color: "#eaeaea",
+    border: "1px solid var(--gc-border)",
+    background: "var(--gc-surface-raised)",
+    color: "var(--gc-text)",
     cursor: "pointer",
     fontWeight: 600,
     fontSize: 13,
@@ -417,8 +417,8 @@ const btnBase: React.CSSProperties = {
 
 const btnPrimary: React.CSSProperties = {
     ...btnBase,
-    background: "#1e293b",
-    borderColor: "#3b82f6",
+    background: "var(--gc-accent-soft)",
+    borderColor: "var(--gc-accent)",
 };
 
 const btnSecondary: React.CSSProperties = { ...btnBase };

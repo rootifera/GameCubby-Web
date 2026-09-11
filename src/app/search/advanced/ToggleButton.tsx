@@ -5,9 +5,9 @@ export function ToggleButton({ isOpen }: { isOpen: boolean }) {
         <button 
             type="button" 
             style={{
-                background: "#151515",
-                color: "#d8d8d8",
-                border: "1px solid #2b2b2b",
+                background: "var(--gc-surface-raised)",
+                color: "var(--gc-text-secondary)",
+                border: "1px solid var(--gc-border)",
                 padding: "6px 10px",
                 borderRadius: 8,
                 fontSize: 13,

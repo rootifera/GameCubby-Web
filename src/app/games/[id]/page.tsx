@@ -1,3 +1,4 @@
+import CoverThumb from "@/components/CoverThumb";
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
 import { cookies } from "next/headers";
@@ -160,253 +161,71 @@ export default async function GameDetailsPage(props: { params: Promise<{ id: str
                 </div>
             ) : null}
             {!error && game && (
-                <article
-                    className="gc-game-detail"
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "180px 1fr",
-                        gap: 18,
-                        alignItems: "start",
-                        background: "#111",
-                        border: "1px solid #262626",
-                        borderRadius: 12,
-                        padding: 16,
-                        position: "relative",
-                    }}
-                >
-                    {/* Admin actions - Top Right Corner */}
-                    {isAdmin && (
-                        <div className="gc-admin-actions" style={{
-                            position: "absolute",
-                            top: 16,
-                            right: 16,
-                            zIndex: 10,
-                            display: "flex",
-                            gap: 8,
-                        }}>
-                            <GameFileManageButton gameId={game.id} />
-                            <Link
-                                href={`/admin/games/update/${game.id}`}
-                                style={{
-                                    background: "#6b7280",
-                                    color: "#ffffff",
-                                    padding: "6px 12px",
-                                    borderRadius: 6,
-                                    fontSize: 14,
-                                    textDecoration: "none",
-                                    fontWeight: 500,
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: 6,
-                                    transition: "all 0.2s ease",
-                                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
-                                }}
-                            >
-                                ✏️ Edit
-                            </Link>
+                <article className="gc-game-page">
+                    <header className="gc-game-hero">
+                        <div className="gc-detail-art"><CoverThumb name={game.name} coverUrl={game.cover_url} width={210} height={280} /></div>
+                        <div className="gc-game-hero-content">
+                            <span className="gc-eyebrow">In your collection</span>
+                            <h1>{game.name}</h1>
+                            <p className="gc-game-platforms">{game.platforms?.map((p) => p.name).join(" · ") || "Platform not specified"}</p>
+                            <dl className="gc-game-facts">
+                                <div><dt>Released</dt><dd>{toYear(game.release_date)}</dd></div>
+                                <div><dt>IGDB rating</dt><dd>{typeof game.rating === "number" ? <>{game.rating}<small> / 100</small></> : "—"}</dd></div>
+                                <div><dt>Condition</dt><dd>{game.condition != null ? <>{game.condition}<small> / 10</small></> : "Not set"}</dd></div>
+                            </dl>
+                            <div className="gc-game-actions">
+                                <a href="#game-downloads" className="gc-primary-link">Downloads ({files.length})</a>
+                                {game.igdb_id > 0 && <a href={igdbSearchUrl(game.name)} target="_blank" rel="noopener noreferrer" className="gc-text-link">View on IGDB ↗</a>}
+                            </div>
                         </div>
-                    )}
+                    </header>
 
-                    {/* Cover */}
-                    <div className="gc-game-cover">
-                        {game.cover_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            (<img
-                                src={game.cover_url}
-                                alt={game.name}
-                                width={180}
-                                height={240}
-                                style={{
-                                    width: 180,
-                                    height: 240,
-                                    objectFit: "cover",
-                                    borderRadius: 10,
-                                    border: "1px solid #2b2b2b",
-                                    background: "#141414",
-                                }}
-                            />)
-                        ) : (
-                            <div
-                                style={{
-                                    width: 180,
-                                    height: 240,
-                                    background: "#2b2b2b",
-                                    borderRadius: 10,
-                                    border: "1px solid #2b2b2b",
-                                }}
-                            />
-                        )}
-                    </div>
+                    <section className="gc-location-row" aria-labelledby="game-location">
+                        <h2 id="game-location">Location</h2>
+                        {game.location_path?.length ? (
+                            <ol className="gc-location-path">{game.location_path.map((node, index) => (
+                                <li key={node.id}>{index > 0 && <span aria-hidden="true">›</span>}{index === game.location_path!.length - 1 ? <strong>{node.name}</strong> : node.name}</li>
+                            ))}</ol>
+                        ) : <p className="gc-location-unassigned">No location assigned</p>}
+                        {typeof game.order === "number" && <div className="gc-location-position"><span aria-hidden="true">|</span><strong>Order {game.order}</strong></div>}
+                    </section>
 
-                    {/* Info */}
-                    <div>
-                        <h1 className="gc-game-title" style={{ fontSize: 24, margin: "0 0 10px 0", letterSpacing: 0.2 }}>
-                            {game.name}
-                        </h1>
-
-                        {/* Quick facts */}
-                        <div
-                            style={{
-                                display: "flex",
-                                flexWrap: "wrap",
-                                gap: 8,
-                                fontSize: 14,
-                                opacity: 0.95,
-                                marginBottom: 12,
-                            }}
-                        >
-                            <Pill label={`Year: ${toYear(game.release_date)}`} />
-                            <Pill label={`Rating: ${typeof game.rating === "number" ? game.rating : "—"}`} />
-                            <Pill label={`Condition: ${game.condition ?? "—"}`} />
-
-                            <a
-                                href={igdbSearchUrl(game.name)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                    textDecoration: "none",
-                                    background: "#1d1d1d",
-                                    border: "1px solid #2b2b2b",
-                                    borderRadius: 999,
-                                    padding: "4px 10px",
-                                    lineHeight: 1.2,
-                                    color: "#eaeaea",
-                                }}
-                                title="Open on IGDB (search by name)"
-                            >
-                                IGDB: {game.igdb_id}
-                            </a>
+                    <div className="gc-game-body">
+                        <div className="gc-game-main-content">
+                            <section className="gc-detail-section" aria-labelledby="game-about">
+                                <h2 id="game-about">About this game</h2>
+                                <GameDescription text={game.summary} />
+                            </section>
+                            <section className="gc-detail-section" aria-labelledby="game-details">
+                                <div className="gc-section-heading"><h2 id="game-details">Game details</h2>{isAdmin && <Link href={`/admin/games/update/${game.id}`} className="gc-secondary-link gc-detail-action">Edit game</Link>}</div>
+                                <dl className="gc-detail-metadata">
+                                    <MetaRow label="Genres" items={game.genres?.map((x) => x.name)} />
+                                    <MetaRow label="Modes" items={game.modes?.map((x) => x.name)} />
+                                    <MetaRow label="Perspectives" items={game.playerperspectives?.map((x) => x.name)} />
+                                    <MetaRow label="Collection" items={game.collection ? [game.collection.name] : []} />
+                                    <MetaRow label="Developers" items={game.companies?.filter((c) => c.developer).map((c) => c.company.name)} />
+                                    <MetaRow label="Publishers" items={game.companies?.filter((c) => c.publisher).map((c) => c.company.name)} />
+                                    <div><dt>Tags</dt><dd>{game.tags?.length ? <ul className="gc-metadata-tags" aria-label="Game tags">{game.tags.map((tag) => <li key={tag.id}>{tag.name}</li>)}</ul> : <span className="gc-muted">No tags</span>}</dd></div>
+                                </dl>
+                                <details className="gc-secondary-details">
+                                    <summary>Additional metadata</summary>
+                                    <dl className="gc-detail-metadata">
+                                        <MetaRow label="IGDB tags" items={game.igdb_tags?.map((x) => x.name)} />
+                                        <MetaRow label="Porting" items={game.companies?.filter((c) => c.porting).map((c) => c.company.name)} />
+                                        <MetaRow label="Supporting" items={game.companies?.filter((c) => c.supporting).map((c) => c.company.name)} />
+                                        <MetaRow label="Other companies" items={game.companies?.filter((c) => !c.developer && !c.publisher && !c.porting && !c.supporting).map((c) => c.company.name)} />
+                                        <MetaRow label="IGDB ID" items={game.igdb_id > 0 ? [String(game.igdb_id)] : []} />
+                                    </dl>
+                                </details>
+                            </section>
+                            <section id="game-downloads" className="gc-detail-section" aria-labelledby="game-downloads-title">
+                                <div className="gc-section-heading"><h2 id="game-downloads-title">Downloads</h2><div className="gc-download-heading-actions"><span>{files.length} files</span>{isAdmin && <GameFileManageButton gameId={game.id} />}</div></div>
+                                {filesError ? <p role="alert">Failed to load files. {filesError}</p> : !hasAny ? <p className="gc-muted">No files attached to this game.</p> : (
+                                    <div className="gc-download-groups">{groupOrder.map((key) => grouped[key].length ? <FileGroup key={key} title={key} files={grouped[key]} /> : null)}</div>
+                                )}
+                            </section>
                         </div>
 
-                        {/* Location (with Order) */}
-                        <section
-                            className="gc-location-card"
-                            style={{
-                                margin: "10px 0 14px 0",
-                                padding: "10px 12px",
-                                background: "#141414",
-                                border: "1px solid #262626",
-                                borderRadius: 10,
-                            }}
-                        >
-                            <div style={{ fontWeight: 600, marginBottom: 6 }}>Location:</div>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
-                                {game.location_path && game.location_path.length ? (
-                                    <>
-                                        {game.location_path.map((node, idx) => (
-                                            <span key={node.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span
-                            style={{
-                                background: "#1e1e1e",
-                                border: "1px solid #2b2b2b",
-                                borderRadius: 999,
-                                padding: "4px 10px",
-                                fontSize: 12,
-                            }}
-                        >
-                          {node.name}
-                        </span>
-                                                {idx < game.location_path!.length - 1 ? (
-                                                    <span style={{ opacity: 0.6 }}>›</span>
-                                                ) : null}
-                      </span>
-                                        ))}
-                                    </>
-                                ) : (
-                                    <span style={{ opacity: 0.7 }}>Not set</span>
-                                )}
-
-                                {typeof game.order === "number" ? (
-                                    <>
-                                        <span style={{ opacity: 0.6 }}>·</span>
-                                        <span
-                                            style={{
-                                                background: "#1e1e1e",
-                                                border: "1px solid #2b2b2b",
-                                                borderRadius: 999,
-                                                padding: "4px 10px",
-                                                fontSize: 12,
-                                            }}
-                                        >
-                      Order: {game.order}
-                    </span>
-                                    </>
-                                ) : null}
-                            </div>
-                        </section>
-
-                        {/* Summary */}
-                        {game.summary ? (
-                            <p style={{ lineHeight: 1.55, opacity: 0.95, marginBottom: 14 }}>{game.summary}</p>
-                        ) : (
-                            <p style={{ opacity: 0.6 }}>No summary.</p>
-                        )}
-
-                        {/* Structured metadata sections */}
-                        <MetaRow label="Platforms" items={game.platforms?.map((x) => x.name)} />
-                        <MetaRow label="Collection" items={game.collection ? [game.collection.name] : []} />
-                        <MetaRow label="Genres" items={game.genres?.map((x) => x.name)} />
-                        <MetaRow label="Modes" items={game.modes?.map((x) => x.name)} />
-                        <MetaRow label="Perspectives" items={game.playerperspectives?.map((x) => x.name)} />
-                        <MetaRow label="Tags" items={game.tags?.map((x) => x.name)} />
-                        <MetaRow label="IGDB Tags" items={game.igdb_tags?.map((x) => x.name)} />
-
-                        {game.companies && game.companies.length ? (
-                            <MetaRow
-                                label="Companies"
-                                items={game.companies.map((c) => {
-                                    const roles = [
-                                        c.developer ? "dev" : "",
-                                        c.publisher ? "pub" : "",
-                                        c.porting ? "port" : "",
-                                        c.supporting ? "supp" : "",
-                                    ]
-                                        .filter(Boolean)
-                                        .join("/");
-                                    return roles ? `${c.company.name} (${roles})` : c.company.name;
-                                })}
-                            />
-                        ) : null}
-
-                        {/* Downloads (grouped, with visible filenames) */}
-                        <details
-                            style={{
-                                marginTop: 14,
-                                background: "#141414",
-                                border: "1px solid #262626",
-                                borderRadius: 10,
-                                padding: 12
-                            }}
-                        >
-                            <summary
-                                style={{
-                                    cursor: "pointer",
-                                    fontWeight: 600,
-                                    listStyle: "none",
-                                    userSelect: "none",
-                                    outline: "none"
-                                }}
-                            >
-                                Downloads{" "}
-                                {hasAny ? <span style={{ opacity: 0.6, fontWeight: 400 }}>({files.length})</span> : null}
-                            </summary>
-
-                            <div style={{ marginTop: 10 }}>
-                                {filesError ? (
-                                    <div style={{ fontSize: 12, color: "#fca5a5" }}>
-                                        Failed to load files. <span style={{ opacity: 0.8 }}>{filesError}</span>
-                                    </div>
-                                ) : !hasAny ? (
-                                    <div style={{ opacity: 0.7, fontSize: 13 }}>No files attached.</div>
-                                ) : (
-                                    <div style={{ display: "grid", gap: 12 }}>
-                                        {groupOrder.map((key) =>
-                                            grouped[key].length ? <FileGroup key={key} title={key} files={grouped[key]} /> : null
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </details>
                     </div>
                 </article>
             )}
@@ -414,45 +233,16 @@ export default async function GameDetailsPage(props: { params: Promise<{ id: str
     );
 }
 
-function Pill({ label }: { label: string }) {
-    return (
-        <span
-            style={{
-                background: "#1d1d1d",
-                border: "1px solid #2b2b2b",
-                borderRadius: 999,
-                padding: "4px 10px",
-                lineHeight: 1.2,
-            }}
-        >
-      {label}
-    </span>
-    );
+function GameDescription({ text }: { text?: string | null }) {
+    if (!text) return <p className="gc-muted">No description available.</p>;
+    if (text.length <= 400) return <p className="gc-game-description">{text}</p>;
+    const wordBreak = text.lastIndexOf(" ", 320);
+    const splitAt = wordBreak > 200 ? wordBreak : 320;
+    return <div><p className="gc-game-description">{text.slice(0, splitAt)}…</p><details className="gc-secondary-details"><summary>Read full description</summary><p className="gc-game-description">{text}</p></details></div>;
 }
 
 function MetaRow({ label, items }: { label: string; items?: string[] }) {
-    if (!items || items.length === 0) return null;
-    return (
-        <div style={{ margin: "10px 0" }}>
-            <div style={{ opacity: 0.8, marginBottom: 4, fontWeight: 600 }}>{label}</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {items.map((txt, i) => (
-                    <span
-                        key={`${label}-${i}-${txt}`}
-                        style={{
-                            background: "#1e1e1e",
-                            border: "1px solid #2b2b2b",
-                            borderRadius: 8,
-                            padding: "4px 8px",
-                            fontSize: 13,
-                        }}
-                    >
-            {txt}
-          </span>
-                ))}
-            </div>
-        </div>
-    );
+    return <div><dt>{label}</dt><dd>{items?.length ? items.join(", ") : "—"}</dd></div>;
 }
 
 function FileGroup({ title, files }: { title: string; files: UiFile[] }) {
@@ -479,7 +269,7 @@ function FileGroup({ title, files }: { title: string; files: UiFile[] }) {
                                 gap: 10,
                                 padding: "8px 10px",
                                 border: "1px solid #232323",
-                                background: "#1a1a1a",
+                                background: "var(--gc-field)",
                                 borderRadius: 8,
                                 marginBottom: 6,
                             }}
@@ -489,7 +279,7 @@ function FileGroup({ title, files }: { title: string; files: UiFile[] }) {
                   <span
                       style={{
                           background: "#101010",
-                          border: "1px solid #2b2b2b",
+                          border: "1px solid var(--gc-border)",
                           borderRadius: 6,
                           padding: "2px 6px",
                           fontSize: 11,
@@ -516,8 +306,8 @@ function FileGroup({ title, files }: { title: string; files: UiFile[] }) {
                                 title={`file_id: ${f.file_id} • row id: ${f.id}`}
                                 style={{
                                     textDecoration: "none",
-                                    background: "#1e293b",
-                                    border: "1px solid #3b82f6",
+                                    background: "var(--gc-accent-soft)",
+                                    border: "1px solid var(--gc-accent)",
                                     color: "#e5f0ff",
                                     padding: "6px 10px",
                                     borderRadius: 8,

@@ -1,9 +1,12 @@
 import Link from "next/link";
+import type { Route } from "next";
+import type { CSSProperties, ReactNode } from "react";
 import { API_BASE_URL } from "@/lib/env";
 import { redirect } from "next/navigation";
 import ForceRefreshButton from "@/components/ForceRefreshButton";
 import { isJwtActive, readToken } from "@/lib/auth";
 import SearchBox from "@/components/SearchBox";
+import PageIntro from "@/components/PageIntro";
 
 /** ---------- Types from the endpoints ---------- */
 
@@ -32,10 +35,10 @@ type Health = {
 
 /** ---------- Styles ---------- */
 const panel: React.CSSProperties = {
-    background: "#111",
-    border: "1px solid #262626",
-    borderRadius: 12,
-    padding: 16,
+    background: "var(--gc-surface)",
+    border: "1px solid var(--gc-border)",
+    borderRadius: 16,
+    padding: 22,
 };
 
 const panelHeaderRow: React.CSSProperties = {
@@ -53,7 +56,7 @@ const rowItem: React.CSSProperties = {
     gridTemplateColumns: "1fr auto",
     gap: 8,
     padding: "10px 8px",
-    borderTop: "1px solid #1f1f1f",
+    borderTop: "1px solid var(--gc-border-subtle)",
 };
 
 const errBox: React.CSSProperties = {
@@ -151,11 +154,11 @@ export default async function HomePage() {
     const totalIssues = healthItems.reduce((sum, it) => sum + (it.value || 0), 0);
 
     return (
-        // Match /search container rhythm: no custom maxWidth or top margin here.
-        <div>
-            {/* Top header (match /search) */}
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                <h1 style={{ fontSize: 24, margin: 0 }}>Overview</h1>
+        <div className="gc-dashboard">
+            <div className="gc-dashboard-intro">
+                <PageIntro eyebrow="Your collection" title="Overview" description="Your collection at a glance.">
+                    <SearchBox placeholder="Find a game…" />
+                </PageIntro>
             </div>
 
             {error ? (
@@ -165,15 +168,10 @@ export default async function HomePage() {
                 </div>
             ) : null}
 
-            <section className="gc-mobile-lookup">
-                <div className="gc-mobile-lookup-title">Find a game</div>
-                <SearchBox placeholder="Search by title..." />
-            </section>
-
             {/* Consistent spacing wrapper for all sections */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div className="gc-dashboard-grid">
                 {/* Stat cards */}
-                <section
+                <section className="gc-dashboard-stats"
                     style={{
                         display: "grid",
                         gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
@@ -197,203 +195,54 @@ export default async function HomePage() {
                 </section>
 
                 {/* Health snapshot (all fields) */}
-                <section style={{ ...panel, position: "relative" }}>
-                    <div style={panelHeaderRow}>
-                        <h2 style={panelTitle}>Library Health</h2>
-                        <span style={{ opacity: 0.7, fontSize: 12 }}>
-                            {totalIssues === 0 ? "All good 🎉" : `${totalIssues} issue${totalIssues === 1 ? "" : "s"}`}
-                        </span>
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                <section className="gc-dashboard-health" style={panel}>
+                    <header className="gc-health-header">
+                        <h2>Library Health</h2>
+                        <div className="gc-health-heading-actions">
+                            <strong className={totalIssues === 0 ? "gc-health-status is-clear" : "gc-health-status"}>{totalIssues === 0 ? "All clear" : `${totalIssues} issue${totalIssues === 1 ? "" : "s"}`}</strong>
+                            {isAdmin && <ForceRefreshButton />}
+                        </div>
+                    </header>
+                    <div className="gc-health-checks">
                         {healthItems.map((h) => (
-                            <Badge 
-                                key={h.label} 
-                                label={`${h.label}: ${h.value}`} 
-                                muted={h.value === 0} 
-                                type={h.type}
-                                count={h.value}
-                            />
+                            h.value > 0 ? (
+                                <Link key={h.type} href={`/stats/health/${h.type}`} className="gc-health-check"><span><small>Needs attention</small>{h.label}</span><strong>{h.value}</strong><em>Review</em></Link>
+                            ) : (
+                                <div key={h.type} className="gc-health-check is-complete"><span><small>Complete</small>{h.label}</span><strong>0</strong></div>
+                            )
                         ))}
                     </div>
-                    {isAdmin && (
-                        <div style={{ 
-                            position: "absolute", 
-                            bottom: 12, 
-                            right: 12 
-                        }}>
-                            <ForceRefreshButton />
-                        </div>
-                    )}
                 </section>
 
-                {/* Top Platforms (all returned) */}
-                <section style={panel}>
-                    <div style={panelHeaderRow}>
-                        <h2 style={panelTitle}>Top Platforms</h2>
-                        <span style={{ opacity: 0.7, fontSize: 12 }}>count by platform</span>
-                    </div>
-                    {topPlatforms.length === 0 ? (
-                        <p style={{ opacity: 0.7, marginTop: 10 }}>No platform data yet.</p>
-                    ) : (
-                        <SimpleList
-                            rows={topPlatforms.map((p) => ({
-                                left: p.name,
-                                right: `${p.count} ${p.count === 1 ? "game" : "games"}`,
-                                key: String(p.platform_id),
-                            }))}
-                        />
-                    )}
-                </section>
+                <DashboardSection title="Library breakdown">
+                    <DashboardPanel title="Top Platforms" style={panel}>
+                        {topPlatforms.length ? <DistributionChart label="platform entries" rows={topPlatforms.map((p) => ({ label: p.name, value: p.count, key: String(p.platform_id), href: `/search?platform_id=${p.platform_id}` }))} /> : <EmptyStats label="No platform data yet." />}
+                    </DashboardPanel>
+                    <DashboardPanel title="Top Genres" style={panel}>
+                        {topGenres.length ? <DistributionChart label="genre entries" rows={topGenres.map((g) => ({ label: g.name, value: g.count, key: String(g.genre_id), href: `/search/advanced?genre_ids=${g.genre_id}` }))} /> : <EmptyStats label="No genre data." />}
+                    </DashboardPanel>
+                </DashboardSection>
 
-                {/* Two-up: Top Genres / Top Publishers (show everything) */}
-                <section
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-                        gap: 12,
-                    }}
-                >
-                    <div style={panel}>
-                        <div style={panelHeaderRow}>
-                            <h2 style={panelTitle}>Top Genres</h2>
-                            <span style={{ opacity: 0.7, fontSize: 12 }}>count by genre</span>
-                        </div>
-                        {topGenres.length ? (
-                            <SimpleList
-                                rows={topGenres.map((g) => ({
-                                    left: g.name,
-                                    right: `${g.count}`,
-                                    key: String(g.genre_id),
-                                }))}
-                            />
-                        ) : (
-                            <p style={{ opacity: 0.7, marginTop: 10 }}>No genre data.</p>
-                        )}
-                    </div>
+                <DashboardSection title="Catalog metadata" compact>
+                    <DashboardPanel title="Publishers" style={panel}>
+                        {topPublishers.length ? <SimpleList rows={topPublishers.map((c) => ({ left: c.name, right: String(c.count), key: String(c.company_id), href: `/search/advanced?company_ids=${c.company_id}` }))} /> : <EmptyStats label="No publisher data." />}
+                    </DashboardPanel>
+                    <DashboardPanel title="Developers" style={panel}>
+                        {topDevelopers.length ? <SimpleList rows={topDevelopers.map((c) => ({ left: c.name, right: String(c.count), key: String(c.company_id), href: `/search/advanced?company_ids=${c.company_id}` }))} /> : <EmptyStats label="No developer data." />}
+                    </DashboardPanel>
+                    <DashboardPanel title="Years with most games" style={panel}>
+                        {topYears.length ? <SimpleList rows={topYears.map((year) => ({ left: String(year.year), right: String(year.count), key: String(year.year), href: `/search?year=${year.year}` }))} /> : <EmptyStats label="No year data." />}
+                    </DashboardPanel>
+                </DashboardSection>
 
-                    <div style={panel}>
-                        <div style={panelHeaderRow}>
-                            <h2 style={panelTitle}>Top Publishers</h2>
-                            <span style={{ opacity: 0.7, fontSize: 12 }}>count by publisher</span>
-                        </div>
-                        {topPublishers.length ? (
-                            <SimpleList
-                                rows={topPublishers.map((c) => ({
-                                    left: c.name,
-                                    right: `${c.count}`,
-                                    key: String(c.company_id),
-                                }))}
-                            />
-                        ) : (
-                            <p style={{ opacity: 0.7, marginTop: 10 }}>No publisher data.</p>
-                        )}
-                    </div>
-                </section>
-
-                {/* Two-up: Top Developers / Top Years */}
-                <section
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-                        gap: 12,
-                    }}
-                >
-                    <div style={panel}>
-                        <div style={panelHeaderRow}>
-                            <h2 style={panelTitle}>Top Developers</h2>
-                            <span style={{ opacity: 0.7, fontSize: 12 }}>count by developer</span>
-                        </div>
-                        {topDevelopers.length ? (
-                            <SimpleList
-                                rows={topDevelopers.map((c) => ({
-                                    left: c.name,
-                                    right: `${c.count}`,
-                                    key: String(c.company_id),
-                                }))}
-                            />
-                        ) : (
-                            <p style={{ opacity: 0.7, marginTop: 10 }}>No developer data.</p>
-                        )}
-                    </div>
-
-                    <div style={panel}>
-                        <div style={panelHeaderRow}>
-                            <h2 style={panelTitle}>Years with Most Games</h2>
-                            <span style={{ opacity: 0.7, fontSize: 12 }}>count by year</span>
-                        </div>
-                        {topYears.length ? (
-                            <SimpleList
-                                rows={topYears.map((y) => ({
-                                    left: String(y.year),
-                                    right: `${y.count}`,
-                                    key: String(y.year),
-                                }))}
-                            />
-                        ) : (
-                            <p style={{ opacity: 0.7, marginTop: 10 }}>No year data.</p>
-                        )}
-                    </div>
-                </section>
-
-                {/* Highest / Lowest rated (all returned) */}
-                <section
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-                        gap: 12,
-                        marginBottom: 12,
-                    }}
-                >
-                    <div style={panel}>
-                        <div style={panelHeaderRow}>
-                            <h2 style={panelTitle}>Highest Rated</h2>
-                            <span style={{ opacity: 0.7, fontSize: 12 }}>rating (IGDB)</span>
-                        </div>
-                        {highestRated.length ? (
-                            <ul style={listReset}>
-                                {highestRated.map((g) => (
-                                    <li key={g.game_id} style={rowItem}>
-                                        <Link
-                                            href={`/games/${g.game_id}`}
-                                            style={{ color: "#eaeaea", textDecoration: "none" }}
-                                            title={`IGDB: ${g.igdb_id}`}
-                                        >
-                                            {g.name}
-                                        </Link>
-                                        <span style={{ opacity: 0.85 }}>{g.rating ?? "—"}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p style={{ opacity: 0.7, marginTop: 10 }}>No rating data.</p>
-                        )}
-                    </div>
-
-                    <div style={panel}>
-                        <div style={panelHeaderRow}>
-                            <h2 style={panelTitle}>Lowest Rated</h2>
-                            <span style={{ opacity: 0.7, fontSize: 12 }}>rating (IGDB)</span>
-                        </div>
-                        {lowestRated.length ? (
-                            <ul style={listReset}>
-                                {lowestRated.map((g) => (
-                                    <li key={g.game_id} style={rowItem}>
-                                        <Link
-                                            href={`/games/${g.game_id}`}
-                                            style={{ color: "#eaeaea", textDecoration: "none" }}
-                                            title={`IGDB: ${g.igdb_id}`}
-                                        >
-                                            {g.name}
-                                        </Link>
-                                        <span style={{ opacity: 0.85 }}>{g.rating ?? "—"}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p style={{ opacity: 0.7, marginTop: 10 }}>No rating data.</p>
-                        )}
-                    </div>
-                </section>
+                <DashboardSection title="Ratings">
+                    <DashboardPanel title="Highest rated" style={panel}>
+                        <RatingList games={highestRated} emptyLabel="No rating data." />
+                    </DashboardPanel>
+                    <DashboardPanel title="Lowest rated" style={panel}>
+                        <RatingList games={lowestRated} emptyLabel="No rating data." />
+                    </DashboardPanel>
+                </DashboardSection>
             </div>
         </div>
     );
@@ -403,62 +252,74 @@ export default async function HomePage() {
 
 function StatCard({ label, value }: { label: string; value: number | string }) {
     return (
-        <div style={panel}>
+        <div className="gc-stat-card">
             <div style={{ opacity: 0.8, marginBottom: 6 }}>{label}</div>
             <div style={{ fontSize: 28, fontWeight: 700 }}>{value}</div>
         </div>
     );
 }
 
-function Badge({ label, muted, type, count }: { label: string; muted?: boolean; type?: string; count?: number }) {
-    const hasIssues = count && count > 0;
-    
-    if (muted || !hasIssues || !type) {
-        return (
-            <span
-                style={{
-                    background: muted ? "#1a1a1a" : "#1e293b",
-                    border: `1px solid ${muted ? "#2b2b2b" : "#3b82f6"}`,
-                    color: muted ? "#cfcfcf" : "#dbeafe",
-                    padding: "6px 10px",
-                    borderRadius: 999,
-                    fontSize: 12,
-                    whiteSpace: "nowrap",
-                }}
-            >
-                {label}
-            </span>
-        );
-    }
-    
-    return (
-        <Link
-            href={`/stats/health/${type}`}
-            style={{
-                background: "#1e293b",
-                border: "1px solid #3b82f6",
-                color: "#dbeafe",
-                padding: "6px 10px",
-                borderRadius: 999,
-                fontSize: 12,
-                whiteSpace: "nowrap",
-                textDecoration: "none",
-                display: "inline-block",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-            }}
-        >
-            {label}
-        </Link>
-    );
+function DashboardSection({ title, compact = false, children }: { title: string; compact?: boolean; children: ReactNode }) {
+    return <section className={`gc-dashboard-section${compact ? " is-compact" : ""}`}>
+        <header><h2>{title}</h2></header>
+        <div className="gc-dashboard-section-grid">{children}</div>
+    </section>;
 }
 
-function SimpleList({ rows }: { rows: Array<{ left: string; right: string; key: string }> }) {
+function DashboardPanel({ title, style, children }: { title: string; style: CSSProperties; children: ReactNode }) {
+    return <section className="gc-dashboard-panel" style={style}>
+        <h3>{title}</h3>
+        {children}
+    </section>;
+}
+
+function EmptyStats({ label }: { label: string }) {
+    return <p className="gc-dashboard-empty">{label}</p>;
+}
+
+function DistributionChart({ label, rows }: { label: string; rows: Array<{ label: string; value: number; key: string; href?: string }> }) {
+    const palette = ["#729cff", "#66c2a5", "#f0b06b", "#bd8ee8", "#e47e99", "#7eb9dc"];
+    const top = rows.slice(0, 5);
+    const remaining = rows.slice(5).reduce((sum, row) => sum + row.value, 0);
+    const entries = remaining > 0 ? [...top, { label: "Other", value: remaining, key: "other" }] : top;
+    const total = entries.reduce((sum, entry) => sum + entry.value, 0);
+    let cursor = 0;
+    const slices = entries.map((entry, index) => {
+        const start = cursor;
+        cursor += total ? (entry.value / total) * 100 : 0;
+        return `${palette[index]} ${start}% ${cursor}%`;
+    });
+
+    return <div className="gc-distribution-chart">
+        <div className="gc-donut" style={{ backgroundImage: `conic-gradient(${slices.join(", ")})` }} role="img" aria-label={`${total} ${label} across ${entries.length} categories`} />
+        <ul className="gc-distribution-legend">
+            {entries.map((entry, index) => <li key={entry.key}>
+                <i style={{ backgroundColor: palette[index] }} aria-hidden="true" />
+                {entry.href ? <Link href={entry.href as Route} className="gc-dashboard-row-link">{entry.label}</Link> : <span>{entry.label}</span>}
+                <strong>{entry.value}</strong>
+            </li>)}
+        </ul>
+    </div>;
+}
+
+function RatingList({ games, emptyLabel }: { games: Array<{ game_id: number; igdb_id: number; name: string; rating: number | null }>; emptyLabel: string }) {
+    if (!games.length) return <EmptyStats label={emptyLabel} />;
+    return <ul style={listReset}>
+        {games.slice(0, 5).map((game) => (
+            <li key={game.game_id} style={rowItem}>
+                <Link href={`/games/${game.game_id}`} style={{ color: "var(--gc-text)", textDecoration: "none" }} title={`IGDB: ${game.igdb_id}`}>{game.name}</Link>
+                <span style={{ opacity: 0.85 }}>{game.rating ?? "—"}</span>
+            </li>
+        ))}
+    </ul>;
+}
+
+function SimpleList({ rows }: { rows: Array<{ left: string; right: string; key: string; href?: string }> }) {
     return (
         <ul style={listReset}>
             {rows.map((r) => (
                 <li key={r.key} style={rowItem}>
-                    <span>{r.left}</span>
+                    {r.href ? <Link href={r.href as Route} className="gc-dashboard-row-link">{r.left}</Link> : <span>{r.left}</span>}
                     <span style={{ opacity: 0.85 }}>{r.right}</span>
                 </li>
             ))}

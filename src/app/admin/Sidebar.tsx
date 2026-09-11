@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useId, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./admin.module.css";
@@ -64,9 +64,15 @@ const menu: MenuGroup[] = [
 
 export default function Sidebar() {
     const pathname = usePathname();
+    const [expanded, setExpanded] = useState(false);
+    const menuId = useId();
 
     return (
-        <nav>
+        <nav aria-label="Administration">
+            <button type="button" className="gc-admin-menu-toggle" aria-expanded={expanded} aria-controls={menuId} onClick={() => setExpanded(!expanded)}>
+                Administration <span aria-hidden="true">{expanded ? "−" : "+"}</span>
+            </button>
+            <div id={menuId} className="gc-admin-menu-body" data-expanded={expanded}>
             {menu.map((group, groupIdx) => (
                 <div key={group.section} style={{ marginBottom: 8 }}>
                     <div className={styles.sectionTitle}>{group.section}</div>
@@ -75,6 +81,7 @@ export default function Sidebar() {
                             const active = pathname === item.href;
                             return (
                                 <Link
+                                    onClick={() => setExpanded(false)}
                                     key={item.href}
                                     href={{ pathname: item.href }}
                                     className={`${styles.navLink} ${active ? styles.active : ""}`}
@@ -92,6 +99,7 @@ export default function Sidebar() {
                 <Link href={{ pathname: "/admin/logout" }} className={styles.navLink}>
                     Log out
                 </Link>
+            </div>
             </div>
         </nav>
     );

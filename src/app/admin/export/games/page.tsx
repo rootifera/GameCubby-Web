@@ -10,7 +10,7 @@ export const metadata = {
 export default function ExportGamesPage() {
     const panel: React.CSSProperties = {
         background: "#0f0f0f",
-        border: "1px solid #262626",
+        border: "1px solid var(--gc-border)",
         borderRadius: 12,
         padding: 14,
     };
@@ -23,9 +23,9 @@ export default function ExportGamesPage() {
 
     const btn: React.CSSProperties = {
         display: "inline-block",
-        background: "#1e293b",
+        background: "var(--gc-accent-soft)",
         color: "#fff",
-        border: "1px solid #3b82f6",
+        border: "1px solid var(--gc-accent)",
         borderRadius: 8,
         padding: "10px 14px",
         fontWeight: 600,

@@ -176,11 +176,11 @@ export default function GameHoverCard({
                         maxWidth: touchMode ? 360 : undefined,
                         zIndex: 9999,
                         background: "#0f0f0f",
-                        border: "1px solid #2b2b2b",
+                        border: "1px solid var(--gc-border)",
                         borderRadius: 12,
                         boxShadow: "0 6px 20px rgba(0,0,0,0.45)",
                         padding: 10,
-                        color: "#eaeaea",
+                        color: "var(--gc-text)",
                         pointerEvents: touchMode ? "auto" : "none",
                     }}
                 >
@@ -197,7 +197,7 @@ export default function GameHoverCard({
                                     background: "#171717",
                                     border: "1px solid #303030",
                                     borderRadius: 8,
-                                    color: "#eaeaea",
+                                    color: "var(--gc-text)",
                                     cursor: "pointer",
                                     fontSize: 12,
                                     padding: "4px 8px",
@@ -237,8 +237,8 @@ function CardContent({ g, touchMode = false }: { g: GameDetails; touchMode?: boo
                     width: 64,
                     height: 64,
                     borderRadius: 8,
-                    border: "1px solid #2b2b2b",
-                    background: "#141414",
+                    border: "1px solid var(--gc-border)",
+                    background: "var(--gc-surface-raised)",
                     overflow: "hidden",
                 }}
             >
@@ -252,7 +252,7 @@ function CardContent({ g, touchMode = false }: { g: GameDetails; touchMode?: boo
                         style={{ width: 64, height: 64, objectFit: "cover", display: "block" }}
                     />
                 ) : (
-                    <div style={{ width: "100%", height: "100%", background: "#1b1b1b" }} />
+                    <div style={{ width: "100%", height: "100%", background: "var(--gc-field)" }} />
                 )}
             </div>
 
@@ -281,8 +281,8 @@ function CardContent({ g, touchMode = false }: { g: GameDetails; touchMode?: boo
                         gridColumn: "1 / span 2",
                         textAlign: "center",
                         textDecoration: "none",
-                        background: "#1e293b",
-                        border: "1px solid #3b82f6",
+                        background: "var(--gc-accent-soft)",
+                        border: "1px solid var(--gc-accent)",
                         color: "#e5f0ff",
                         padding: "9px 10px",
                         borderRadius: 8,

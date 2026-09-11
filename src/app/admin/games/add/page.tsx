@@ -1,5 +1,8 @@
 "use client";
 
+import PageIntro from "@/components/PageIntro";
+import FormSection from "@/components/FormSection";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import LocationTreePicker from "@/components/LocationTreePicker";
@@ -471,41 +474,41 @@ export default function AdminAddGamePage() {
                 </Link>
             </div>
 
-            <h1 style={{ fontSize: 24, margin: "0 0 8px 0" }}>Add Game</h1>
+            <PageIntro eyebrow="Grow your collection" title="Add Game" description="Find a game in IGDB or create a record of your own." />
 
             {/* Mode toggles */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <div className="gc-add-methods">
                 <button
                     type="button"
                     onClick={() => setMode("igdb")}
                     aria-pressed={mode === "igdb"}
                     style={{
-                        background: mode === "igdb" ? "#1e293b" : "#151515",
-                        color: mode === "igdb" ? "#fff" : "#eaeaea",
-                        border: `1px solid ${mode === "igdb" ? "#3b82f6" : "#2b2b2b"}`,
+                        background: mode === "igdb" ? "var(--gc-accent-soft)" : "var(--gc-surface-raised)",
+                        color: mode === "igdb" ? "#fff" : "var(--gc-text)",
+                        border: `1px solid ${mode === "igdb" ? "var(--gc-accent)" : "var(--gc-border)"}`,
                         borderRadius: 8,
                         padding: "8px 12px",
                         cursor: "pointer",
                         fontWeight: 600,
                     }}
                 >
-                    IGDB
+                    <strong>Search IGDB</strong><span>Find a title and import its artwork and metadata.</span>
                 </button>
                 <button
                     type="button"
                     onClick={() => setMode("custom")}
                     aria-pressed={mode === "custom"}
                     style={{
-                        background: mode === "custom" ? "#1e293b" : "#151515",
-                        color: mode === "custom" ? "#fff" : "#eaeaea",
-                        border: `1px solid ${mode === "custom" ? "#3b82f6" : "#2b2b2b"}`,
+                        background: mode === "custom" ? "var(--gc-accent-soft)" : "var(--gc-surface-raised)",
+                        color: mode === "custom" ? "#fff" : "var(--gc-text)",
+                        border: `1px solid ${mode === "custom" ? "var(--gc-accent)" : "var(--gc-border)"}`,
                         borderRadius: 8,
                         padding: "8px 12px",
                         cursor: "pointer",
                         fontWeight: 600,
                     }}
                 >
-                    Custom
+                    <strong>Create a custom game</strong><span>Add your own details for anything in your collection.</span>
                 </button>
             </div>
 
@@ -524,9 +527,9 @@ export default function AdminAddGamePage() {
                             autoFocus
                             style={{
                                 flex: 1,
-                                background: "#1a1a1a",
-                                color: "#eaeaea",
-                                border: "1px solid #2b2b2b",
+                                background: "var(--gc-field)",
+                                color: "var(--gc-text)",
+                                border: "1px solid var(--gc-border)",
                                 borderRadius: 8,
                                 padding: "10px 12px",
                                 outline: "none",
@@ -536,9 +539,9 @@ export default function AdminAddGamePage() {
                             type="submit"
                             disabled={loading}
                             style={{
-                                background: "#1e293b",
+                                background: "var(--gc-accent-soft)",
                                 color: "#fff",
-                                border: "1px solid #3b82f6",
+                                border: "1px solid var(--gc-accent)",
                                 borderRadius: 8,
                                 padding: "10px 14px",
                                 fontWeight: 600,
@@ -580,8 +583,8 @@ export default function AdminAddGamePage() {
                                         gridTemplateColumns: "72px 1fr auto",
                                         gap: 12,
                                         alignItems: "center",
-                                        background: "#111",
-                                        border: "1px solid #262626",
+                                        background: "var(--gc-surface)",
+                                        border: "1px solid var(--gc-border)",
                                         borderRadius: 10,
                                         padding: 8,
                                     }}
@@ -594,8 +597,8 @@ export default function AdminAddGamePage() {
                                         style={{
                                             width: 72,
                                             height: 96,
-                                            background: "#1a1a1a",
-                                            border: "1px solid #2b2b2b",
+                                            background: "var(--gc-field)",
+                                            border: "1px solid var(--gc-border)",
                                             borderRadius: 6,
                                             overflow: "hidden",
                                             display: "flex",
@@ -656,9 +659,9 @@ export default function AdminAddGamePage() {
                                             type="button"
                                             title="View details"
                                             style={{
-                                                background: "#151515",
-                                                color: "#eaeaea",
-                                                border: "1px solid #2b2b2b",
+                                                background: "var(--gc-surface-raised)",
+                                                color: "var(--gc-text)",
+                                                border: "1px solid var(--gc-border)",
                                                 borderRadius: 8,
                                                 padding: "8px 12px",
                                                 cursor: "pointer",
@@ -697,7 +700,7 @@ export default function AdminAddGamePage() {
                                     maxHeight: "90vh",
                                     overflow: "auto",
                                     background: "#0f0f10",
-                                    border: "1px solid #262626",
+                                    border: "1px solid var(--gc-border)",
                                     borderRadius: 12,
                                     padding: 16,
                                 }}
@@ -714,9 +717,9 @@ export default function AdminAddGamePage() {
                                         type="button"
                                         onClick={closeDetails}
                                         style={{
-                                            background: "#151515",
-                                            color: "#eaeaea",
-                                            border: "1px solid #2b2b2b",
+                                            background: "var(--gc-surface-raised)",
+                                            color: "var(--gc-text)",
+                                            border: "1px solid var(--gc-border)",
                                             borderRadius: 8,
                                             padding: "6px 10px",
                                             cursor: "pointer",
@@ -751,8 +754,8 @@ export default function AdminAddGamePage() {
                                                 style={{
                                                     width: 180,
                                                     height: 220,
-                                                    background: "#1a1a1a",
-                                                    border: "1px solid #2b2b2b",
+                                                    background: "var(--gc-field)",
+                                                    border: "1px solid var(--gc-border)",
                                                     borderRadius: 8,
                                                     overflow: "hidden",
                                                     display: "flex",
@@ -796,7 +799,7 @@ export default function AdminAddGamePage() {
                                         </div>
 
                                     {/* Divider */}
-                                        <div style={{ height: 1, background: "#1f1f1f", margin: "14px 0" }} />
+                                        <div style={{ height: 1, background: "var(--gc-border-subtle)", margin: "14px 0" }} />
 
                                         {/* Add form */}
                                         <form 
@@ -828,7 +831,7 @@ export default function AdminAddGamePage() {
                                                                         gap: 8,
                                                                         padding: "6px 8px",
                                                                         borderRadius: 6,
-                                                                        background: checked ? "#1e293b" : "transparent",
+                                                                        background: checked ? "var(--gc-accent-soft)" : "transparent",
                                                                         border: checked ? "1px solid #334155" : "1px solid transparent",
                                                                     }}
                                                                 >
@@ -843,7 +846,7 @@ export default function AdminAddGamePage() {
                                                                                 return next;
                                                                             })
                                                                         }
-                                                                        style={{ accentColor: "#3b82f6" }}
+                                                                        style={{ accentColor: "var(--gc-accent)" }}
                                                                     />
                                                                     <span>{p.name}</span>
                                                                 </label>
@@ -883,9 +886,9 @@ export default function AdminAddGamePage() {
                                                         value={condition}
                                                         onChange={(e) => setCondition(Number(e.target.value) || 0)}
                                                         style={{
-                                                            background: "#1a1a1a",
-                                                            color: "#eaeaea",
-                                                            border: "1px solid #2b2b2b",
+                                                            background: "var(--gc-field)",
+                                                            color: "var(--gc-text)",
+                                                            border: "1px solid var(--gc-border)",
                                                             borderRadius: 8,
                                                             padding: "10px 12px",
                                                             outline: "none",
@@ -907,9 +910,9 @@ export default function AdminAddGamePage() {
                                                         value={order}
                                                         onChange={(e) => setOrder(Number(e.target.value) || 0)}
                                                         style={{
-                                                            background: "#1a1a1a",
-                                                            color: "#eaeaea",
-                                                            border: "1px solid #2b2b2b",
+                                                            background: "var(--gc-field)",
+                                                            color: "var(--gc-text)",
+                                                            border: "1px solid var(--gc-border)",
                                                             borderRadius: 8,
                                                             padding: "10px 12px",
                                                             outline: "none",
@@ -956,9 +959,9 @@ export default function AdminAddGamePage() {
                                                     type="submit"
                                                     disabled={saving}
                                                     style={{
-                                                        background: "#1e293b",
+                                                        background: "var(--gc-accent-soft)",
                                                         color: "#fff",
-                                                        border: "1px solid #3b82f6",
+                                                        border: "1px solid var(--gc-accent)",
                                                         borderRadius: 8,
                                                         padding: "10px 14px",
                                                         fontWeight: 600,
@@ -972,9 +975,9 @@ export default function AdminAddGamePage() {
                                                     type="button"
                                                     onClick={closeDetails}
                                                     style={{
-                                                        background: "#151515",
-                                                        color: "#eaeaea",
-                                                        border: "1px solid #2b2b2b",
+                                                        background: "var(--gc-surface-raised)",
+                                                        color: "var(--gc-text)",
+                                                        border: "1px solid var(--gc-border)",
                                                         borderRadius: 8,
                                                         padding: "10px 14px",
                                                         cursor: "pointer",
@@ -1000,8 +1003,8 @@ export default function AdminAddGamePage() {
                 /* -------- Custom mode -------- */
                 <div
                     style={{
-                        background: "#111",
-                        border: "1px solid #262626",
+                        background: "var(--gc-surface)",
+                        border: "1px solid var(--gc-border)",
                         borderRadius: 12,
                         padding: 16,
                         maxWidth: 900,
@@ -1037,6 +1040,7 @@ export default function AdminAddGamePage() {
                         }}
                         style={{ display: "grid", gap: 10 }}
                     >
+                        <FormSection title="Game details" description="Give your game a name, description, and cover.">
                         <label style={{ display: "grid", gap: 6 }}>
                             <span style={{ opacity: 0.85 }}>Name</span>
                             <input
@@ -1044,9 +1048,9 @@ export default function AdminAddGamePage() {
                                 required
                                 placeholder="Required"
                                 style={{
-                                    background: "#1a1a1a",
-                                    color: "#eaeaea",
-                                    border: "1px solid #2b2b2b",
+                                    background: "var(--gc-field)",
+                                    color: "var(--gc-text)",
+                                    border: "1px solid var(--gc-border)",
                                     borderRadius: 8,
                                     padding: "10px 12px",
                                     outline: "none",
@@ -1061,9 +1065,9 @@ export default function AdminAddGamePage() {
                                 rows={4}
                                 placeholder="Optional"
                                 style={{
-                                    background: "#1a1a1a",
-                                    color: "#eaeaea",
-                                    border: "1px solid #2b2b2b",
+                                    background: "var(--gc-field)",
+                                    color: "var(--gc-text)",
+                                    border: "1px solid var(--gc-border)",
                                     borderRadius: 8,
                                     padding: "10px 12px",
                                     outline: "none",
@@ -1080,9 +1084,9 @@ export default function AdminAddGamePage() {
                                     name="release_date"
                                     placeholder="e.g., 1998"
                                     style={{
-                                        background: "#1a1a1a",
-                                        color: "#eaeaea",
-                                        border: "1px solid #2b2b2b",
+                                        background: "var(--gc-field)",
+                                        color: "var(--gc-text)",
+                                        border: "1px solid var(--gc-border)",
                                         borderRadius: 8,
                                         padding: "10px 12px",
                                         outline: "none",
@@ -1096,9 +1100,9 @@ export default function AdminAddGamePage() {
                                     name="cover_url"
                                     placeholder="https://…"
                                     style={{
-                                        background: "#1a1a1a",
-                                        color: "#eaeaea",
-                                        border: "1px solid #2b2b2b",
+                                        background: "var(--gc-field)",
+                                        color: "var(--gc-text)",
+                                        border: "1px solid var(--gc-border)",
                                         borderRadius: 8,
                                         padding: "10px 12px",
                                         outline: "none",
@@ -1107,66 +1111,7 @@ export default function AdminAddGamePage() {
                             </label>
                         </div>
 
-                        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
-                            <label style={{ display: "grid", gap: 6 }}>
-                                <span style={{ opacity: 0.85 }}>Condition (0–10)</span>
-                                <select
-                                    name="condition"
-                                    defaultValue={0}
-                                    style={{
-                                        background: "#1a1a1a",
-                                        color: "#eaeaea",
-                                        border: "1px solid #2b2b2b",
-                                        borderRadius: 8,
-                                        padding: "10px 12px",
-                                        outline: "none",
-                                    }}
-                                >
-                                    {Array.from({ length: 11 }, (_, i) => i).map((n) => (
-                                        <option key={n} value={n}>
-                                            {n}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-
-                            <label style={{ display: "grid", gap: 6 }}>
-                                <span style={{ opacity: 0.85 }}>Order</span>
-                                <input
-                                    type="number"
-                                    name="order"
-                                    value={customOrder}
-                                    onChange={(e) => setCustomOrder(Number(e.target.value) || 0)}
-                                    placeholder="0"
-                                    style={{
-                                        background: "#1a1a1a",
-                                        color: "#eaeaea",
-                                        border: "1px solid #2b2b2b",
-                                        borderRadius: 8,
-                                        padding: "10px 12px",
-                                        outline: "none",
-                                    }}
-                                />
-                            </label>
-
-                            <label style={{ display: "grid", gap: 6 }}>
-                                <span style={{ opacity: 0.85 }}>Rating</span>
-                                <input
-                                    type="number"
-                                    name="rating"
-                                    placeholder="0"
-                                    style={{
-                                        background: "#1a1a1a",
-                                        color: "#eaeaea",
-                                        border: "1px solid #2b2b2b",
-                                        borderRadius: 8,
-                                        padding: "10px 12px",
-                                        outline: "none",
-                                    }}
-                                />
-                            </label>
-                        </div>
-
+                        </FormSection><FormSection title="Your copy" description="Set the condition and where this game belongs in your library.">
                         {/* Location */}
                         <LocationTreePicker
                             label="Location"
@@ -1179,6 +1124,64 @@ export default function AdminAddGamePage() {
                         {locationOrderError ? (
                             <div style={{ fontSize: 12, color: "#fca5a5" }}>{locationOrderError}</div>
                         ) : null}
+
+                        <div className="gc-copy-values" style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span style={{ opacity: 0.85 }}>Rating</span>
+                                <input
+                                    type="number"
+                                    name="rating"
+                                    placeholder="0"
+                                    style={{
+                                        background: "var(--gc-field)",
+                                        color: "var(--gc-text)",
+                                        border: "1px solid var(--gc-border)",
+                                        borderRadius: 8,
+                                        padding: "10px 12px",
+                                        outline: "none",
+                                    }}
+                                />
+                            </label>
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span style={{ opacity: 0.85 }}>Condition (0–10)</span>
+                                <select
+                                    name="condition"
+                                    defaultValue={0}
+                                    style={{
+                                        background: "var(--gc-field)",
+                                        color: "var(--gc-text)",
+                                        border: "1px solid var(--gc-border)",
+                                        borderRadius: 8,
+                                        padding: "10px 12px",
+                                        outline: "none",
+                                    }}
+                                >
+                                    {Array.from({ length: 11 }, (_, i) => i).map((n) => (
+                                        <option key={n} value={n}>
+                                            {n}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span style={{ opacity: 0.85 }}>Order</span>
+                                <input
+                                    type="number"
+                                    name="order"
+                                    value={customOrder}
+                                    onChange={(e) => setCustomOrder(Number(e.target.value) || 0)}
+                                    placeholder="0"
+                                    style={{
+                                        background: "var(--gc-field)",
+                                        color: "var(--gc-text)",
+                                        border: "1px solid var(--gc-border)",
+                                        borderRadius: 8,
+                                        padding: "10px 12px",
+                                        outline: "none",
+                                    }}
+                                />
+                            </label>
+                        </div>
 
                         {/* ---- Dropdowns instead of CSV ---- */}
                         <div
@@ -1256,6 +1259,7 @@ export default function AdminAddGamePage() {
                             suggestKind="tags" 
                         />
 
+                        </FormSection>
                         {/* Custom errors/status */}
                         {customError ? (
                             <div
@@ -1289,9 +1293,9 @@ export default function AdminAddGamePage() {
                                 type="submit"
                                 disabled={customSaving}
                                 style={{
-                                    background: "#1e293b",
+                                    background: "var(--gc-accent-soft)",
                                     color: "#fff",
-                                    border: "1px solid #3b82f6",
+                                    border: "1px solid var(--gc-accent)",
                                     borderRadius: 8,
                                     padding: "10px 14px",
                                     fontWeight: 600,
@@ -1305,9 +1309,9 @@ export default function AdminAddGamePage() {
                                 type="button"
                                 onClick={() => setMode("igdb")}
                                 style={{
-                                    background: "#151515",
-                                    color: "#eaeaea",
-                                    border: "1px solid #2b2b2b",
+                                    background: "var(--gc-surface-raised)",
+                                    color: "var(--gc-text)",
+                                    border: "1px solid var(--gc-border)",
                                     borderRadius: 8,
                                     padding: "10px 14px",
                                     cursor: "pointer",

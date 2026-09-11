@@ -19,12 +19,12 @@ function NavItem({ href, label }: NavItemProps) {
             : pathname === href || pathname.startsWith(`${href}/`);
 
     const style: React.CSSProperties = {
-        color: isActive ? "#fff" : "#d8d8d8",
+        color: isActive ? "#fff" : "var(--gc-text-secondary)",
         textDecoration: "none",
         padding: "8px 12px",
         borderRadius: 10,
-        border: `1px solid ${isActive ? "#3b82f6" : hovered ? "#2b2b2b" : "transparent"}`,
-        background: isActive ? "#162235" : hovered ? "#151515" : "transparent",
+        border: `1px solid ${isActive ? "var(--gc-accent)" : hovered ? "var(--gc-border)" : "transparent"}`,
+        background: isActive ? "var(--gc-accent-soft)" : hovered ? "var(--gc-surface-raised)" : "transparent",
         transition:
             "transform 80ms ease, background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease",
         transform: pressed ? "translateY(1px) scale(0.98)" : "none",

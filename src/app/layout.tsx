@@ -1,3 +1,4 @@
+import "./globals.css";
 import Link from "next/link";
 import NavBar from "@/components/NavBar";
 import ApiStatus from "@/components/ApiStatus";
@@ -17,209 +18,7 @@ export default function RootLayout({
     return (
         <html lang="en">
         <head>
-            <style>{`html{scrollbar-gutter:stable;}*{box-sizing:border-box}
-/* Remove spinner controls from number inputs */
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-input[type="number"] {
-    -moz-appearance: textfield;
-}
-/* Prevent mouse wheel from changing number input values */
-input[type="number"]:focus {
-    outline: none;
-}
 
-.gc-mobile-lookup {
-    display: none;
-}
-
-@media (max-width: 720px) {
-    html {
-        scrollbar-gutter: auto;
-    }
-
-    .gc-header {
-        position: static !important;
-    }
-
-    .gc-api-status,
-    .gc-auth-actions {
-        display: none !important;
-    }
-
-    .gc-top-nav {
-        max-width: none !important;
-        padding: 10px 12px !important;
-        gap: 10px !important;
-        flex-wrap: wrap !important;
-        align-items: center !important;
-    }
-
-    .gc-brand {
-        width: 100% !important;
-        font-size: 18px !important;
-    }
-
-    .gc-nav-links {
-        margin-left: 0 !important;
-        gap: 8px !important;
-        width: 100% !important;
-        overflow-x: auto !important;
-        padding-bottom: 2px !important;
-    }
-
-    .gc-nav-links a {
-        padding: 9px 12px !important;
-        min-height: 38px !important;
-    }
-
-    .gc-main {
-        max-width: none !important;
-        margin: 12px auto !important;
-        padding: 0 12px !important;
-    }
-
-    .gc-footer {
-        display: none !important;
-    }
-
-    .gc-mobile-lookup {
-        display: block !important;
-        background: #111 !important;
-        border: 1px solid #262626 !important;
-        border-radius: 10px !important;
-        padding: 12px !important;
-        margin-bottom: 12px !important;
-    }
-
-    .gc-mobile-lookup-title {
-        font-size: 13px !important;
-        opacity: 0.82 !important;
-        margin-bottom: 8px !important;
-    }
-
-    .gc-searchbox input,
-    .gc-mobile-field {
-        min-height: 44px !important;
-        font-size: 16px !important;
-        width: 100% !important;
-        max-width: none !important;
-    }
-
-    .gc-searchbox button[type="submit"] {
-        min-height: 44px !important;
-        font-size: 15px !important;
-    }
-
-    .gc-search-form {
-        display: grid !important;
-        grid-template-columns: 1fr !important;
-        gap: 12px !important;
-        padding: 12px !important;
-    }
-
-    .gc-search-span,
-    .gc-search-row,
-    .gc-search-actions,
-    .gc-search-size {
-        grid-column: auto !important;
-    }
-
-    .gc-search-row {
-        display: grid !important;
-        grid-template-columns: 1fr !important;
-        gap: 12px !important;
-    }
-
-    .gc-search-actions {
-        display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
-        gap: 8px !important;
-    }
-
-    .gc-search-actions button {
-        min-height: 44px !important;
-        font-size: 15px !important;
-    }
-
-    .gc-result-item,
-    .gc-game-list-item {
-        align-items: flex-start !important;
-        padding: 12px 0 !important;
-    }
-
-    .gc-result-info,
-    .gc-game-list-info {
-        grid-template-columns: 1fr !important;
-        gap: 6px !important;
-    }
-
-    .gc-result-meta,
-    .gc-game-list-meta {
-        text-align: left !important;
-        display: flex !important;
-        gap: 10px !important;
-        flex-wrap: wrap !important;
-    }
-
-    .gc-sort-bar {
-        display: flex !important;
-        gap: 8px !important;
-        flex-wrap: wrap !important;
-        overflow-x: visible !important;
-        padding-bottom: 4px !important;
-    }
-
-    .gc-page-size-form {
-        width: 100% !important;
-        flex: 0 0 100% !important;
-        margin-top: 4px !important;
-    }
-
-    .gc-pager {
-        align-items: flex-start !important;
-    }
-
-    .gc-pager-links {
-        width: 100% !important;
-        overflow-x: auto !important;
-        padding-bottom: 2px !important;
-    }
-
-    .gc-game-detail {
-        display: grid !important;
-        grid-template-columns: 1fr !important;
-        gap: 12px !important;
-        padding: 12px !important;
-    }
-
-    .gc-admin-actions {
-        position: static !important;
-        grid-row: 1 !important;
-        justify-content: flex-start !important;
-        flex-wrap: wrap !important;
-    }
-
-    .gc-game-cover img,
-    .gc-game-cover > div {
-        width: 128px !important;
-        height: 172px !important;
-        border-radius: 8px !important;
-    }
-
-    .gc-game-title {
-        font-size: 22px !important;
-        padding-right: 0 !important;
-    }
-
-    .gc-location-card {
-        border-color: #3b82f6 !important;
-        background: #101827 !important;
-    }
-}`}</style>
             <script dangerouslySetInnerHTML={{
                 __html: `
                     // Disable mouse wheel on number inputs
@@ -258,8 +57,8 @@ input[type="number"]:focus {
             style={{
                 margin: 0,
                 fontFamily: "system-ui, Arial, sans-serif",
-                background: "#0b0b0b",
-                color: "#eaeaea",
+                background: "var(--gc-bg)",
+                color: "var(--gc-text)",
                 minHeight: "100vh",
                 display: "flex",
                 flexDirection: "column",
@@ -269,8 +68,8 @@ input[type="number"]:focus {
         <header
             className="gc-header"
             style={{
-                borderBottom: "1px solid #1f1f1f",
-                background: "#111",
+                borderBottom: "1px solid var(--gc-border-subtle)",
+                background: "var(--gc-surface)",
                 position: "sticky",
                 top: 0,
                 zIndex: 10,
@@ -359,10 +158,10 @@ input[type="number"]:focus {
             className="gc-footer"
             style={{
                 marginTop: "auto",
-                borderTop: "1px solid #1f1f1f",
+                borderTop: "1px solid var(--gc-border-subtle)",
                 padding: "12px 16px",
-                background: "#111",
-                color: "#9a9a9a",
+                background: "var(--gc-surface)",
+                color: "var(--gc-muted)",
             }}
         >
             <div style={{ maxWidth: 1100, margin: "0 auto" }}>

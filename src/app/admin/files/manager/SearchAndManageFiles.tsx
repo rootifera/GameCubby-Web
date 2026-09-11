@@ -123,7 +123,7 @@ function Modal({
                     maxHeight: "90vh",
                     overflow: "auto",
                     background: "#0f0f0f",
-                    border: "1px solid #262626",
+                    border: "1px solid var(--gc-border)",
                     borderRadius: 12,
                     padding: 14,
                 }}
@@ -134,9 +134,9 @@ function Modal({
                         type="button"
                         onClick={onClose}
                         style={{
-                            background: "#151515",
-                            color: "#eaeaea",
-                            border: "1px solid #2b2b2b",
+                            background: "var(--gc-surface-raised)",
+                            color: "var(--gc-text)",
+                            border: "1px solid var(--gc-border)",
                             borderRadius: 8,
                             padding: "6px 10px",
                             cursor: "pointer",
@@ -376,18 +376,18 @@ export function ManageFilesPanel({ gameId }: { gameId: number }) {
 
     /* ---- styles ---- */
     const input = {
-        background: "#121212",
-        color: "#eaeaea",
-        border: "1px solid #262626",
+        background: "var(--gc-surface)",
+        color: "var(--gc-text)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 8,
         padding: "8px 10px",
         outline: "none",
     } as const;
     const btn: React.CSSProperties = {
         display: "inline-block",
-        background: "#1b1b1b",
-        color: "#eaeaea",
-        border: "1px solid #2e2e2e",
+        background: "var(--gc-field)",
+        color: "var(--gc-text)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 8,
         padding: "8px 12px",
         textDecoration: "none",
@@ -396,8 +396,8 @@ export function ManageFilesPanel({ gameId }: { gameId: number }) {
     };
     const primaryBtn: React.CSSProperties = {
         ...btn,
-        background: "#1e293b",
-        border: "1px solid #3b82f6",
+        background: "var(--gc-accent-soft)",
+        border: "1px solid var(--gc-accent)",
         color: "#fff",
         fontWeight: 600,
     };
@@ -408,7 +408,7 @@ export function ManageFilesPanel({ gameId }: { gameId: number }) {
     };
     const chip: React.CSSProperties = {
         background: "#101010",
-        border: "1px solid #2b2b2b",
+        border: "1px solid var(--gc-border)",
         borderRadius: 6,
         padding: "2px 6px",
         fontSize: 11,
@@ -432,7 +432,7 @@ export function ManageFilesPanel({ gameId }: { gameId: number }) {
             {(busy || err || notice) && (
                 <div style={{ display: "grid", gap: 8 }}>
                     {busy && (
-                        <div style={{ background: "#1b1b1b", border: "1px solid #2e2e2e", padding: 10, borderRadius: 8 }}>
+                        <div style={{ background: "var(--gc-field)", border: "1px solid var(--gc-border)", padding: 10, borderRadius: 8 }}>
                             {busy}
                         </div>
                     )}
@@ -452,8 +452,8 @@ export function ManageFilesPanel({ gameId }: { gameId: number }) {
             {/* Upload */}
             <section
                 style={{
-                    background: "#141414",
-                    border: "1px solid #262626",
+                    background: "var(--gc-surface-raised)",
+                    border: "1px solid var(--gc-border)",
                     borderRadius: 10,
                     padding: 12,
                 }}
@@ -500,8 +500,8 @@ export function ManageFilesPanel({ gameId }: { gameId: number }) {
             {/* Files list */}
             <section
                 style={{
-                    background: "#141414",
-                    border: "1px solid #262626",
+                    background: "var(--gc-surface-raised)",
+                    border: "1px solid var(--gc-border)",
                     borderRadius: 10,
                     padding: 12,
                 }}
@@ -532,8 +532,8 @@ export function ManageFilesPanel({ gameId }: { gameId: number }) {
                                                         gridTemplateColumns: "1fr auto auto auto",
                                                         gap: 10,
                                                         alignItems: "center",
-                                                        border: "1px solid #222",
-                                                        background: "#121212",
+                                                        border: "1px solid var(--gc-border)",
+                                                        background: "var(--gc-surface)",
                                                         padding: "8px 10px",
                                                         borderRadius: 8,
                                                     }}
@@ -541,7 +541,7 @@ export function ManageFilesPanel({ gameId }: { gameId: number }) {
                                                     {/* left info */}
                                                     <div style={{ minWidth: 0 }}>
                                                         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                              <span style={{ background: "#101010", border: "1px solid #2b2b2b", borderRadius: 6, padding: "2px 6px", fontSize: 11, whiteSpace: "nowrap" }} title={f.category}>
+                              <span style={{ background: "#101010", border: "1px solid var(--gc-border)", borderRadius: 6, padding: "2px 6px", fontSize: 11, whiteSpace: "nowrap" }} title={f.category}>
                                 {prettyCategory(f.category)}
                               </span>
                                                             {!isEditing ? (
@@ -560,7 +560,7 @@ export function ManageFilesPanel({ gameId }: { gameId: number }) {
                                                                 <input
                                                                     value={editLabel}
                                                                     onChange={(e) => setEditLabel(e.target.value)}
-                                                                    style={{ background: "#1a1a1a", border: "1px solid #2b2b2b", borderRadius: 6, width: "100%", padding: "6px 8px", color: "#eaeaea" }}
+                                                                    style={{ background: "var(--gc-field)", border: "1px solid var(--gc-border)", borderRadius: 6, width: "100%", padding: "6px 8px", color: "var(--gc-text)" }}
                                                                     placeholder="New label…"
                                                                 />
                                                             )}
@@ -586,9 +586,9 @@ export function ManageFilesPanel({ gameId }: { gameId: number }) {
                                                                 href={`/api/proxy/downloads/${encodeURIComponent(String(f.file_id))}`}
                                                                 style={{
                                                                     display: "inline-block",
-                                                                    background: "#1e293b",
+                                                                    background: "var(--gc-accent-soft)",
                                                                     color: "#dbeafe",
-                                                                    border: "1px solid #3b82f6",
+                                                                    border: "1px solid var(--gc-accent)",
                                                                     borderRadius: 8,
                                                                     padding: "8px 12px",
                                                                     textDecoration: "none",
@@ -602,14 +602,14 @@ export function ManageFilesPanel({ gameId }: { gameId: number }) {
                                                             </a>
                                                             <button
                                                                 type="button"
-                                                                style={{ display: "inline-block", background: "#1b1b1b", color: "#eaeaea", border: "1px solid #2e2e2e", borderRadius: 8, padding: "8px 12px", whiteSpace: "nowrap", cursor: "pointer" }}
+                                                                style={{ display: "inline-block", background: "var(--gc-field)", color: "var(--gc-text)", border: "1px solid var(--gc-border)", borderRadius: 8, padding: "8px 12px", whiteSpace: "nowrap", cursor: "pointer" }}
                                                                 onClick={() => startEditLabel(f.file_id, f.label || "")}
                                                             >
                                                                 Edit Label
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                style={{ display: "inline-block", background: "#3b1e1e", color: "#eaeaea", border: "1px solid #c24141", borderRadius: 8, padding: "8px 12px", whiteSpace: "nowrap", cursor: "pointer" }}
+                                                                style={{ display: "inline-block", background: "#3b1e1e", color: "var(--gc-text)", border: "1px solid #c24141", borderRadius: 8, padding: "8px 12px", whiteSpace: "nowrap", cursor: "pointer" }}
                                                                 onClick={() => void doDelete(f.file_id)}
                                                             >
                                                                 Delete
@@ -617,10 +617,10 @@ export function ManageFilesPanel({ gameId }: { gameId: number }) {
                                                         </>
                                                     ) : (
                                                         <>
-                                                            <button type="button" style={{ display: "inline-block", background: "#1e293b", color: "#fff", border: "1px solid #3b82f6", borderRadius: 8, padding: "8px 12px", whiteSpace: "nowrap", cursor: "pointer", fontWeight: 600 }} onClick={saveEditLabel}>
+                                                            <button type="button" style={{ display: "inline-block", background: "var(--gc-accent-soft)", color: "#fff", border: "1px solid var(--gc-accent)", borderRadius: 8, padding: "8px 12px", whiteSpace: "nowrap", cursor: "pointer", fontWeight: 600 }} onClick={saveEditLabel}>
                                                                 Save
                                                             </button>
-                                                            <button type="button" style={{ display: "inline-block", background: "#1b1b1b", color: "#eaeaea", border: "1px solid #2e2e2e", borderRadius: 8, padding: "8px 12px", whiteSpace: "nowrap", cursor: "pointer" }} onClick={cancelEditLabel}>
+                                                            <button type="button" style={{ display: "inline-block", background: "var(--gc-field)", color: "var(--gc-text)", border: "1px solid var(--gc-border)", borderRadius: 8, padding: "8px 12px", whiteSpace: "nowrap", cursor: "pointer" }} onClick={cancelEditLabel}>
                                                                 Cancel
                                                             </button>
                                                             <div /> {/* spacer to keep grid width consistent */}
@@ -925,9 +925,9 @@ export default function SearchAndManageFiles({
 
     /* ---- styles ---- */
     const input = {
-        background: "#121212",
-        color: "#eaeaea",
-        border: "1px solid #262626",
+        background: "var(--gc-surface)",
+        color: "var(--gc-text)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 8,
         padding: "8px 10px",
         outline: "none",
@@ -935,9 +935,9 @@ export default function SearchAndManageFiles({
 
     const btn: React.CSSProperties = {
         display: "inline-block",
-        background: "#1b1b1b",
-        color: "#eaeaea",
-        border: "1px solid #2e2e2e",
+        background: "var(--gc-field)",
+        color: "var(--gc-text)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 8,
         padding: "8px 12px",
         textDecoration: "none",
@@ -947,8 +947,8 @@ export default function SearchAndManageFiles({
 
     const primaryBtn: React.CSSProperties = {
         ...btn,
-        background: "#1e293b",
-        border: "1px solid #3b82f6",
+        background: "var(--gc-accent-soft)",
+        border: "1px solid var(--gc-accent)",
         color: "#fff",
         fontWeight: 600,
     };
@@ -957,8 +957,8 @@ export default function SearchAndManageFiles({
         <div>
             <section
                 style={{
-                    background: "#141414",
-                    border: "1px solid #262626",
+                    background: "var(--gc-surface-raised)",
+                    border: "1px solid var(--gc-border)",
                     borderRadius: 10,
                     padding: 12,
                     marginBottom: 12,
@@ -1105,7 +1105,7 @@ export default function SearchAndManageFiles({
                                 gridTemplateColumns: "auto 1fr auto",
                                 gap: 12,
                                 alignItems: "center",
-                                border: "1px solid #262626",
+                                border: "1px solid var(--gc-border)",
                                 borderRadius: 10,
                                 padding: 8,
                                 background: "#0f0f0f",
@@ -1155,8 +1155,8 @@ export default function SearchAndManageFiles({
             <section
                 style={{
                     marginTop: 16,
-                    background: "#141414",
-                    border: "1px solid #262626",
+                    background: "var(--gc-surface-raised)",
+                    border: "1px solid var(--gc-border)",
                     borderRadius: 10,
                     padding: 12,
                 }}
@@ -1180,7 +1180,7 @@ export default function SearchAndManageFiles({
                             display: "grid",
                             gap: 4,
                             background: "#101010",
-                            border: "1px solid #262626",
+                            border: "1px solid var(--gc-border)",
                             borderRadius: 8,
                             padding: 10,
                             marginBottom: 8,

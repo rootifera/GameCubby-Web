@@ -153,7 +153,7 @@ export default async function HealthIssuePage(props: { params: Promise<{ type: s
                                     display: "flex",
                                     gap: 12,
                                     padding: "12px 8px",
-                                    borderBottom: "1px solid #1f1f1f",
+                                    borderBottom: "1px solid var(--gc-border-subtle)",
                                     alignItems: "center",
                                 }}
                             >
@@ -210,8 +210,8 @@ const errBox: React.CSSProperties = {
 };
 
 const summaryBox: React.CSSProperties = {
-    background: "#1e293b",
-    border: "1px solid #3b82f6",
+    background: "var(--gc-accent-soft)",
+    border: "1px solid var(--gc-accent)",
     color: "#dbeafe",
     padding: "12px 16px",
     borderRadius: 8,

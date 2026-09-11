@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { cookies } from "next/headers";
 import Sidebar from "./Sidebar";
 import styles from "./admin.module.css";
@@ -40,16 +40,13 @@ function isTokenValidNow(token: string): boolean {
 }
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-    // Ensure maintenance DB user once per server process on first admin hit
-    await bootstrapOnce();
-
     // Server-side, no hydration race: validate the JWT, not just its presence
     const token = await readAuthToken();
     const isAuthed = token ? isTokenValidNow(token) : false;
 
     const panelStyle: React.CSSProperties = {
-        background: "#111",
-        border: "1px solid #262626",
+        background: "var(--gc-surface)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 12,
         padding: 14,
     };
@@ -66,6 +63,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     // Authed: show sidebar + content
     return (
         <div
+            className="gc-admin-layout"
             style={{
                 display: "grid",
                 gridTemplateColumns: "260px 1fr",
@@ -73,6 +71,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 alignItems: "start",
             }}
         >
+            <Suspense fallback={null}><MaintenanceBootstrap /></Suspense>
             {/* Sidebar (client) */}
             <aside style={{ ...panelStyle, position: "sticky", top: 16, alignSelf: "start" }}>
                 <Sidebar />
@@ -84,4 +83,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </section>
         </div>
     );
+}
+
+// Maintenance setup must not delay access to the administration tools.
+async function MaintenanceBootstrap() {
+    await bootstrapOnce();
+    return null;
 }
