@@ -70,9 +70,9 @@ export default function ChangePasswordForm() {
 
     /* styles */
     const input = {
-        background: "#121212",
-        color: "#eaeaea",
-        border: "1px solid #262626",
+        background: "var(--gc-surface)",
+        color: "var(--gc-text)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 8,
         padding: "10px 12px",
         outline: "none",
@@ -80,9 +80,9 @@ export default function ChangePasswordForm() {
 
     const btn: React.CSSProperties = {
         display: "inline-block",
-        background: "#1e293b",
+        background: "var(--gc-accent-soft)",
         color: "#fff",
-        border: "1px solid #3b82f6",
+        border: "1px solid var(--gc-accent)",
         borderRadius: 8,
         padding: "10px 14px",
         fontWeight: 600,

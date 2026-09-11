@@ -30,7 +30,7 @@ export default async function LoginSuccessPage(
     })();
   </script>
 </head>
-<body style="background:#0f0f10;color:#eaeaea;font-family:system-ui,Arial,sans-serif;">
+<body style="background:#0f0f10;color:var(--gc-text);font-family:system-ui,Arial,sans-serif;">
   <div style="max-width:640px;margin:20vh auto 0;padding:16px;text-align:center;">
     <h1 style="margin:0 0 8px 0;font-size:20px;">Login successful…</h1>
     <p style="opacity:.8">Redirecting to <a href="${next}" style="color:#a0c4ff;">${next}</a>...</p>

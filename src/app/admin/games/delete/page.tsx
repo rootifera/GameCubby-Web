@@ -23,7 +23,7 @@ export default async function AdminGameDeletePage() {
     const titleStyle: React.CSSProperties = { fontSize: 18, fontWeight: 700, marginBottom: 10 };
     const panel: React.CSSProperties = {
         background: "#0f0f0f",
-        border: "1px solid #262626",
+        border: "1px solid var(--gc-border)",
         borderRadius: 12,
         padding: 14,
     };

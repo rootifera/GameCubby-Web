@@ -77,7 +77,7 @@ export default function RecentlyUsedTags({ onTagClick, maxTags = 10 }: RecentlyU
     }
 
     return (
-        <div style={{ marginBottom: 8 }}>
+        <div style={{ marginBottom: 8, minWidth: 0 }}>
             <div style={{ 
                 fontSize: 12, 
                 opacity: 0.7, 
@@ -109,7 +109,10 @@ export default function RecentlyUsedTags({ onTagClick, maxTags = 10 }: RecentlyU
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '4px',
-                            whiteSpace: 'nowrap'
+                            whiteSpace: 'normal',
+                            overflowWrap: 'anywhere',
+                            maxWidth: '100%',
+                            textAlign: 'left'
                         }}
                         onMouseEnter={(e) => {
                             e.currentTarget.style.background = '#4a5568';

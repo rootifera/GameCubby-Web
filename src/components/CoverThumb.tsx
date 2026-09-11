@@ -39,8 +39,8 @@ export default function CoverThumb({
     }, [name]);
 
     const radius = rounded ? 8 : 10;
-    const border = "1px solid #2b2b2b";
-    const bg = "#141414";
+    const border = "1px solid var(--gc-border)";
+    const bg = "var(--gc-surface-raised)";
 
     if (showImg) {
         // Keep <img> simple; no flex. Inline-block + explicit width/height prevents “massive” scaling.

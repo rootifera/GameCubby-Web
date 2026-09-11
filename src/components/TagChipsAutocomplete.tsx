@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
+import { useId, useEffect, useMemo, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 
 type Chip = { id: number; name: string };
 type SuggestKind = "tags" | "igdb_tags";
@@ -24,6 +24,7 @@ export default forwardRef<TagChipsAutocompleteRef, {
     searchOnly = false,
     onTagsChange
 }, ref) {
+    const inputId = useId();
     // --- UI state
     const [query, setQuery] = useState("");
     const [open, setOpen] = useState(false);
@@ -315,17 +316,17 @@ export default forwardRef<TagChipsAutocompleteRef, {
 
     // ---------- Render ----------
     return (
-        <div ref={rootRef} style={{ display: "grid", gap: 6, position: "relative" }}>
-            <label style={{ opacity: 0.85 }}>{label}</label>
+        <div ref={rootRef} className="gc-tag-picker" style={{ display: "grid", gap: 6, position: "relative" }}>
+            <label htmlFor={inputId} style={{ opacity: 0.85 }}>{label}</label>
 
             {/* Back-compat numeric IDs CSV */}
             <input type="hidden" name={name} value={csvIds} />
             {/* New: mixed array (numbers + strings) JSON, e.g. tag_ids_mix */}
             <input type="hidden" name={`${name}_mix`} value={mixedJson} />
 
-            <div style={boxStyle}>
+            <div className="gc-tag-box" style={boxStyle}>
                 {/* Chips (existing + new + shortcut) */}
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <div className="gc-selected-tags" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     {selectedExisting.map((c) => (
                         <span key={`id-${c.id}`} style={chipStyle} title={`${c.name}`}>
                             {c.name}
@@ -377,6 +378,7 @@ export default forwardRef<TagChipsAutocompleteRef, {
 
                 {/* Input */}
                 <input
+                    id={inputId}
                     ref={inputRef}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
@@ -455,18 +457,19 @@ function mergeChipsReplace(prev: Chip[], next: Chip[]): Chip[] {
 
 /* ---------- styles ---------- */
 const boxStyle: React.CSSProperties = {
-    background: "#1a1a1a",
-    border: "1px solid #2b2b2b",
+    background: "var(--gc-field)",
+    border: "1px solid var(--gc-border)",
     borderRadius: 8,
     padding: 8,
-    minHeight: 90,
     display: "grid",
-    alignItems: "center",
+    gap: 12,
+    alignContent: "start",
+    gridTemplateColumns: "minmax(0, 1fr)",
 };
 
 const inputStyle: React.CSSProperties = {
     background: "transparent",
-    color: "#eaeaea",
+    color: "var(--gc-text)",
     border: "none",
     outline: "none",
     padding: "8px 10px",
@@ -478,15 +481,18 @@ const chipStyle: React.CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
     gap: 6,
+    maxWidth: "100%",
+    overflowWrap: "anywhere",
     background: "#263043",
     color: "#dbeafe",
-    border: "1px solid #3b82f6",
+    border: "1px solid var(--gc-accent)",
     borderRadius: 999,
     padding: "4px 8px",
     fontSize: 12,
 };
 
 const chipXBtn: React.CSSProperties = {
+    flexShrink: 0,
     background: "transparent",
     color: "inherit",
     border: "none",
@@ -501,7 +507,7 @@ const menuStyle: React.CSSProperties = {
     left: 0,
     right: 0,
     background: "#0f0f0f",
-    border: "1px solid #2b2b2b",
+    border: "1px solid var(--gc-border)",
     borderRadius: 8,
     margin: "6px 0 0 0",
     padding: 6,

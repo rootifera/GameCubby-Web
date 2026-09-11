@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+import LibraryControls from "@/components/LibraryControls";
+import PageIntro from "@/components/PageIntro";
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
 import CoverThumb from "@/components/CoverThumb";
@@ -103,54 +106,24 @@ function sortGames(
     return withMeta;
 }
 
-/** Small link pill for sort controls that preserves page/size */
-function SortLink({
-                      label,
-                      value,
-                      active,
-                      page,
-                      size,
-                  }: {
-    label: string;
-    value: SortKey;
-    active: boolean;
-    page: number;
-    size: number;
-}) {
-    return (
-        <Link
-            href={{ pathname: "/games", query: { sort: value, page, size } }}
-            style={{
-                textDecoration: "none",
-                color: active ? "#fff" : "#d8d8d8",
-                border: "1px solid " + (active ? "#3b82f6" : "#2b2b2b"),
-                background: active ? "#1e293b" : "#151515",
-                padding: "6px 10px",
-                borderRadius: 8,
-                fontSize: 13,
-            }}
-        >
-            {label}
-        </Link>
-    );
-}
-
 /** Pagination bar */
 function PaginationBar({
                            total,
                            page,
                            size,
                            sort,
+                           view,
                        }: {
     total: number;
     page: number;
     size: number;
     sort: SortKey;
+    view: "grid" | "list";
 }) {
     const lastPage = Math.max(1, Math.ceil(total / size));
     const start = total === 0 ? 0 : (page - 1) * size + 1;
     const end = Math.min(total, page * size);
-    const link = (p: number) => ({ pathname: "/games", query: { sort, page: p, size } });
+    const link = (p: number) => ({ pathname: "/games", query: { sort, page: p, size, view } });
 
     return (
         <div
@@ -177,10 +150,10 @@ function PaginationBar({
                 </Link>
                 <div
                     style={{
-                        border: "1px solid #2b2b2b",
+                        border: "1px solid var(--gc-border)",
                         borderRadius: 8,
                         padding: "6px 10px",
-                        background: "#151515",
+                        background: "var(--gc-surface-raised)",
                         fontSize: 13,
                     }}
                 >
@@ -203,9 +176,9 @@ function PaginationBar({
 
 const btn: React.CSSProperties = {
     textDecoration: "none",
-    color: "#d8d8d8",
-    border: "1px solid #2b2b2b",
-    background: "#151515",
+    color: "var(--gc-text-secondary)",
+    border: "1px solid var(--gc-border)",
+    background: "var(--gc-surface-raised)",
     padding: "6px 10px",
     borderRadius: 8,
     fontSize: 13,
@@ -236,10 +209,12 @@ function coerceSortKey(s: unknown): SortKey {
 
 export default async function GamesPage(
     props: {
-        searchParams?: Promise<{ sort?: string; page?: string; size?: string }>;
+        searchParams?: Promise<{ sort?: string; page?: string; size?: string; view?: string }>;
     }
 ) {
     const searchParams = await props.searchParams;
+    const savedView = (await cookies()).get("gc_library_view")?.value;
+    const view = (searchParams?.view ?? savedView) === "list" ? "list" : "grid";
     let games: GamePreview[] = [];
     let error: string | null = null;
 
@@ -269,76 +244,14 @@ export default async function GamesPage(
 
     return (
         <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                <h1 style={{ fontSize: 24, margin: 0 }}>Games</h1>
-            </div>
+            <PageIntro eyebrow="Your collection" title="Games" description="Explore your shelves. Rediscover your next favourite.">
+                <Link href="/search" className="gc-primary-link">Search collection <span aria-hidden="true">↗</span></Link>
+            </PageIntro>
 
-            {/* Sort bar + page size selector */}
-            <div
-                className="gc-sort-bar"
-                style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 8,
-                    alignItems: "center",
-                    marginBottom: 12,
-                }}
-            >
-                <span style={{ opacity: 0.8, fontSize: 13 }}>Sort by:</span>
-                <SortLink label="Recently added" value="recent_desc" active={sortParam === "recent_desc"} page={page} size={size} />
-                <SortLink label="Name A–Z" value="name_asc" active={sortParam === "name_asc"} page={page} size={size} />
-                <SortLink label="Name Z–A" value="name_desc" active={sortParam === "name_desc"} page={page} size={size} />
-                <SortLink label="Year ↓" value="year_desc" active={sortParam === "year_desc"} page={page} size={size} />
-                <SortLink label="Year ↑" value="year_asc" active={sortParam === "year_asc"} page={page} size={size} />
-                <SortLink label="Rating ↓" value="rating_desc" active={sortParam === "rating_desc"} page={page} size={size} />
-                <SortLink label="Rating ↑" value="rating_asc" active={sortParam === "rating_asc"} page={page} size={size} />
-
-                {/* spacer */}
-                <div style={{ flex: 1 }} />
-
-                {/* Page size (GET form so no client JS needed) */}
-                <form className="gc-page-size-form" action="/games" method="get" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <input type="hidden" name="sort" value={sortParam} />
-                    <input type="hidden" name="page" value={1} />
-                    <label htmlFor="size" style={{ opacity: 0.8, fontSize: 13 }}>Page size:</label>
-                    <select
-                        id="size"
-                        name="size"
-                        defaultValue={String(size)}
-                        style={{
-                            background: "#151515",
-                            border: "1px solid #2b2b2b",
-                            color: "#d8d8d8",
-                            borderRadius: 8,
-                            padding: "6px 10px",
-                            fontSize: 13,
-                        }}
-                    >
-                        <option value="10">10</option>
-                        <option value="20">20</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                    </select>
-                    <button
-                        type="submit"
-                        style={{
-                            textDecoration: "none",
-                            color: "#d8d8d8",
-                            border: "1px solid #2b2b2b",
-                            background: "#151515",
-                            padding: "6px 10px",
-                            borderRadius: 8,
-                            fontSize: 13,
-                            cursor: "pointer",
-                        }}
-                    >
-                        Apply
-                    </button>
-                </form>
-            </div>
+            <LibraryControls sort={sortParam} size={size} page={page} view={view} />
 
             {/* Top pagination */}
-            {!error && total > 0 ? <PaginationBar total={total} page={page} size={size} sort={sortParam} /> : null}
+            {!error && total > 0 ? <PaginationBar total={total} page={page} size={size} sort={sortParam} view={view} /> : null}
 
             {error ? (
                 <div
@@ -357,10 +270,10 @@ export default async function GamesPage(
                 </div>
             ) : null}
 
-            {!error && (!pageItems || pageItems.length === 0) ? <p>No games found.</p> : null}
+            {!error && (!pageItems || pageItems.length === 0) ? <div className="gc-empty-state"><span className="gc-eyebrow">A fresh shelf</span><h2>Your collection starts here</h2><p>Games added to your library will appear here, ready to explore.</p><Link href="/admin/games/add" className="gc-primary-link">Add a game</Link></div> : null}
 
             {!error && pageItems?.length ? (
-                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                <ul className={`gc-library-grid${view === "list" ? " gc-library-list" : ""}`}>
                     {pageItems.map((g) => {
                         const year = toYearLabel(g.release_date);
                         const platformNames = g.platforms?.map((p) => p.name).join(", ") || "—";
@@ -369,39 +282,39 @@ export default async function GamesPage(
                         return (
                             <li
                                 key={g.id}
-                                className="gc-game-list-item"
+                                className="gc-library-card"
                                 style={{
                                     display: "flex",
                                     gap: 12,
                                     padding: "12px 8px",
-                                    borderBottom: "1px solid #1f1f1f",
+                                    borderBottom: "1px solid var(--gc-border-subtle)",
                                     alignItems: "center",
                                 }}
                             >
-                                {/* Cover with hover card (keeps 56×56 size) */}
+                                {/* Full cover artwork with existing hover details. */}
                                 <GameHoverCard gameId={g.id}>
-                                    <Link href={`/games/${g.id}`} style={{ display: "inline-block", flexShrink: 0 }}>
+                                    <Link href={`/games/${g.id}`} className="gc-library-cover">
                                         <CoverThumb
                                             name={g.name}
                                             coverUrl={g.cover_url ?? undefined}
-                                            width={56}
-                                            height={56}
+                                            width={240}
+                                            height={320}
                                             rounded
                                         />
                                     </Link>
                                 </GameHoverCard>
 
                                 {/* Text block */}
-                                <div className="gc-game-list-info" style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%" }}>
+                                <div className="gc-library-info" style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, width: "100%" }}>
                                     <div>
                                         <Link href={`/games/${g.id}`} style={{ color: "#fff", textDecoration: "none", fontWeight: 600 }}>
                                             {g.name}
                                         </Link>
-                                        <div style={{ fontSize: 12, opacity: 0.8 }}>Platforms: {platformNames}</div>
+                                        <div style={{ fontSize: 12, opacity: 0.8 }}>{platformNames}</div>
                                     </div>
 
                                     {/* Right aligned meta */}
-                                    <div className="gc-game-list-meta" style={{ textAlign: "right", fontSize: 12, opacity: 0.9 }}>
+                                    <div className="gc-library-meta" style={{ textAlign: "right", fontSize: 12, opacity: 0.9 }}>
                                         <div>Year: {year}</div>
                                         <div>Rating: {rating ?? "—"}</div>
                                     </div>
@@ -413,7 +326,7 @@ export default async function GamesPage(
             ) : null}
 
             {/* Bottom pagination */}
-            {!error && total > 0 ? <PaginationBar total={total} page={page} size={size} sort={sortParam} /> : null}
+            {!error && total > 0 ? <PaginationBar total={total} page={page} size={size} sort={sortParam} view={view} /> : null}
         </div>
     );
 }

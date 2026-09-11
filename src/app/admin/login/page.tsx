@@ -16,7 +16,7 @@ export default async function AdminLoginPage(
     const next = searchParams?.next || "/admin";
 
     return (
-        <div style={{ padding: 16 }}>
+        <div className="gc-login" style={{ padding: 16 }}>
             <div style={{ marginBottom: 12 }}>
                 <Link href="/" style={{ color: "#a0c4ff", textDecoration: "none" }}>
                     ← Back to Home
@@ -45,8 +45,8 @@ export default async function AdminLoginPage(
                 method="POST"
                 action="/admin/login/submit"
                 style={{
-                    background: "#111",
-                    border: "1px solid #262626",
+                    background: "var(--gc-surface)",
+                    border: "1px solid var(--gc-border)",
                     borderRadius: 12,
                     padding: 16,
                     maxWidth: 420,
@@ -95,18 +95,18 @@ const labelStyle: React.CSSProperties = {
 };
 
 const inputStyle: React.CSSProperties = {
-    background: "#1a1a1a",
-    color: "#eaeaea",
-    border: "1px solid #2b2b2b",
+    background: "var(--gc-field)",
+    color: "var(--gc-text)",
+    border: "1px solid var(--gc-border)",
     borderRadius: 8,
     padding: "10px 12px",
     outline: "none",
 };
 
 const buttonStyle: React.CSSProperties = {
-    background: "#1e293b",
+    background: "var(--gc-accent-soft)",
     color: "#fff",
-    border: "1px solid #3b82f6",
+    border: "1px solid var(--gc-accent)",
     borderRadius: 8,
     padding: "10px 14px",
     fontWeight: 600,

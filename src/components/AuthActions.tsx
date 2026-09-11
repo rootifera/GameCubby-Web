@@ -20,9 +20,9 @@ export default async function AuthActions() {
 }
 
 const btnPrimary: React.CSSProperties = {
-    background: "#1e293b",
+    background: "var(--gc-accent-soft)",
     color: "#fff",
-    border: "1px solid #3b82f6",
+    border: "1px solid var(--gc-accent)",
     borderRadius: 8,
     padding: "8px 12px",
     fontWeight: 600,
@@ -30,9 +30,9 @@ const btnPrimary: React.CSSProperties = {
 };
 
 const btnGhost: React.CSSProperties = {
-    background: "#151515",
-    color: "#eaeaea",
-    border: "1px solid #2b2b2b",
+    background: "var(--gc-surface-raised)",
+    color: "var(--gc-text)",
+    border: "1px solid var(--gc-border)",
     borderRadius: 8,
     padding: "8px 12px",
     textDecoration: "none",

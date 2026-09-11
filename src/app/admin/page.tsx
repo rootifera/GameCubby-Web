@@ -1,5 +1,5 @@
 // src/app/admin/page.tsx
-import React from "react";
+import React, { Suspense } from "react";
 import { API_BASE_URL } from "@/lib/env";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -27,6 +27,7 @@ async function fetchApiRoot(): Promise<ApiRoot> {
         // Always show the latest build info
         cache: "no-store",
         headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(5000),
     });
 
     if (!res.ok) {
@@ -71,9 +72,11 @@ async function fetchGitHubVersions(): Promise<{
         const [apiRes, webRes] = await Promise.allSettled([
             fetch("https://raw.githubusercontent.com/rootifera/GameCubby/refs/heads/main/gamecubby_api/version.json", {
                 cache: "no-store",
+                signal: AbortSignal.timeout(5000),
             }),
             fetch("https://raw.githubusercontent.com/rootifera/GameCubby-Web/refs/heads/main/src/web-version.json", {
                 cache: "no-store",
+                signal: AbortSignal.timeout(5000),
             }),
         ]);
 
@@ -135,7 +138,17 @@ export const metadata = {
     description: "GameCubby admin overview",
 };
 
-export default async function AdminOverviewPage() {
+export default function AdminOverviewPage() {
+    return <div>
+        <header className="gc-admin-overview-heading"><h1>Admin Panel</h1><p>Installed versions, build details, and update status.</p></header>
+        <section className="gc-admin-system-info" aria-labelledby="admin-system-title">
+            <h2 id="admin-system-title">System &amp; Version information</h2>
+            <Suspense fallback={<p role="status">Checking version information…</p>}><AdminVersionInfo /></Suspense>
+        </section>
+    </div>;
+}
+
+async function AdminVersionInfo() {
     let data: ApiRoot | null = null;
     let apiError: string | null = null;
     let web: WebVersion | null = null;
@@ -161,7 +174,7 @@ export default async function AdminOverviewPage() {
 
     const panel: React.CSSProperties = {
         background: "#0f0f0f",
-        border: "1px solid #262626",
+        border: "1px solid var(--gc-border)",
         borderRadius: 12,
         padding: 14,
     };
@@ -184,12 +197,12 @@ export default async function AdminOverviewPage() {
 
     const valStyle: React.CSSProperties = {
         fontWeight: 600,
-        color: "#eaeaea",
+        color: "var(--gc-text)",
     };
 
     return (
         <div>
-            <div style={titleStyle}>Overview</div>
+            <div style={titleStyle}>Installed versions</div>
 
             {/* Web build card (from src/web-version.json) */}
             <div style={{ ...panel, marginBottom: 12, position: "relative" }}>

@@ -29,7 +29,7 @@ export default async function AdminFilesManagerPage() {
 
     const panel: React.CSSProperties = {
         background: "#0f0f0f",
-        border: "1px solid #262626",
+        border: "1px solid var(--gc-border)",
         borderRadius: 12,
         padding: 14,
     };

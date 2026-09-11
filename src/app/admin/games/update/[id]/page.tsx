@@ -125,12 +125,12 @@ export default async function AdminGameEditorPage(props: { params: Promise<{ id:
     }
 
     const titleStyle: React.CSSProperties = { fontSize: 18, fontWeight: 700, marginBottom: 10 };
-    const panel: React.CSSProperties = { background: "#0f0f0f", border: "1px solid #262626", borderRadius: 12, padding: 14 };
+    const panel: React.CSSProperties = { background: "#0f0f0f", border: "1px solid var(--gc-border)", borderRadius: 12, padding: 14 };
     const buttonStyle: React.CSSProperties = {
         display: "inline-block",
-        background: "#1b1b1b",
-        color: "#eaeaea",
-        border: "1px solid #2e2e2e",
+        background: "var(--gc-field)",
+        color: "var(--gc-text)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 8,
         padding: "8px 12px",
         textDecoration: "none",
@@ -153,7 +153,7 @@ export default async function AdminGameEditorPage(props: { params: Promise<{ id:
                                 (<img
                                     src={game.cover_url}
                                     alt={game.name}
-                                    style={{ width: 96, height: 128, objectFit: "cover", borderRadius: 8, border: "1px solid #262626" }}
+                                    style={{ width: 96, height: 128, objectFit: "cover", borderRadius: 8, border: "1px solid var(--gc-border)" }}
                                 />)
                             ) : (
                                 <div
@@ -161,7 +161,7 @@ export default async function AdminGameEditorPage(props: { params: Promise<{ id:
                                         width: 96,
                                         height: 128,
                                         borderRadius: 8,
-                                        border: "1px solid #262626",
+                                        border: "1px solid var(--gc-border)",
                                         display: "grid",
                                         placeItems: "center",
                                         opacity: 0.6,

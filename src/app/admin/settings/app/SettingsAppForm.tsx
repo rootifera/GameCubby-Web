@@ -1,5 +1,7 @@
 "use client";
 
+import FormSection from "@/components/FormSection";
+
 import React, { useEffect, useMemo, useState } from "react";
 
 type Entry = { key: string; value: string };
@@ -7,7 +9,16 @@ type Entry = { key: string; value: string };
 async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
     const res = await fetch(url, { cache: "no-store", ...init });
     const text = await res.text();
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}${text ? `: ${text.slice(0, 200)}` : ""}`);
+    if (!res.ok) {
+        let detail = text;
+        try {
+            const parsed = JSON.parse(text) as { detail?: unknown };
+            if (typeof parsed.detail === "string") detail = parsed.detail;
+        } catch {
+            // Keep a non-JSON upstream response as the error detail.
+        }
+        throw new Error(detail ? detail.slice(0, 300) : `${res.status} ${res.statusText}`);
+    }
     return (text ? JSON.parse(text) : {}) as T;
 }
 
@@ -173,6 +184,22 @@ export default function SettingsAppForm() {
         }
 
         try {
+            if (fileStorageBackend === "s3" || backupStorageBackend === "s3") {
+                setNotice("Validating S3 storage…");
+                await fetchJSON<{ ok: true }>("/api/admin/storage/validate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        bucket: s3Bucket.trim(),
+                        region: s3Region.trim(),
+                        endpointUrl: s3EndpointUrl.trim(),
+                        accessKeyId: s3AccessKeyId.trim(),
+                        secretAccessKey: s3SecretAccessKey.trim(),
+                        prefix: s3Prefix.trim().replace(/^\/+|\/+$/g, ""),
+                    }),
+                });
+            }
+
             for (const ch of changes) {
                 await fetchJSON<Entry>("/api/admin/app_config", {
                     method: "POST",
@@ -190,6 +217,7 @@ export default function SettingsAppForm() {
                 return Array.from(map.entries()).map(([key, value]) => ({ key, value }));
             });
         } catch (e: any) {
+            setNotice(null);
             setErr(e?.message ?? "Save failed");
         } finally {
             setBusy(false);
@@ -198,9 +226,9 @@ export default function SettingsAppForm() {
 
     /* styles */
     const input = {
-        background: "#121212",
-        color: "#eaeaea",
-        border: "1px solid #262626",
+        background: "var(--gc-surface)",
+        color: "var(--gc-text)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 8,
         padding: "8px 10px",
         outline: "none",
@@ -209,9 +237,9 @@ export default function SettingsAppForm() {
 
     const btn: React.CSSProperties = {
         display: "inline-block",
-        background: "#1e293b",
+        background: "var(--gc-accent-soft)",
         color: "#fff",
-        border: "1px solid #3b82f6",
+        border: "1px solid var(--gc-accent)",
         borderRadius: 8,
         padding: "10px 14px",
         fontWeight: 600,
@@ -220,9 +248,9 @@ export default function SettingsAppForm() {
     };
 
     const ghostBtn: React.CSSProperties = {
-        background: "#151515",
-        color: "#eaeaea",
-        border: "1px solid #2b2b2b",
+        background: "var(--gc-surface-raised)",
+        color: "var(--gc-text)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 8,
         padding: "8px 10px",
         cursor: "pointer",
@@ -230,16 +258,16 @@ export default function SettingsAppForm() {
     };
 
     return (
-        <form onSubmit={saveAll} style={{ display: "grid", gap: 14, maxWidth: 720 }}>
-            {(loading || busy || err || notice) && (
+        <form className="gc-settings-form" onSubmit={saveAll}>
+            {(loading || busy || notice) && (
                 <div style={{ display: "grid", gap: 8 }}>
                     {loading && (
-                        <div style={{ background: "#1b1b1b", border: "1px solid #2e2e2e", padding: 10, borderRadius: 8 }}>
+                        <div style={{ background: "var(--gc-field)", border: "1px solid var(--gc-border)", padding: 10, borderRadius: 8 }}>
                             Loading…
                         </div>
                     )}
                     {busy && (
-                        <div style={{ background: "#1b1b1b", border: "1px solid #2e2e2e", padding: 10, borderRadius: 8 }}>
+                        <div style={{ background: "var(--gc-field)", border: "1px solid var(--gc-border)", padding: 10, borderRadius: 8 }}>
                             Saving…
                         </div>
                     )}
@@ -248,25 +276,11 @@ export default function SettingsAppForm() {
                             {notice}
                         </div>
                     )}
-                    {err && (
-                        <div
-                            style={{
-                                background: "#3b0f12",
-                                border: "1px solid #5b1a1f",
-                                padding: 10,
-                                borderRadius: 8,
-                                color: "#ffd7d7",
-                            }}
-                        >
-                            {err}
-                        </div>
-                    )}
                 </div>
             )}
 
             {/* CLIENT_ID */}
-            <section style={{ background: "#141414", border: "1px solid #262626", borderRadius: 10, padding: 12 }}>
-                <div style={{ fontWeight: 700, marginBottom: 8 }}>IGDB Client</div>
+            <FormSection title="IGDB Client" description="Connect your game database to keep metadata up to date.">
 
                 <div style={{ display: "grid", gap: 10 }}>
                     <label style={{ display: "grid", gap: 6 }}>
@@ -312,11 +326,10 @@ export default function SettingsAppForm() {
                         </div>
                     </label>
                 </div>
-            </section>
+            </FormSection>
 
             {/* Public downloads */}
-            <section style={{ background: "#141414", border: "1px solid #262626", borderRadius: 10, padding: 12 }}>
-                <div style={{ fontWeight: 700, marginBottom: 8 }}>Downloads</div>
+            <FormSection title="Downloads" description="Choose how people access files in your collection.">
                 <div style={{ display: "grid", gap: 6 }}>
                     <label style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <input
@@ -330,11 +343,10 @@ export default function SettingsAppForm() {
                         When enabled, users without admin access can download files via the public proxy.
                     </div>
                 </div>
-            </section>
+            </FormSection>
 
             {/* Query limit */}
-            <section style={{ background: "#141414", border: "1px solid #262626", borderRadius: 10, padding: 12 }}>
-                <div style={{ fontWeight: 700, marginBottom: 8 }}>Search</div>
+            <FormSection title="Search" description="Set the number of games returned in search results.">
                 <label style={{ display: "grid", gap: 6, maxWidth: 240 }}>
                     <span style={{ opacity: 0.85, fontSize: 12 }}>QUERY_LIMIT</span>
                     <input
@@ -354,10 +366,9 @@ export default function SettingsAppForm() {
                         </div>
                     ) : null;
                 })()}
-            </section>
+            </FormSection>
 
-            <section style={{ background: "#141414", border: "1px solid #262626", borderRadius: 10, padding: 12 }}>
-                <div style={{ fontWeight: 700, marginBottom: 8 }}>Storage</div>
+            <FormSection title="Storage" description="Choose where game files and backups live.">
                 <div style={{ display: "grid", gap: 10 }}>
                     <label style={{ display: "grid", gap: 6, maxWidth: 260 }}>
                         <span style={{ opacity: 0.85, fontSize: 12 }}>File Storage</span>
@@ -446,10 +457,11 @@ export default function SettingsAppForm() {
                         />
                     </label>
                 </div>
-            </section>
+            </FormSection>
 
             {/* Save */}
-            <div>
+            <div className="gc-form-savebar"><span>Application settings</span>
+                {err && <div className="gc-settings-save-error" role="alert">{err}</div>}
                 <button type="submit" style={btn} disabled={busy || loading}>
                     {busy ? "Saving…" : "Save Settings"}
                 </button>

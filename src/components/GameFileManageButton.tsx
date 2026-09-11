@@ -13,32 +13,17 @@ export default function GameFileManageButton({ gameId }: { gameId: number }) {
         router.refresh();
     }
 
-    const actionBtn: React.CSSProperties = {
-        background: "#6b7280",
-        color: "#ffffff",
-        padding: "6px 12px",
-        borderRadius: 6,
-        fontSize: 14,
-        border: "none",
-        textDecoration: "none",
-        fontWeight: 500,
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        cursor: "pointer",
-        boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
-    };
-
     return (
         <>
-            <button type="button" style={actionBtn} onClick={() => setOpen(true)}>
-                <span aria-hidden="true">🗂️</span> Manage Files
+            <button type="button" className="gc-secondary-link gc-detail-action" onClick={() => setOpen(true)}>
+                Manage files
             </button>
 
             {open ? (
                 <div
                     role="dialog"
                     aria-modal="true"
+                    aria-label="Manage files"
                     style={{
                         position: "fixed",
                         inset: 0,
@@ -55,8 +40,8 @@ export default function GameFileManageButton({ gameId }: { gameId: number }) {
                             width: "min(980px, 96vw)",
                             maxHeight: "90vh",
                             overflow: "auto",
-                            background: "#0f0f0f",
-                            border: "1px solid #262626",
+                            background: "var(--gc-surface)",
+                            border: "1px solid var(--gc-border)",
                             borderRadius: 12,
                             padding: 14,
                         }}
@@ -67,9 +52,9 @@ export default function GameFileManageButton({ gameId }: { gameId: number }) {
                                 type="button"
                                 onClick={close}
                                 style={{
-                                    background: "#151515",
-                                    color: "#eaeaea",
-                                    border: "1px solid #2b2b2b",
+                                    background: "var(--gc-surface-raised)",
+                                    color: "var(--gc-text)",
+                                    border: "1px solid var(--gc-border)",
                                     borderRadius: 8,
                                     padding: "6px 10px",
                                     cursor: "pointer",

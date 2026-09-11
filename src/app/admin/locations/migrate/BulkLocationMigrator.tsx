@@ -169,7 +169,7 @@ export default function BulkLocationMigrator() {
             {/* Error/Success Messages */}
             {error && (
                 <div style={{
-                    background: "#1a1a1a",
+                    background: "var(--gc-field)",
                     border: "1px solid #dc2626",
                     borderRadius: 8,
                     padding: 12,
@@ -182,7 +182,7 @@ export default function BulkLocationMigrator() {
             
             {success && (
                 <div style={{
-                    background: "#1a1a1a",
+                    background: "var(--gc-field)",
                     border: "1px solid #16a34a",
                     borderRadius: 8,
                     padding: 12,
@@ -228,7 +228,7 @@ export default function BulkLocationMigrator() {
                                     <div style={{
                                         maxHeight: 120,
                                         overflowY: "auto",
-                                        background: "#1a1a1a",
+                                        background: "var(--gc-field)",
                                         border: "1px solid #374151",
                                         borderRadius: 6,
                                         padding: 8,
@@ -282,7 +282,7 @@ export default function BulkLocationMigrator() {
                                     <div style={{
                                         maxHeight: 120,
                                         overflowY: "auto",
-                                        background: "#1a1a1a",
+                                        background: "var(--gc-field)",
                                         border: "1px solid #374151",
                                         borderRadius: 6,
                                         padding: 8,

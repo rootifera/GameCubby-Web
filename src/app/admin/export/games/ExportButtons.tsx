@@ -72,7 +72,7 @@ export function ExportButtons({ btnStyle }: ExportButtonsProps) {
 
     return (
         <div style={{ display: "grid", gap: 12 }}>
-            <div style={{ background: "#111", border: "1px solid #262626", borderRadius: 12, padding: 14, display: "grid", gap: 8 }}>
+            <div style={{ background: "var(--gc-surface)", border: "1px solid var(--gc-border)", borderRadius: 12, padding: 14, display: "grid", gap: 8 }}>
                 <div style={{ fontWeight: 700 }}>JSON export</div>
                 <div style={{ opacity: 0.75, fontSize: 13 }}>
                     Full game dataset as JSON.
@@ -86,7 +86,7 @@ export function ExportButtons({ btnStyle }: ExportButtonsProps) {
                 </button>
             </div>
 
-            <div style={{ background: "#111", border: "1px solid #262626", borderRadius: 12, padding: 14, display: "grid", gap: 8 }}>
+            <div style={{ background: "var(--gc-surface)", border: "1px solid var(--gc-border)", borderRadius: 12, padding: 14, display: "grid", gap: 8 }}>
                 <div style={{ fontWeight: 700 }}>CSV export</div>
                 <div style={{ opacity: 0.75, fontSize: 13 }}>
                     Flat table of games in CSV format.
@@ -100,7 +100,7 @@ export function ExportButtons({ btnStyle }: ExportButtonsProps) {
                 </button>
             </div>
 
-            <div style={{ background: "#111", border: "1px solid #262626", borderRadius: 12, padding: 14, display: "grid", gap: 8 }}>
+            <div style={{ background: "var(--gc-surface)", border: "1px solid var(--gc-border)", borderRadius: 12, padding: 14, display: "grid", gap: 8 }}>
                 <div style={{ fontWeight: 700 }}>XLSX export</div>
                 <div style={{ opacity: 0.75, fontSize: 13 }}>
                     Spreadsheet-friendly export (Excel).

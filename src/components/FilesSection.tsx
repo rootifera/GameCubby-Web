@@ -91,8 +91,8 @@ const SectionWrap: React.FC<{ children: React.ReactNode }> = ({ children }) => (
         style={{
             margin: "12px 0 0 0",
             padding: 12,
-            background: "#141414",
-            border: "1px solid #262626",
+            background: "var(--gc-surface-raised)",
+            border: "1px solid var(--gc-border)",
             borderRadius: 10,
         }}
     >
@@ -121,7 +121,7 @@ function FileGroup({ title, files }: { title: string; files: UiFile[] }) {
                   <span
                       style={{
                           background: "#101010",
-                          border: "1px solid #2b2b2b",
+                          border: "1px solid var(--gc-border)",
                           borderRadius: 6,
                           padding: "2px 6px",
                           fontSize: 11,
@@ -162,8 +162,8 @@ const rowStyle: React.CSSProperties = {
     display: "flex",
     gap: 10,
     alignItems: "center",
-    border: "1px solid #222",
-    background: "#121212",
+    border: "1px solid var(--gc-border)",
+    background: "var(--gc-surface)",
     padding: "8px 10px",
     borderRadius: 8,
 };
@@ -171,8 +171,8 @@ const rowStyle: React.CSSProperties = {
 const btnLink: React.CSSProperties = {
     textDecoration: "none",
     color: "#dbeafe",
-    border: "1px solid #3b82f6",
-    background: "#1e293b",
+    border: "1px solid var(--gc-accent)",
+    background: "var(--gc-accent-soft)",
     padding: "8px 10px",
     borderRadius: 8,
     whiteSpace: "nowrap",

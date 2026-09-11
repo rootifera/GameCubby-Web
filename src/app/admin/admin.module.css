@@ -20,7 +20,7 @@
 /* Divider line between sections */
 .divider {
     height: 1px;
-    background: #1f1f1f;
+    background: var(--gc-border-subtle);
     margin: 8px 0;
 }
 
@@ -30,19 +30,19 @@
     padding: 8px 10px;
     border-radius: 8px;
     text-decoration: none;
-    color: #eaeaea;
+    color: var(--gc-text);
     border: 1px solid transparent;
     transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 /* Hover effect */
 .navLink:hover {
-    background: #181818;
+    background: var(--gc-surface-hover);
     border-color: #333;
 }
 
 /* Active (selected) link */
 .active {
-    background: #1f1f1f;
+    background: var(--gc-border-subtle);
     border-color: #444;
 }

@@ -267,8 +267,8 @@ export default function LocationTreePicker({
             <div
                 ref={treeContainerRef}
                 style={{
-                    background: "#141414",
-                    border: "1px solid #2b2b2b",
+                    background: "var(--gc-surface-raised)",
+                    border: "1px solid var(--gc-border)",
                     borderRadius: 8,
                     padding: 6,
                     maxHeight: height,
@@ -360,7 +360,7 @@ function TreeLevel(props: {
                                 padding: "6px 8px",
                                 marginLeft: depth * 16,
                                 borderRadius: 8,
-                                background: isSelected ? "#1e293b" : "transparent",
+                                background: isSelected ? "var(--gc-accent-soft)" : "transparent",
                                 border: isSelected ? "1px solid #334155" : "1px solid transparent",
                                 transition: "all 0.15s ease-in-out",
                                 cursor: "pointer",
@@ -368,7 +368,7 @@ function TreeLevel(props: {
                             }}
                             onMouseEnter={(e) => {
                                 if (!isSelected) {
-                                    e.currentTarget.style.background = "#1a1a1a";
+                                    e.currentTarget.style.background = "var(--gc-field)";
                                     e.currentTarget.style.borderColor = "#404040";
                                 }
                             }}
@@ -456,9 +456,9 @@ function errMsg(e: unknown): string {
 }
 
 const btnSecondary: React.CSSProperties = {
-    background: "#1e1e1e",
-    color: "#eaeaea",
-    border: "1px solid #2b2b2b",
+    background: "var(--gc-surface-hover)",
+    color: "var(--gc-text)",
+    border: "1px solid var(--gc-border)",
     borderRadius: 8,
     padding: "8px 12px",
     height: 36,
@@ -471,8 +471,8 @@ const crumbBarStyle: React.CSSProperties = {
     alignItems: "center",
     gap: 12,
     padding: "8px 10px",
-    background: "#141414",
-    border: "1px solid #2b2b2b",
+    background: "var(--gc-surface-raised)",
+    border: "1px solid var(--gc-border)",
     borderRadius: 8,
     minHeight: 44
 };
@@ -485,8 +485,8 @@ const crumbTextWrapStyle: React.CSSProperties = {
 
 const chevronBtn: React.CSSProperties = {
     background: "transparent",
-    color: "#eaeaea",
-    border: "1px solid #2b2b2b",
+    color: "var(--gc-text)",
+    border: "1px solid var(--gc-border)",
     borderRadius: 6,
     width: 24,
     height: 24,
@@ -500,7 +500,7 @@ const chevronBtn: React.CSSProperties = {
 
 const nodeBtn: React.CSSProperties = {
     background: "transparent",
-    color: "#eaeaea",
+    color: "var(--gc-text)",
     border: "none",
     padding: "2px 4px",
     cursor: "pointer",

@@ -102,7 +102,7 @@ function ConfirmDeleteModal({
     };
     const card: React.CSSProperties = {
         background: "#0f0f0f",
-        border: "1px solid #262626", // ← fixed quoting
+        border: "1px solid var(--gc-border)", // ← fixed quoting
         borderRadius: 12,
         padding: 16,
         width: "min(640px, 96vw)",
@@ -120,9 +120,9 @@ function ConfirmDeleteModal({
         opacity: busy ? 0.6 : 1,
     };
     const neutralBtn: React.CSSProperties = {
-        background: "#1b1b1b",
-        color: "#eaeaea",
-        border: "1px solid #2e2e2e",
+        background: "var(--gc-field)",
+        color: "var(--gc-text)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 8,
         padding: "8px 12px",
         cursor: busy ? "not-allowed" : "pointer",
@@ -303,9 +303,9 @@ export default function SearchAndDeleteGame({ initialPlatforms }: { initialPlatf
 
     /* ---- styles ---- */
     const input = {
-        background: "#121212",
-        color: "#eaeaea",
-        border: "1px solid #262626",
+        background: "var(--gc-surface)",
+        color: "var(--gc-text)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 8,
         padding: "8px 10px",
         outline: "none",
@@ -313,9 +313,9 @@ export default function SearchAndDeleteGame({ initialPlatforms }: { initialPlatf
 
     const btn: React.CSSProperties = {
         display: "inline-block",
-        background: "#1b1b1b",
-        color: "#eaeaea",
-        border: "1px solid #2e2e2e",
+        background: "var(--gc-field)",
+        color: "var(--gc-text)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 8,
         padding: "8px 12px",
         textDecoration: "none",
@@ -325,9 +325,9 @@ export default function SearchAndDeleteGame({ initialPlatforms }: { initialPlatf
 
     const ghostBtn: React.CSSProperties = {
         ...btn,
-        background: "#151515",
-        border: "1px solid #2b2b2b",
-        color: "#d8d8d8",
+        background: "var(--gc-surface-raised)",
+        border: "1px solid var(--gc-border)",
+        color: "var(--gc-text-secondary)",
     };
 
     const dangerBtn: React.CSSProperties = {
@@ -504,7 +504,7 @@ export default function SearchAndDeleteGame({ initialPlatforms }: { initialPlatf
                                 gridTemplateColumns: "auto 1fr auto",
                                 gap: 12,
                                 alignItems: "center",
-                                border: "1px solid #262626",
+                                border: "1px solid var(--gc-border)",
                                 borderRadius: 10,
                                 padding: 8,
                                 background: "#0f0f0f",
@@ -594,9 +594,9 @@ function SingleSelectDropdown({
     }, []);
 
     const base: React.CSSProperties = {
-        background: "#121212",
-        color: "#eaeaea",
-        border: "1px solid #262626",
+        background: "var(--gc-surface)",
+        color: "var(--gc-text)",
+        border: "1px solid var(--gc-border)",
         borderRadius: 8,
         padding: "8px 10px",
         outline: "none",
@@ -618,7 +618,7 @@ function SingleSelectDropdown({
         zIndex: 30,
         marginTop: 6,
         background: "#0e0e0e",
-        border: "1px solid #262626",
+        border: "1px solid var(--gc-border)",
         borderRadius: 10,
         boxShadow: "0 10px 20px rgba(0,0,0,0.5)",
         minWidth: menuWidth,
@@ -648,7 +648,7 @@ function SingleSelectDropdown({
 
     const divider: React.CSSProperties = {
         height: 1,
-        background: "#1f1f1f",
+        background: "var(--gc-border-subtle)",
         margin: "6px 0",
     };
 

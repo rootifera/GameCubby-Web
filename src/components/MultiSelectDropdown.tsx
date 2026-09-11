@@ -122,9 +122,9 @@ export default function MultiSelectDropdown({
                     alignItems: "center",
                     justifyContent: "space-between",
                     gap: 8,
-                    background: "#1a1a1a",
-                    color: "#eaeaea",
-                    border: "1px solid #2b2b2b",
+                    background: "var(--gc-field)",
+                    color: "var(--gc-text)",
+                    border: "1px solid var(--gc-border)",
                     borderRadius: 8,
                     padding: "8px 10px",
                     cursor: "pointer",
@@ -143,8 +143,8 @@ export default function MultiSelectDropdown({
                                     display: "inline-flex",
                                     alignItems: "center",
                                     gap: 6,
-                                    background: "#1e1e1e",
-                                    border: "1px solid #2b2b2b",
+                                    background: "var(--gc-surface-hover)",
+                                    border: "1px solid var(--gc-border)",
                                     borderRadius: 999,
                                     padding: "4px 8px",
                                     fontSize: 12,
@@ -185,8 +185,8 @@ export default function MultiSelectDropdown({
                         left: 0,
                         right: 0,
                         marginTop: 4,
-                        background: "#111",
-                        border: "1px solid #262626",
+                        background: "var(--gc-surface)",
+                        border: "1px solid var(--gc-border)",
                         borderRadius: 8,
                         padding: 8,
                         zIndex: 50,
@@ -205,9 +205,9 @@ export default function MultiSelectDropdown({
                             width: "100%",
                             maxWidth: "100%",
                             boxSizing: "border-box" as const,
-                            background: "#1a1a1a",
-                            color: "#eaeaea",
-                            border: "1px solid #2b2b2b",
+                            background: "var(--gc-field)",
+                            color: "var(--gc-text)",
+                            border: "1px solid var(--gc-border)",
                             borderRadius: 8,
                             padding: "8px 10px",
                             outline: "none",
@@ -238,9 +238,9 @@ export default function MultiSelectDropdown({
                                             gap: 8,
                                             padding: "6px 8px",
                                             borderRadius: 6,
-                                            background: checked ? "#1e293b" : "transparent",
+                                            background: checked ? "var(--gc-accent-soft)" : "transparent",
                                             border: checked
-                                                ? "1px solid #3b82f6"
+                                                ? "1px solid var(--gc-accent)"
                                                 : "1px solid transparent",
                                             cursor: "pointer",
                                         }}
@@ -253,7 +253,7 @@ export default function MultiSelectDropdown({
                                             type={multiple ? "checkbox" : "radio"}
                                             checked={checked}
                                             onChange={() => toggle(id)}
-                                            style={{ accentColor: "#3b82f6" }}
+                                            style={{ accentColor: "var(--gc-accent)" }}
                                         />
                                         <span>{o.name}</span>
                                     </label>
@@ -295,9 +295,9 @@ export default function MultiSelectDropdown({
 }
 
 const btnPrimary: React.CSSProperties = {
-    background: "#1e293b",
+    background: "var(--gc-accent-soft)",
     color: "#fff",
-    border: "1px solid #3b82f6",
+    border: "1px solid var(--gc-accent)",
     borderRadius: 8,
     padding: "8px 12px",
     fontWeight: 600,
@@ -305,9 +305,9 @@ const btnPrimary: React.CSSProperties = {
 };
 
 const btnGhost: React.CSSProperties = {
-    background: "#151515",
-    color: "#eaeaea",
-    border: "1px solid #2b2b2b",
+    background: "var(--gc-surface-raised)",
+    color: "var(--gc-text)",
+    border: "1px solid var(--gc-border)",
     borderRadius: 8,
     padding: "8px 12px",
     cursor: "pointer",

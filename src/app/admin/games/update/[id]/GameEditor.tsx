@@ -1,5 +1,7 @@
 "use client";
 
+import FormSection from "@/components/FormSection";
+
 import React, { useMemo, useRef, useState } from "react";
 import type { IdName, Game } from "./page";
 import MultiSelectDropdown from "@/components/MultiSelectDropdown";
@@ -48,9 +50,9 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /* A tiny styled input */
 const inputStyle: React.CSSProperties = {
-    background: "#121212",
-    color: "#eaeaea",
-    border: "1px solid #262626",
+    background: "var(--gc-surface)",
+    color: "var(--gc-text)",
+    border: "1px solid var(--gc-border)",
     borderRadius: 8,
     padding: "8px 10px",
     outline: "none",
@@ -63,16 +65,16 @@ const textareaStyle: React.CSSProperties = {
 };
 const row: React.CSSProperties = {
     display: "grid",
-    gridTemplateColumns: "160px 1fr",
+    gridTemplateColumns: "minmax(0, 1fr)",
     gap: 8,
     alignItems: "center",
     marginBottom: 10,
 };
 const btn: React.CSSProperties = {
     display: "inline-block",
-    background: "#1b1b1b",
-    color: "#eaeaea",
-    border: "1px solid #2e2e2e",
+    background: "var(--gc-field)",
+    color: "var(--gc-text)",
+    border: "1px solid var(--gc-border)",
     borderRadius: 8,
     padding: "8px 12px",
     cursor: "pointer",
@@ -91,7 +93,7 @@ const overlayWrap: React.CSSProperties = {
 };
 const overlayCard: React.CSSProperties = {
     background: "#0f0f0f",
-    border: "1px solid #2b2b2b",
+    border: "1px solid var(--gc-border)",
     borderRadius: 12,
     padding: "16px 18px",
     minWidth: 220,
@@ -238,6 +240,8 @@ export default function GameEditor({
 
     const [saving, setSaving] = useState(false);
     const [converting, setConverting] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Prefer tag_ids_mix JSON if present, else fallback to CSV
@@ -505,6 +509,28 @@ export default function GameEditor({
         }
     }
 
+    async function deleteGame() {
+        setDeleting(true);
+        setError(null);
+        try {
+            const res = await fetch(`/api/admin/games/${initialData.id}`, {
+                method: "DELETE",
+                headers: { Accept: "application/json" },
+                cache: "no-store",
+            });
+            if (!res.ok) {
+                const text = await res.text().catch(() => "");
+                throw new Error(`Could not delete this game${text ? `: ${text}` : "."}`);
+            }
+
+            navigatingRef.current = true;
+            window.location.assign("/games");
+        } catch (err: any) {
+            setError(err?.message ?? "Could not delete this game.");
+            setDeleting(false);
+        }
+    }
+
     /* ---------- UI ---------- */
 
     return (
@@ -524,8 +550,8 @@ export default function GameEditor({
                             marginTop: 10,
                             marginBottom: 12,
                             padding: 10,
-                            background: "#141414",
-                            border: "1px solid #262626",
+                            background: "var(--gc-surface-raised)",
+                            border: "1px solid var(--gc-border)",
                             borderRadius: 8,
                             display: "flex",
                             gap: 10,
@@ -549,7 +575,7 @@ export default function GameEditor({
                 ) : null}
 
                 {/* ----- Basics ----- */}
-                <div style={sectionTitle}>Basics</div>
+                <FormSection title="Game details" description="The title, artwork, and story behind this game.">
 
                 {/* Name */}
                 <div style={row}>
@@ -628,7 +654,7 @@ export default function GameEditor({
                 </div>
 
                 {/* ----- Editables for both (IGDB limited) ----- */}
-                <div style={sectionTitle}>Library Fields</div>
+                </FormSection><FormSection title="In your collection" description="Track the condition, shelf location, and tags for your copy.">
 
                 {/* Condition */}
                 <div style={row}>
@@ -706,7 +732,7 @@ export default function GameEditor({
                 </div>
 
                 {/* ----- Custom-only fields ----- */}
-                <div style={sectionTitle}>Classification (Custom only)</div>
+                </FormSection><FormSection title="Classification" description="Organise custom games by genre, mode, perspective, and company.">
 
                 {/* IGDB: non-interactive */}
                 <div
@@ -787,18 +813,40 @@ export default function GameEditor({
                     </div>
                 )}
 
+                </FormSection>
                 {/* ----- actions ----- */}
                 {error && <div style={{ color: "#ff6666", marginBottom: 8 }}>{error}</div>}
 
-                <div style={{ display: "flex", gap: 8 }}>
-                    <button type="submit" style={!saving ? btn : btnDisabled} disabled={saving}>
+                <div className="gc-form-savebar">
+                    <button type="button" className="gc-danger-button" onClick={() => { setError(null); setDeleteConfirmOpen(true); }} disabled={saving || converting || deleting}>
+                        {deleting ? "Deleting…" : "Delete Game"}
+                    </button>
+                    <button type="submit" style={!saving && !converting && !deleting ? btn : btnDisabled} disabled={saving || converting || deleting}>
                         {saving ? "Saving…" : "Save Changes"}
                     </button>
-                    <button type="button" style={!saving ? btn : btnDisabled} onClick={resetForm} disabled={saving}>
+                    <button type="button" style={!saving && !converting && !deleting ? btn : btnDisabled} onClick={resetForm} disabled={saving || converting || deleting}>
                         Reset
                     </button>
                 </div>
             </form>
+
+            {deleteConfirmOpen ? (
+                <div className="gc-confirm-backdrop" role="presentation">
+                    <section className="gc-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-game-title">
+                        <h2 id="delete-game-title">Delete {initialData.name}?</h2>
+                        <p>This permanently removes the game and its file records. This cannot be undone.</p>
+                        {error ? <p className="gc-confirm-error" role="alert">{error}</p> : null}
+                        <div className="gc-confirm-actions">
+                            <button type="button" style={btn} onClick={() => { setDeleteConfirmOpen(false); setError(null); }} disabled={deleting}>
+                                Cancel
+                            </button>
+                            <button type="button" className="gc-danger-button" onClick={() => void deleteGame()} disabled={deleting}>
+                                {deleting ? "Deleting…" : "Delete Game"}
+                            </button>
+                        </div>
+                    </section>
+                </div>
+            ) : null}
 
             {/* Blocking overlay while saving / waiting for fresh data */}
             {saving ? (
@@ -809,6 +857,11 @@ export default function GameEditor({
             {converting ? (
                 <div style={overlayWrap} role="alert" aria-live="assertive">
                     <div style={overlayCard}>Converting…</div>
+                </div>
+            ) : null}
+            {deleting ? (
+                <div style={overlayWrap} role="alert" aria-live="assertive">
+                    <div style={overlayCard}>Deleting…</div>
                 </div>
             ) : null}
         </>

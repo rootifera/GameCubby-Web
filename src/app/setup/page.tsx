@@ -52,8 +52,8 @@ export default async function SetupPage(
             {alreadyDone ? (
                 <div
                     style={{
-                        background: "#111",
-                        border: "1px solid #262626",
+                        background: "var(--gc-surface)",
+                        border: "1px solid var(--gc-border)",
                         borderRadius: 12,
                         padding: 16,
                         maxWidth: 640,
@@ -74,9 +74,9 @@ export default async function SetupPage(
                             href="/"
                             style={{
                                 display: "inline-block",
-                                background: "#1e293b",
+                                background: "var(--gc-accent-soft)",
                                 color: "#fff",
-                                border: "1px solid #3b82f6",
+                                border: "1px solid var(--gc-accent)",
                                 borderRadius: 8,
                                 padding: "10px 14px",
                                 fontWeight: 600,
@@ -114,8 +114,8 @@ export default async function SetupPage(
                         method="POST"
                         action="/setup/submit"
                         style={{
-                            background: "#111",
-                            border: "1px solid #262626",
+                            background: "var(--gc-surface)",
+                            border: "1px solid var(--gc-border)",
                             borderRadius: 12,
                             padding: 16,
                             maxWidth: 640,
@@ -320,18 +320,18 @@ const labelStyle: React.CSSProperties = {
 };
 
 const inputStyle: React.CSSProperties = {
-    background: "#1a1a1a",
-    color: "#eaeaea",
-    border: "1px solid #2b2b2b",
+    background: "var(--gc-field)",
+    color: "var(--gc-text)",
+    border: "1px solid var(--gc-border)",
     borderRadius: 8,
     padding: "10px 12px",
     outline: "none",
 };
 
 const buttonStyle: React.CSSProperties = {
-    background: "#1e293b",
+    background: "var(--gc-accent-soft)",
     color: "#fff",
-    border: "1px solid #3b82f6",
+    border: "1px solid var(--gc-accent)",
     borderRadius: 8,
     padding: "10px 14px",
     fontWeight: 600,
