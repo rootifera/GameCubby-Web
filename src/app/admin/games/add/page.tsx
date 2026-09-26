@@ -4,6 +4,7 @@ import PageIntro from "@/components/PageIntro";
 import FormSection from "@/components/FormSection";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import LocationTreePicker from "@/components/LocationTreePicker";
 import TagChipsAutocomplete, { type TagChipsAutocompleteRef } from "@/components/TagChipsAutocomplete";
@@ -49,6 +50,16 @@ type LocationGameOrderItem = {
 };
 
 type OrderFieldKey = "igdb" | "custom";
+
+type WishlistContext = {
+    id: number;
+    igdb_id?: number | null;
+    name: string;
+    release_year?: number | null;
+    cover_url?: string | null;
+    platforms?: Array<{ id: number; name: string }>;
+    status?: "active" | "in_library";
+};
 
 /* ---------- Helpers ---------- */
 function toYear(n?: number | null): string {
@@ -140,6 +151,10 @@ async function fetchNextOrderForLocation(locationId: number): Promise<number> {
 /* ================================================================== */
 
 export default function AdminAddGamePage() {
+    const searchParams = useSearchParams();
+    const wishlistIdFromUrl = Number(searchParams.get("wishlist_id"));
+    const [wishlistContext, setWishlistContext] = useState<WishlistContext | null>(null);
+    const [wishlistContextError, setWishlistContextError] = useState<string | null>(null);
     /* ---- mode: IGDB vs Custom ---- */
     const [mode, setMode] = useState<"igdb" | "custom">("igdb");
 
@@ -177,6 +192,33 @@ export default function AdminAddGamePage() {
         igdb: 0,
         custom: 0,
     });
+
+    useEffect(() => {
+        if (!Number.isInteger(wishlistIdFromUrl) || wishlistIdFromUrl <= 0) return;
+        let cancelled = false;
+        void (async () => {
+            try {
+                const res = await fetch(`/api/proxy/wishlist/${wishlistIdFromUrl}`, { cache: "no-store" });
+                if (!res.ok) throw new Error(`Unable to load the Wishlist item (${res.status}).`);
+                const item = await res.json() as WishlistContext;
+                if (cancelled) return;
+                if (!item?.id || item.status === "in_library") throw new Error("This Wishlist item has already been added to your library.");
+                setWishlistContext(item);
+                if (item.igdb_id) {
+                    setMode("igdb");
+                    setQ(item.name);
+                    openDetails(item.igdb_id, (item.platforms ?? []).map((platform) => platform.id));
+                } else {
+                    setMode("custom");
+                }
+            } catch (e) {
+                if (!cancelled) setWishlistContextError(e instanceof Error ? e.message : "Unable to load Wishlist item.");
+            }
+        })();
+        return () => { cancelled = true; };
+        // Wishlist context is deliberately loaded once per URL value.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [wishlistIdFromUrl]);
 
     // Handler for recently used tag clicks
     const handleRecentTagClick = (tagName: string) => {
@@ -221,7 +263,7 @@ export default function AdminAddGamePage() {
     }
 
     /* ---------------- Details overlay ---------------- */
-    function openDetails(id: number) {
+    function openDetails(id: number, initialPlatformIds: number[] = []) {
         setOpenId(id);
         setDetails(null);
         setDetailsError(null);
@@ -229,7 +271,7 @@ export default function AdminAddGamePage() {
         setSaving(false);
         setSavedMsg(null);
         setSaveError(null);
-        setSelectedPlatforms(new Set());
+        setSelectedPlatforms(new Set(initialPlatformIds));
         setCondition(0);
         setOrder(0);
         void (async () => {
@@ -319,6 +361,7 @@ export default function AdminAddGamePage() {
             tag_ids,
             condition: Number(condition) || 0,
             order: Number(order) || 0,
+            ...(wishlistContext ? { wishlist_id: wishlistContext.id } : {}),
         };
 
         try {
@@ -337,7 +380,15 @@ export default function AdminAddGamePage() {
                 throw new Error(msg);
             }
 
-            setSavedMsg("Saved!");
+            const created = await res.json().catch(() => null) as { id?: number; matching_wishlist_ids?: unknown } | null;
+            if (!wishlistContext && created?.id && Array.isArray(created.matching_wishlist_ids) && created.matching_wishlist_ids.length) {
+                const matches = created.matching_wishlist_ids.filter((id): id is number => typeof id === "number" && id > 0);
+                if (matches.length && window.confirm(`This game matches ${matches.length} active Wishlist item${matches.length === 1 ? "" : "s"}. Mark ${matches.length === 1 ? "it" : "them"} as in your library?`)) {
+                    const results = await Promise.all(matches.map((wishlistId) => fetch(`/api/admin/wishlist/${wishlistId}/resolve`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ game_id: created.id }) })));
+                    if (results.some((response) => !response.ok)) setSavedMsg("Game saved, but one or more matching Wishlist items could not be resolved.");
+                    else setSavedMsg("Saved and matching Wishlist items resolved.");
+                } else setSavedMsg("Saved!");
+            } else setSavedMsg("Saved!");
             setTimeout(() => {
                 closeDetails();
             }, 900);
@@ -378,6 +429,7 @@ export default function AdminAddGamePage() {
             collection_id: Number(fd.get("collection_id") || 0) || 0,
             tag_ids: parseTagIdsFromForm(fd, "tag_ids"), // mixed array (ids + new strings)
             company_ids: parseIdsCSV(String(fd.get("company_ids") || "")),
+            ...(wishlistContext ? { wishlist_id: wishlistContext.id } : {}),
         };
 
         try {
@@ -475,6 +527,17 @@ export default function AdminAddGamePage() {
             </div>
 
             <PageIntro eyebrow="Grow your collection" title="Add Game" description="Find a game in IGDB or create a record of your own." />
+
+            {wishlistContext ? (
+                <div style={{ background: "#17335a", border: "1px solid #285a9f", color: "#dceaff", padding: 12, borderRadius: 8, marginBottom: 12 }}>
+                    Adding <strong>{wishlistContext.name}</strong> from your Wishlist. Saving this game will mark that Wishlist item as in your library.
+                </div>
+            ) : null}
+            {wishlistContextError ? (
+                <div style={{ background: "#3b0f12", border: "1px solid #5b1a1f", color: "#ffd7d7", padding: 12, borderRadius: 8, marginBottom: 12 }}>
+                    {wishlistContextError}
+                </div>
+            ) : null}
 
             {/* Mode toggles */}
             <div className="gc-add-methods">
@@ -1029,7 +1092,8 @@ export default function AdminAddGamePage() {
                         </div>
                     ) : null}
 
-                    <form 
+                    <form
+                        key={wishlistContext?.id ?? "new-custom-game"}
                         ref={customFormRef} 
                         onSubmit={onCustomSubmit} 
                         onKeyDown={(e) => {
@@ -1047,6 +1111,7 @@ export default function AdminAddGamePage() {
                                 name="name"
                                 required
                                 placeholder="Required"
+                                defaultValue={wishlistContext?.igdb_id ? "" : wishlistContext?.name ?? ""}
                                 style={{
                                     background: "var(--gc-field)",
                                     color: "var(--gc-text)",
@@ -1083,6 +1148,7 @@ export default function AdminAddGamePage() {
                                     type="number"
                                     name="release_date"
                                     placeholder="e.g., 1998"
+                                    defaultValue={wishlistContext?.igdb_id ? "" : wishlistContext?.release_year ?? ""}
                                     style={{
                                         background: "var(--gc-field)",
                                         color: "var(--gc-text)",
@@ -1099,6 +1165,7 @@ export default function AdminAddGamePage() {
                                 <input
                                     name="cover_url"
                                     placeholder="https://…"
+                                    defaultValue={wishlistContext?.igdb_id ? "" : wishlistContext?.cover_url ?? ""}
                                     style={{
                                         background: "var(--gc-field)",
                                         color: "var(--gc-text)",
@@ -1196,7 +1263,7 @@ export default function AdminAddGamePage() {
                                 label="Platforms"
                                 name="platform_ids"
                                 options={platformOptions}
-                                defaultSelectedIds={[]}
+                                defaultSelectedIds={wishlistContext?.igdb_id ? [] : (wishlistContext?.platforms ?? []).map((platform) => platform.id)}
                                 multiple
                                 placeholder="Select platforms…"
                             />
