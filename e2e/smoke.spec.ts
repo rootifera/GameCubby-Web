@@ -40,3 +40,9 @@ test("admin login page renders", async ({ page }) => {
     await expect(page.getByLabel("Username")).toBeVisible();
     await expect(page.getByLabel("Password")).toBeVisible();
 });
+
+test("public wishlist page renders", async ({ page }) => {
+    await page.goto("/wishlist");
+
+    await expect(page.getByRole("heading", { name: "Wishlist" })).toBeVisible();
+});

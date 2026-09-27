@@ -61,6 +61,7 @@ export default function NavBar() {
         { href: "/" as Route, label: "Home" },
         { href: "/games" as Route, label: "Games" },
         { href: "/search" as Route, label: "Search" },
+        { href: "/wishlist" as Route, label: "Wishlist" },
     ];
 
     return (
