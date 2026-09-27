@@ -22,6 +22,8 @@ type Props = {
     placeholder?: string;
     /** Optional: compact size (shorter input height) */
     compact?: boolean;
+    /** Optional notification when the selected IDs change */
+    onSelectedIdsChange?: (ids: Array<number | string>) => void;
 };
 
 export default function MultiSelectDropdown({
@@ -32,6 +34,7 @@ export default function MultiSelectDropdown({
                                                 multiple = true,
                                                 placeholder = "Select…",
                                                 compact = false,
+                                                onSelectedIdsChange,
                                             }: Props) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
@@ -41,6 +44,11 @@ export default function MultiSelectDropdown({
 
     const rootRef = useRef<HTMLDivElement | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
+    const onSelectedIdsChangeRef = useRef(onSelectedIdsChange);
+
+    useEffect(() => {
+        onSelectedIdsChangeRef.current = onSelectedIdsChange;
+    }, [onSelectedIdsChange]);
 
     // close dropdown on outside click
     useEffect(() => {
@@ -71,6 +79,10 @@ export default function MultiSelectDropdown({
         const vals = Array.from(selected);
         return multiple ? vals.join(",") : vals[0] ?? "";
     }, [selected, multiple]);
+
+    useEffect(() => {
+        onSelectedIdsChangeRef.current?.(Array.from(selected));
+    }, [selected]);
 
     function toggle(id: string) {
         setSelected((prev) => {
