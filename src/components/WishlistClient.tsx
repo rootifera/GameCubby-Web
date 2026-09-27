@@ -33,6 +33,10 @@ function validExternalUrl(value: string): string | null {
     } catch { return null; }
 }
 
+function parseIdsCSV(value: string): number[] {
+    return value.split(",").map((item) => Number(item.trim())).filter((id) => Number.isInteger(id) && id > 0);
+}
+
 function LinksEditor({ links, onChange, shortcuts }: { links: LinkDraft[]; onChange: (links: LinkDraft[]) => void; shortcuts: PurchaseLinkShortcut[] }) {
     const update = (index: number, field: keyof LinkDraft, value: string) => onChange(links.map((link, i) => i === index ? { ...link, [field]: value } : link));
     return <div style={{ display: "grid", gap: 8 }}>
@@ -188,7 +192,7 @@ export default function WishlistClient({ initialItems, isAdmin }: { initialItems
         e.preventDefault(); setSaving(true); setError(null);
         try {
             let endpoint: string; let payload: Record<string, unknown>;
-            if (addMethod === "igdb") { if (!selectedIgdb) throw new Error("Select an IGDB result first."); endpoint = "/api/admin/wishlist/from_igdb"; payload = { igdb_id: selectedIgdb.id, platform_ids: selectedPlatformIds, links: cleanLinks() }; }
+            if (addMethod === "igdb") { const platformIds = parseIdsCSV(String(new FormData(addForm.current!).get("platform_ids") || "")); if (!selectedIgdb) throw new Error("Select an IGDB result first."); if (!platformIds.length) throw new Error("Choose at least one platform for this Wishlist item."); endpoint = "/api/admin/wishlist/from_igdb"; payload = { igdb_id: selectedIgdb.id, platform_ids: platformIds, links: cleanLinks() }; }
             else { const fd = new FormData(addForm.current!); const name = String(fd.get("name") ?? "").trim(); if (!name) throw new Error("A name is required."); endpoint = "/api/admin/wishlist"; payload = { name, release_year: Number(fd.get("release_year")) || undefined, cover_url: String(fd.get("cover_url") ?? "").trim() || undefined, platform_ids: selectedPlatformIds, links: cleanLinks() }; }
             const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); if (!res.ok) throw new Error(await messageFromResponse(res));
             const created = await res.json().catch(() => null) as WishlistItem | null; if (created?.id) setItems((old) => [created, ...old]); else router.refresh(); await saveNewLinkLabels(cleanLinks()); setNotice("Wishlist item added."); close();
