@@ -38,12 +38,12 @@ function LinksEditor({ links, onChange, shortcuts }: { links: LinkDraft[]; onCha
     return <div style={{ display: "grid", gap: 8 }}>
         <label style={{ opacity: 0.85 }}>Purchase links</label>
         {links.map((link, index) => <div key={index} style={{ display: "grid", gridTemplateColumns: "minmax(100px, .45fr) minmax(160px, 1fr) auto", gap: 8 }}>
-            <input aria-label={`Link ${index + 1} label`} list="wishlist-purchase-link-labels" placeholder="Label, e.g. eBay" value={link.label} onChange={(e) => update(index, "label", e.target.value)} style={input} />
+            <select aria-label={`Link ${index + 1} label`} value={link.label} onChange={(event) => update(index, "label", event.target.value)} style={input}>{shortcuts.map((shortcut) => <option key={shortcut.id} value={shortcut.label}>{shortcut.label}</option>)}</select>
             <input aria-label={`Link ${index + 1} URL`} placeholder="https://…" type="url" value={link.url} onChange={(e) => update(index, "url", e.target.value)} style={input} />
             <button type="button" onClick={() => onChange(links.filter((_, i) => i !== index))} style={button}>Remove</button>
         </div>)}
-        <datalist id="wishlist-purchase-link-labels">{shortcuts.map((shortcut) => <option key={shortcut.id} value={shortcut.label} />)}</datalist>
-        <button type="button" onClick={() => onChange([...links, { label: "", url: "" }])} style={{ ...button, justifySelf: "start" }}>+ Add purchase link</button>
+        <button type="button" disabled={shortcuts.length === 0} onClick={() => onChange([...links, { label: shortcuts[0].label, url: "" }])} style={{ ...button, justifySelf: "start", opacity: shortcuts.length === 0 ? .55 : 1 }}>+ Add purchase link</button>
+        {shortcuts.length === 0 ? <small style={{ opacity: .75 }}>Add a label in Shortcut Labels before adding a purchase link.</small> : null}
     </div>;
 }
 
