@@ -9,6 +9,7 @@ import GameHoverCard from "@/components/GameHoverCard";
 type Named = { id: number; name: string };
 type GameListItem = {
     id: number;
+    igdb_id?: number | null;
     name: string;
     cover_url?: string | null;
     release_date?: number | null; // year or unix
@@ -16,7 +17,6 @@ type GameListItem = {
     rating?: number | null;
 };
 
-type DetailsLite = { id: number; igdb_id?: number | null };
 type RefreshResult = { updated: boolean; message: string };
 type BulkInfo = { status?: string; detail?: string };
 type MetadataRefreshStatus = {
@@ -93,10 +93,6 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
     const [results, setResults] = useState<GameListItem[] | null>(null);
     const [loading, setLoading] = useState(false);
     const [err, setErr] = useState<string | null>(null);
-
-    // IGDB-only filter support: details map (id -> igdb_id)
-    const [details, setDetails] = useState<Map<number, DetailsLite>>(new Map());
-    const [detailsLoading, setDetailsLoading] = useState(false);
 
     // Per-row refresh status
     const [rowBusy, setRowBusy] = useState<number | null>(null);
@@ -179,7 +175,6 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
         setTagCsv("");
         setResults(null);
         setErr(null);
-        setDetails(new Map());
         setRowBusy(null);
         setRowMsg(new Map());
         setBulkBusy(null);
@@ -248,49 +243,11 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
         };
     }, [q, year, platformId, tagCsv, matchMode, size]);
 
-    // After results load, fetch details to filter out custom games (igdb_id = 0)
-    useEffect(() => {
-        let cancelled = false;
-        async function loadDetails(ids: number[]) {
-            setDetailsLoading(true);
-            try {
-                const pairs = await Promise.all(
-                    ids.map(async (id) => {
-                        try {
-                            const res = await fetch(`/api/proxy/games/${id}`, { cache: "no-store" });
-                            if (!res.ok) throw new Error();
-                            const j = await res.json();
-                            const igdb_id = typeof j?.igdb_id === "number" ? j.igdb_id : null;
-                            return [id, { id, igdb_id }] as const;
-                        } catch {
-                            return [id, { id, igdb_id: null }] as const;
-                        }
-                    })
-                );
-                if (cancelled) return;
-                setDetails((prev) => {
-                    const m = new Map(prev);
-                    for (const [id, lite] of pairs) m.set(id, lite);
-                    return m;
-                });
-            } finally {
-                if (!cancelled) setDetailsLoading(false);
-            }
-        }
-
-        if (results && results.length) {
-            void loadDetails(results.map((r) => r.id));
-        }
-    }, [results]);
-
     const filteredResults = useMemo(() => {
         if (!results) return null;
         // Hide custom games: keep only ids with igdb_id > 0
-        return results.filter((r) => {
-            const d = details.get(r.id);
-            return d && typeof d.igdb_id === "number" && d.igdb_id > 0;
-        });
-    }, [results, details]);
+        return results.filter((r) => typeof r.igdb_id === "number" && r.igdb_id > 0);
+    }, [results]);
 
     /* ---- styles ---- */
     const input = {
@@ -471,7 +428,6 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
                         {results && (
                             <>
                                 {" "}
-                                {detailsLoading ? " Filtering…" : ""}
                                 {filteredResults && ` Showing ${filteredResults.length} of ${results.length}.`}
                             </>
                         )}
