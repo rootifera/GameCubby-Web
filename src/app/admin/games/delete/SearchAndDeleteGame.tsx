@@ -140,6 +140,7 @@ function ConfirmDeleteModal({
                         <CoverThumb
                             name={details?.name ?? "Game"}
                             coverUrl={details?.cover_url ?? undefined}
+                            gameId={details?.id}
                             width={96}
                             height={128}
                             rounded
@@ -516,6 +517,7 @@ export default function SearchAndDeleteGame({ initialPlatforms }: { initialPlatf
                                     <CoverThumb
                                         name={g.name}
                                         coverUrl={g.cover_url ?? undefined}
+                                        gameId={g.id}
                                         width={48}
                                         height={64}
                                         rounded

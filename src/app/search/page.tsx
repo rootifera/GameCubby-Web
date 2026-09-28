@@ -359,6 +359,7 @@ export default async function BasicSearchPage(
                                     <CoverThumb
                                         name={g.name}
                                         coverUrl={g.cover_url ?? undefined}
+                                        gameId={g.id}
                                         width={56}
                                         height={56}
                                         rounded

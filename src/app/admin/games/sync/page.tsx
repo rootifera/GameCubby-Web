@@ -1,6 +1,7 @@
 import React from "react";
 import { API_BASE_URL } from "@/lib/env";
 import SearchAndSyncGame from "./SearchAndSyncGame";
+import CoverImageSync from "./CoverImageSync";
 
 export const metadata = {
     title: "Admin • Game Management • Sync & Refresh",
@@ -42,6 +43,9 @@ export default async function AdminGameSyncPage() {
             <div style={titleStyle}>Sync & Refresh Metadata</div>
             <div style={panel}>
                 <SearchAndSyncGame initialPlatforms={platforms} />
+            </div>
+            <div style={{ ...panel, marginTop: 14 }}>
+                <CoverImageSync />
             </div>
         </div>
     );
