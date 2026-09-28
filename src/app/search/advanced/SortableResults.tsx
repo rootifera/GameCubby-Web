@@ -57,7 +57,6 @@ export function SortableResults({ results, sortByOrder, locationId }: SortableRe
                             <CoverThumb
                                 name={g.name}
                                 coverUrl={g.cover_url ?? undefined}
-                                gameId={g.id}
                                 width={56}
                                 height={56}
                             />

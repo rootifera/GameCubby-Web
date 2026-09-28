@@ -297,7 +297,6 @@ export default async function GamesPage(
                                         <CoverThumb
                                             name={g.name}
                                             coverUrl={g.cover_url ?? undefined}
-                                            gameId={g.id}
                                             width={240}
                                             height={320}
                                             rounded

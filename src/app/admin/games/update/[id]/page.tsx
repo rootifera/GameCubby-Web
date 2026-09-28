@@ -1,7 +1,6 @@
 import React from "react";
 import Link from "next/link";
 import { headers, cookies } from "next/headers";
-import CoverThumb from "@/components/CoverThumb";
 
 /* ------------ types shared with editor ------------ */
 export type IdName = { id: number; name: string };
@@ -149,14 +148,28 @@ export default async function AdminGameEditorPage(props: { params: Promise<{ id:
                 ) : game && lookups ? (
                     <>
                         <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-                            <CoverThumb
-                                name={game.name}
-                                coverUrl={game.cover_url}
-                                gameId={game.id}
-                                width={96}
-                                height={128}
-                                rounded
-                            />
+                            {game.cover_url ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                (<img
+                                    src={game.cover_url}
+                                    alt={game.name}
+                                    style={{ width: 96, height: 128, objectFit: "cover", borderRadius: 8, border: "1px solid var(--gc-border)" }}
+                                />)
+                            ) : (
+                                <div
+                                    style={{
+                                        width: 96,
+                                        height: 128,
+                                        borderRadius: 8,
+                                        border: "1px solid var(--gc-border)",
+                                        display: "grid",
+                                        placeItems: "center",
+                                        opacity: 0.6,
+                                    }}
+                                >
+                                    No cover
+                                </div>
+                            )}
 
                             <div style={{ display: "grid", gap: 6 }}>
                                 <div style={{ fontSize: 16, fontWeight: 700 }}>{game.name}</div>
