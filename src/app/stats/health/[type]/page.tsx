@@ -163,6 +163,7 @@ export default async function HealthIssuePage(props: { params: Promise<{ type: s
                                         <CoverThumb
                                             name={g.name}
                                             coverUrl={g.cover_url ?? undefined}
+                                            gameId={g.id}
                                             width={56}
                                             height={56}
                                             rounded

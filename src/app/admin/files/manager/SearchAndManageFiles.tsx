@@ -1116,6 +1116,7 @@ export default function SearchAndManageFiles({
                                 <CoverThumb
                                     name={g.name}
                                     coverUrl={g.cover_url ?? undefined}
+                                    gameId={g.id}
                                     width={48}
                                     height={64}
                                     rounded
