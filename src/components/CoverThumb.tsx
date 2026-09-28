@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Props = {
     name: string;
     coverUrl?: string | null;
+    gameId?: number;
     width: number;
     height: number;
     rounded?: boolean;
@@ -13,6 +14,7 @@ type Props = {
 export default function CoverThumb({
                                        name,
                                        coverUrl,
+                                       gameId,
                                        width,
                                        height,
                                        rounded,
@@ -20,13 +22,15 @@ export default function CoverThumb({
     const [imgError, setImgError] = useState(false);
 
     const validUrl = useMemo(() => {
+        if (typeof gameId === "number" && gameId > 0) return `/api/proxy/games/${gameId}/cover`;
         if (!coverUrl) return null;
         const u = String(coverUrl).trim();
         if (/^https?:\/\/\S+/i.test(u)) return u;
         if (/^data:image\/[a-zA-Z]+;base64,/.test(u)) return u;
         if (/^\//.test(u)) return u;
         return null;
-    }, [coverUrl]);
+    }, [coverUrl, gameId]);
+    useEffect(() => setImgError(false), [validUrl]);
 
     const showImg = !!validUrl && !imgError;
 
@@ -51,6 +55,7 @@ export default function CoverThumb({
                 alt={name}
                 width={width}
                 height={height}
+                loading="lazy"
                 style={{
                     width,
                     height,

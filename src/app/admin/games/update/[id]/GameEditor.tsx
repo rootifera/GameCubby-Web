@@ -136,6 +136,7 @@ export default function GameEditor({
         yearFromRelease(initialData.release_date, initialData.release_year)
     );
     const [coverUrl, setCoverUrl] = useState(initialData.cover_url ?? "");
+    const [coverSource, setCoverSource] = useState<"url" | "upload">("url");
     const [order, setOrder] = useState<number | "">(
         typeof initialData.order === "number" ? initialData.order : ""
     );
@@ -243,6 +244,15 @@ export default function GameEditor({
     const [deleting, setDeleting] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [uploadingCover, setUploadingCover] = useState(false);
+
+    async function uploadCover(file: File | null) {
+        if (!file) return;
+        setUploadingCover(true); setError(null);
+        try { const data = new FormData(); data.append("file", file); const res = await fetch(`/api/admin/games/${initialData.id}/cover`, { method: "POST", body: data }); if (!res.ok) throw new Error((await res.text()) || "Cover upload failed"); window.location.reload(); }
+        catch (cause) { setError(cause instanceof Error ? cause.message : "Cover upload failed"); }
+        finally { setUploadingCover(false); }
+    }
 
     // Prefer tag_ids_mix JSON if present, else fallback to CSV
     function readMixedTagIds(fd: FormData, baseName: string): Array<number | string> {
@@ -589,7 +599,6 @@ export default function GameEditor({
                         required
                     />
                 </div>
-
                 {/* Release year */}
                 <div style={row}>
                     <label htmlFor="g_year">Release Year</label>
@@ -629,16 +638,14 @@ export default function GameEditor({
                     />
                 </div>
 
-                {/* Cover URL */}
+                {/* Cover image */}
                 <div style={row}>
-                    <label htmlFor="g_cover">Cover URL</label>
-                    <input
-                        id="g_cover"
-                        value={coverUrl}
-                        onChange={(e) => setCoverUrl(e.target.value)}
-                        style={inputStyle}
-                        disabled={isIGDB}
-                    />
+                    <label>Cover image</label>
+                    {isCustom ? <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button type="button" style={coverSource === "url" ? btn : btnDisabled} onClick={() => setCoverSource("url")}>Cover URL</button>
+                        <button type="button" style={coverSource === "upload" ? btn : btnDisabled} onClick={() => setCoverSource("upload")}>Upload image</button>
+                    </div> : null}
+                    {coverSource === "url" || isIGDB ? <input id="g_cover" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} style={inputStyle} disabled={isIGDB} /> : <><input id="g_cover_upload" type="file" accept="image/*" disabled={uploadingCover} onChange={(e) => void uploadCover(e.target.files?.[0] ?? null)} /><small style={hint}>{uploadingCover ? "Uploading cover…" : "Uploads a stored cover image for this custom game."}</small></>}
                 </div>
 
                 {/* Summary */}

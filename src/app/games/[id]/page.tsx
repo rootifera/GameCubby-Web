@@ -164,7 +164,7 @@ export default async function GameDetailsPage(props: { params: Promise<{ id: str
             {!error && game && (
                 <article className="gc-game-page">
                     <header className="gc-game-hero">
-                        <div className="gc-detail-art"><CoverThumb name={game.name} coverUrl={game.cover_url} width={210} height={280} /></div>
+                        <div className="gc-detail-art"><CoverThumb name={game.name} coverUrl={game.cover_url} gameId={game.id} width={210} height={280} /></div>
                         <div className="gc-game-hero-content">
                             <span className="gc-eyebrow">In your collection</span>
                             <h1>{game.name}</h1>
