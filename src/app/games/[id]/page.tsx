@@ -11,6 +11,7 @@ import {
 } from "@/lib/files";
 import BackButton from "@/components/BackButton";
 import GameFileManageButton from "@/components/GameFileManageButton";
+import GameMetadataUpdateNotice from "@/components/GameMetadataUpdateNotice";
 
 type LocationNode = { id: string; name: string };
 
@@ -163,7 +164,7 @@ export default async function GameDetailsPage(props: { params: Promise<{ id: str
             {!error && game && (
                 <article className="gc-game-page">
                     <header className="gc-game-hero">
-                        <div className="gc-detail-art"><CoverThumb name={game.name} coverUrl={game.cover_url} width={210} height={280} /></div>
+                        <div className="gc-detail-art"><CoverThumb name={game.name} coverUrl={game.cover_url} gameId={game.id} width={210} height={280} /></div>
                         <div className="gc-game-hero-content">
                             <span className="gc-eyebrow">In your collection</span>
                             <h1>{game.name}</h1>
@@ -176,6 +177,7 @@ export default async function GameDetailsPage(props: { params: Promise<{ id: str
                             <div className="gc-game-actions">
                                 <a href="#game-downloads" className="gc-primary-link">Downloads ({files.length})</a>
                                 {game.igdb_id > 0 && <a href={igdbSearchUrl(game.name)} target="_blank" rel="noopener noreferrer" className="gc-text-link">View on IGDB ↗</a>}
+                                {game.igdb_id > 0 && <GameMetadataUpdateNotice gameId={game.id} isAdmin={isAdmin} />}
                             </div>
                         </div>
                     </header>

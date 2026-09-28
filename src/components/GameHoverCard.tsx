@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import CoverThumb from "@/components/CoverThumb";
 
 /* ------- types ------- */
 
@@ -18,20 +19,6 @@ type GameDetails = {
     order?: number | null;              // NEW
     condition?: number | null;          // NEW
 };
-
-/* ------- helpers ------- */
-
-function isValidHttpUrl(s?: string | null): s is string {
-    if (!s) return false;
-    const t = s.trim();
-    if (!t) return false;
-    try {
-        const u = new URL(t);
-        return u.protocol === "http:" || u.protocol === "https:";
-    } catch {
-        return false;
-    }
-}
 
 function toYear(n?: number | null): string {
     if (n == null) return "—";
@@ -232,29 +219,14 @@ function CardContent({ g, touchMode = false }: { g: GameDetails; touchMode?: boo
     return (
         <div style={{ display: "grid", gridTemplateColumns: "64px 1fr", gap: 10, alignItems: "center" }}>
             {/* Cover / placeholder */}
-            <div
-                style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 8,
-                    border: "1px solid var(--gc-border)",
-                    background: "var(--gc-surface-raised)",
-                    overflow: "hidden",
-                }}
-            >
-                {isValidHttpUrl(g.cover_url) ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                        src={g.cover_url!}
-                        alt={g.name}
-                        width={64}
-                        height={64}
-                        style={{ width: 64, height: 64, objectFit: "cover", display: "block" }}
-                    />
-                ) : (
-                    <div style={{ width: "100%", height: "100%", background: "var(--gc-field)" }} />
-                )}
-            </div>
+            <CoverThumb
+                name={g.name}
+                coverUrl={g.cover_url}
+                gameId={g.id}
+                width={64}
+                height={64}
+                rounded
+            />
 
             {/* Text */}
             <div>

@@ -122,24 +122,6 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
     }
 
     useEffect(() => {
-        let cancelled = false;
-        (async () => {
-            try {
-                const status = await loadMetadataStatus();
-                if (!cancelled && status?.status === "running") {
-                    setBulkBusy(status.kind === "force_refresh" ? "force_refresh" : "refresh_all");
-                    setBulkInfo({ status: status.status, detail: status.detail || undefined });
-                }
-            } catch {
-                /* status is nice-to-have on initial load */
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, []);
-
-    useEffect(() => {
         if (metadataStatus?.status !== "running") return;
         const interval = window.setInterval(async () => {
             try {
@@ -547,6 +529,7 @@ export default function SearchAndSyncGame({ initialPlatforms }: { initialPlatfor
                                         <CoverThumb
                                             name={g.name}
                                             coverUrl={g.cover_url ?? undefined}
+                                            gameId={g.id}
                                             width={48}
                                             height={64}
                                             rounded
