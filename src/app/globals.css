@@ -364,7 +364,7 @@ th, td { padding: 12px; }
 .gc-library-sort { display: flex; gap: 10px; align-items: center; }
 .gc-secondary-button { background: var(--gc-surface-raised); color: var(--gc-text); border: 1px solid var(--gc-border); padding: 11px 16px; }
 .gc-sort-bar { padding: 16px 0; border-top: 1px solid var(--gc-border-subtle); border-bottom: 1px solid var(--gc-border-subtle); }
-.gc-library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 28px 22px; list-style: none; margin: 26px 0; padding: 0; }
+.gc-library-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 200px)); justify-content: space-between; gap: 28px 22px; list-style: none; margin: 26px 0; padding: 0; }
 .gc-library-card { display: block !important; padding: 0 !important; border: 0 !important; min-width: 0; }
 .gc-library-card > span { display: block !important; }
 .gc-library-cover { display: block; width: 100%; aspect-ratio: 3 / 4; border-radius: 12px; overflow: hidden; background: var(--gc-surface-raised); box-shadow: 0 8px 18px #0003; }
