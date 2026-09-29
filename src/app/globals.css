@@ -372,6 +372,7 @@ th, td { padding: 12px; }
 .gc-library-cover:hover > img { transform: scale(1.035); }
 .gc-library-info { display: block !important; padding-top: 13px; }
 .gc-library-info a { display: block; font-size: 15px; line-height: 1.4; margin-bottom: 5px; }
+.gc-library-grid:not(.gc-library-list) .gc-library-info a { min-height: 2.8em; }
 .gc-library-info > div:first-child > div { color: var(--gc-muted); }
 .gc-library-meta { display: flex; justify-content: space-between; text-align: left !important; margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--gc-border-subtle); }
 .gc-empty-state { padding: 64px 24px; text-align: center; border: 1px dashed var(--gc-border); border-radius: 16px; margin: 24px 0; }
