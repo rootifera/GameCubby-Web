@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { isJwtActive, readToken } from "@/lib/auth";
+import { hasValidSession } from "@/lib/auth";
 
 export default async function AuthActions() {
-    const token = await readToken();
-    const authed = token ? isJwtActive(token) : false;
+    const authed = await hasValidSession();
 
     return (
         <div className="gc-auth-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>

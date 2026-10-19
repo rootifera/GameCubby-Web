@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { API_BASE_URL } from "@/lib/env";
+import { fetchWithTimeout } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -28,12 +29,19 @@ export async function POST(_req: NextRequest, props: { params: Promise<{ id: str
     };
 
     for (const url of variants) {
-        const upstream = await fetch(url, {
-            method: "POST",
-            cache: "no-store",
-            headers,
-        });
-        const text = await upstream.text();
+        let upstream: Response;
+        let text: string;
+        try {
+            // Converting can move stored files (S3 copies), so allow a generous deadline.
+            upstream = await fetchWithTimeout(url, {
+                method: "POST",
+                cache: "no-store",
+                headers,
+            }, 120_000);
+            text = await upstream.text();
+        } catch {
+            return NextResponse.json({ detail: "Failed to reach API convert_to_custom" }, { status: 502 });
+        }
         const response = new NextResponse(text, {
             status: upstream.status,
             headers: {

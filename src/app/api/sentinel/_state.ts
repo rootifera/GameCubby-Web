@@ -10,12 +10,14 @@ export type JobStatus = "idle" | "running" | "succeeded" | "failed";
 export type JobPhase =
 // ---- restore phases ----
     | "init"
+    | "validate_dump"
     | "lock_app_user"
     | "terminate_sessions"
     | "pre_dump"
     | "restore_create"
     | "restore_inplace_prepare"
     | "restore_inplace"
+    | "rollback"
     | "analyze"
     | "reenable_app_user"
     | "done"
@@ -39,37 +41,52 @@ export type CurrentJob = {
     // Restore-specific
     dump_path?: string;
     pre_dump_file?: string;
+    /** Outcome of the automatic rollback to the pre-restore snapshot, if a restore failed. */
+    rollback?: "succeeded" | "failed" | "unavailable";
 
     // Backup-specific
     backup_file?: string;
     pruned?: number; // count of files pruned (if any)
 };
 
-// Module-level singleton (not exported directly)
-let currentJob: CurrentJob | null = null;
+// Process-wide singleton. Kept on globalThis because Next can bundle each route
+// separately, which would otherwise give every route its own copy of the lock.
+const globalStore = globalThis as typeof globalThis & { __gcSentinelJob?: { job: CurrentJob | null } };
+const store = (globalStore.__gcSentinelJob ??= { job: null });
 
 /** Return the current job or null if none. */
 export function getJob(): CurrentJob | null {
-    return currentJob ? { ...currentJob } : null;
+    return store.job ? { ...store.job } : null;
 }
 
 /** Set/replace the current job (e.g., when a job starts). */
 export function setJob(job: CurrentJob): void {
-    currentJob = { ...job };
+    store.job = { ...job };
+}
+
+/**
+ * Atomically claim the single job slot. Synchronous on purpose: call it before
+ * any `await` so two quick requests can't both pass the busy check.
+ * Returns false (and changes nothing) if a job is already running.
+ */
+export function tryStartJob(job: CurrentJob): boolean {
+    if (isBusy()) return false;
+    store.job = { ...job };
+    return true;
 }
 
 /** Merge updates into the current job (no-op if none). */
 export function updateJob(patch: Partial<CurrentJob>): void {
-    if (!currentJob) return;
-    currentJob = { ...currentJob, ...patch };
+    if (!store.job) return;
+    store.job = { ...store.job, ...patch };
 }
 
 /** Clear the current job (e.g., after completion or cancellation). */
 export function clearJob(): void {
-    currentJob = null;
+    store.job = null;
 }
 
 /** True if a job is currently running. */
 export function isBusy(): boolean {
-    return !!currentJob && currentJob.status === "running";
+    return !!store.job && store.job.status === "running";
 }

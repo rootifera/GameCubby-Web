@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import { PROXY } from "./env";
+import { SESSION_PROOF_COOKIE, isSessionActive } from "./session";
 
 /**
  * Shared authentication utilities for consistent token handling across routes
@@ -25,9 +26,16 @@ export function readTokenFromRequest(req: NextRequest): string {
     return req.cookies.get("__gcub_a")?.value || req.cookies.get("gc_at")?.value || "";
 }
 
+/** True if the request carries an unexpired admin token that we issued (see lib/session.ts). */
 export function hasActiveTokenFromRequest(req: NextRequest): boolean {
-    const token = readTokenFromRequest(req);
-    return token ? isJwtActive(token) : false;
+    return isSessionActive(readTokenFromRequest(req), req.cookies.get(SESSION_PROOF_COOKIE)?.value);
+}
+
+/** Same check for server components / route handlers that read cookies via next/headers. */
+export async function hasValidSession(): Promise<boolean> {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("__gcub_a")?.value || cookieStore.get("gc_at")?.value || "";
+    return isSessionActive(token, cookieStore.get(SESSION_PROOF_COOKIE)?.value);
 }
 
 export async function requireAuth(): Promise<string> {
@@ -47,23 +55,14 @@ export function requireAuthFromRequest(req: NextRequest): string {
 }
 
 /**
- * Basic JWT payload validation (expiration check only)
- * Note: This is a temporary fix until proper JWT verification is implemented
+ * Restrict a user-supplied post-login redirect to a same-site path.
+ * Rejects absolute/protocol-relative URLs ("//evil.com"), backslashes ("/\\evil.com",
+ * which browsers treat as "//evil.com") and control characters (browsers strip tabs
+ * and newlines inside URLs, so "/\t/evil.com" would become "//evil.com").
  */
-export function isJwtActive(token: string): boolean {
-    try {
-        const parts = token.split(".");
-        if (parts.length < 2) return false;
-        
-        const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-        const padded = base64 + "===".slice((base64.length + 3) % 4);
-        const json = Buffer.from(padded, "base64").toString("utf8");
-        const payload = JSON.parse(json) as { exp?: number };
-        
-        if (typeof payload.exp !== "number") return true; // treat as active if no exp
-        const now = Math.floor(Date.now() / 1000);
-        return payload.exp > now;
-    } catch {
-        return false;
-    }
+export function safeNextPath(value: string | null | undefined, fallback = "/admin"): string {
+    const v = String(value ?? "");
+    if (!v.startsWith("/") || v.startsWith("//")) return fallback;
+    if (/[\\\u0000-\u001f\u007f]/.test(v)) return fallback;
+    return v;
 }

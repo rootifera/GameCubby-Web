@@ -1,10 +1,11 @@
 // src/proxy.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { SESSION_PROOF_COOKIE, isSessionActive } from "@/lib/session";
+import { readMaintenance } from "@/lib/maintenance";
 
 const ADMIN_COOKIE = "__gcub_a";
 const LEGACY_ADMIN_COOKIE = "gc_at";
-const MAINT_COOKIE = "__gc_maint";
 
 // Paths always allowed while in maintenance (prefix match)
 const DEFAULT_ALLOW: string[] = [
@@ -63,22 +64,6 @@ function readAdminToken(req: NextRequest): string {
     return req.cookies.get(ADMIN_COOKIE)?.value || req.cookies.get(LEGACY_ADMIN_COOKIE)?.value || "";
 }
 
-function isJwtActive(token: string): boolean {
-    try {
-        const parts = token.split(".");
-        if (parts.length < 2) return false;
-
-        const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-        const padded = base64 + "===".slice((base64.length + 3) % 4);
-        const payload = JSON.parse(atob(padded)) as { exp?: number };
-
-        if (typeof payload.exp !== "number") return false;
-        return payload.exp > Math.floor(Date.now() / 1000);
-    } catch {
-        return false;
-    }
-}
-
 function externalUrl(req: NextRequest, pathname: string): URL {
     const url = req.nextUrl.clone();
     const forwardedHost = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
@@ -116,33 +101,11 @@ export default async function proxy(req: NextRequest) {
         return NextResponse.next();
     }
 
-    let maintEnabled = false;
-    let maintAllowExtra: string[] = [];
-    let maintReason: string | undefined;
-
-    // (1) Cookie toggle (set by enter/exit routes) — instant UI reaction
-    const maintCookie = req.cookies.get(MAINT_COOKIE)?.value;
-    if (maintCookie === "1") {
-        maintEnabled = true;
-    }
-
-    // (2) Fallback to server-side status file via API (source of truth)
-    if (!maintEnabled) {
-        try {
-            const u = new URL(req.url);
-            u.pathname = maintenanceStatusPath;
-            u.search = "";
-            const r = await fetch(u.toString(), { cache: "no-store" });
-            if (r.ok) {
-                const j = await r.json();
-                maintEnabled = !!j?.enabled;
-                if (Array.isArray(j?.allow)) maintAllowExtra = j.allow.filter((v: any) => typeof v === "string");
-                if (typeof j?.reason === "string") maintReason = j.reason;
-            }
-        } catch {
-            // If status probe fails, fail open (no maintenance gate)
-        }
-    }
+    // The flag file is the source of truth (read directly; no cookie, no HTTP self-call).
+    const maint = readMaintenance();
+    const maintEnabled = maint.enabled;
+    const maintAllowExtra = maint.allow;
+    const maintReason = maint.reason ?? undefined;
 
     if (maintEnabled) {
         // Allow only whitelisted prefixes while in maintenance
@@ -177,13 +140,14 @@ export default async function proxy(req: NextRequest) {
         !pathname.startsWith("/admin/logout")
     ) {
         const token = readAdminToken(req);
-        if (!token || !isJwtActive(token)) {
+        if (!isSessionActive(token, req.cookies.get(SESSION_PROOF_COOKIE)?.value)) {
             const loginUrl = externalUrl(req, "/admin/login");
             const nextPath = `${pathname}${search || ""}`;
             loginUrl.searchParams.set("next", nextPath || "/admin");
             const res = NextResponse.redirect(loginUrl);
             res.cookies.delete(ADMIN_COOKIE);
             res.cookies.delete(LEGACY_ADMIN_COOKIE);
+            res.cookies.delete(SESSION_PROOF_COOKIE);
             return res;
         }
     }
@@ -193,5 +157,5 @@ export default async function proxy(req: NextRequest) {
 
 export const config = {
     // Run on everything except Next internals & common public files
-    matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|api/admin/games/[^/]+/files/upload).*)"],
+    matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|api/admin/games/[^/]+/files/upload|api/admin/games/[^/]+/cover).*)"],
 };

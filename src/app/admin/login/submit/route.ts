@@ -1,16 +1,12 @@
 // src/app/admin/login/submit/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { API_BASE_URL } from "@/lib/env";
-import { shouldUseSecureCookies } from "@/lib/auth";
+import { safeNextPath, shouldUseSecureCookies } from "@/lib/auth";
+import { SESSION_PROOF_COOKIE, signSessionProof } from "@/lib/session";
 
 const NEW_COOKIE = "__gcub_a";
 const LEGACY_COOKIE = "gc_at";
 const ONE_DAY = 60 * 60 * 24;
-
-function safeNextPath(value: string): string {
-    if (!value.startsWith("/") || value.startsWith("//")) return "/admin";
-    return value;
-}
 
 export async function POST(req: NextRequest) {
     const form = await req.formData();
@@ -85,6 +81,16 @@ export async function POST(req: NextRequest) {
         res.cookies.set({
             name: LEGACY_COOKIE,
             value: token,
+            httpOnly: true,
+            sameSite: "strict",
+            secure: shouldBeSecure,
+            path: "/",
+            maxAge: ONE_DAY,
+        });
+        // Proof that this token came from a login we handled (see lib/session.ts).
+        res.cookies.set({
+            name: SESSION_PROOF_COOKIE,
+            value: signSessionProof(token),
             httpOnly: true,
             sameSite: "strict",
             secure: shouldBeSecure,

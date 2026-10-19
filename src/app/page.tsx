@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { API_BASE_URL } from "@/lib/env";
 import { redirect } from "next/navigation";
 import ForceRefreshButton from "@/components/ForceRefreshButton";
-import { isJwtActive, readToken } from "@/lib/auth";
+import { hasValidSession } from "@/lib/auth";
 import SearchBox from "@/components/SearchBox";
 import PageIntro from "@/components/PageIntro";
 
@@ -107,8 +107,7 @@ async function fetchHealth(): Promise<Health> {
 /** ---------- Check if user is admin ---------- */
 async function checkIfAdmin(): Promise<boolean> {
     try {
-        const token = await readToken();
-        return token ? isJwtActive(token) : false;
+        return await hasValidSession();
     } catch {
         return false;
     }

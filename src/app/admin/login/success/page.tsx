@@ -1,44 +1,27 @@
-// src/app/admin/login/success/page.tsx
+import { safeNextPath } from "@/lib/auth";
+import Redirect from "./Redirect";
+
 export default async function LoginSuccessPage(
   props: {
       searchParams?: Promise<{ next?: string }>;
   }
 ) {
   const searchParams = await props.searchParams;
-  const next = searchParams?.next || "/admin";
-
-  // Small HTML that pings /api/health immediately, then redirects.
-  const html = `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>Login successful…</title>
-  <meta http-equiv="refresh" content="0; url=${next}">
-  <script>
-    (function () {
-      try {
-        // Immediately call /api/health to update authentication state
-        fetch('/api/health?t=' + Date.now(), { 
-          cache: 'no-store', 
-          credentials: 'same-origin',
-          headers: { 'Cache-Control': 'no-cache' }
-        })
-        .finally(function () { window.location.replace('${next}'); });
-      } catch (e) {
-        window.location.replace('${next}');
-      }
-    })();
-  </script>
-</head>
-<body style="background:#0f0f10;color:var(--gc-text);font-family:system-ui,Arial,sans-serif;">
-  <div style="max-width:640px;margin:20vh auto 0;padding:16px;text-align:center;">
-    <h1 style="margin:0 0 8px 0;font-size:20px;">Login successful…</h1>
-    <p style="opacity:.8">Redirecting to <a href="${next}" style="color:#a0c4ff;">${next}</a>...</p>
-  </div>
-</body>
-</html>`;
+  // Never trust `next`: only same-site paths are allowed (blocks XSS and open redirects).
+  const next = safeNextPath(searchParams?.next);
 
   return (
-      <div dangerouslySetInnerHTML={{ __html: html }} />
+      <div style={{ background: "#0f0f10", color: "var(--gc-text)", fontFamily: "system-ui,Arial,sans-serif" }}>
+          <div style={{ maxWidth: 640, margin: "20vh auto 0", padding: 16, textAlign: "center" }}>
+              <h1 style={{ margin: "0 0 8px 0", fontSize: 20 }}>Login successful…</h1>
+              <p style={{ opacity: 0.8 }}>
+                  Redirecting to <a href={next} style={{ color: "#a0c4ff" }}>{next}</a>...
+              </p>
+          </div>
+          <Redirect to={next} />
+          <noscript>
+              <meta httpEquiv="refresh" content={`0; url=${next}`} />
+          </noscript>
+      </div>
   );
 }

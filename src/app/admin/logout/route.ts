@@ -1,6 +1,7 @@
 // src/app/admin/logout/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { shouldUseSecureCookies } from "@/lib/auth";
+import { SESSION_PROOF_COOKIE } from "@/lib/session";
 
 const NEW_COOKIE = "__gcub_a";
 const LEGACY_COOKIE = "gc_at";
@@ -37,16 +38,18 @@ export async function GET(req: NextRequest) {
         maxAge: 0,
     });
 
-    // Clear legacy cookie
-    res.cookies.set({
-        name: LEGACY_COOKIE,
-        value: "",
-        httpOnly: true,
-        sameSite: "strict",
-        secure: shouldBeSecure,
-        path: "/",
-        maxAge: 0,
-    });
+    // Clear legacy cookie and the session proof
+    for (const name of [LEGACY_COOKIE, SESSION_PROOF_COOKIE]) {
+        res.cookies.set({
+            name,
+            value: "",
+            httpOnly: true,
+            sameSite: "strict",
+            secure: shouldBeSecure,
+            path: "/",
+            maxAge: 0,
+        });
+    }
 
     return res;
 }

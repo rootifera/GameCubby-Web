@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
                 // restore fields (may be undefined for backups)
                 dump_path: j.dump_path,
                 pre_dump_file: j.pre_dump_file ?? null,
+                rollback: j.rollback ?? null, // "succeeded" | "failed" | "unavailable" (only after a failed restore)
                 // backup fields (may be undefined for restores)
                 backup_file: j.backup_file,
                 pruned: typeof j.pruned === "number" ? j.pruned : undefined,

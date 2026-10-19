@@ -74,6 +74,22 @@ function joinLocationPath(path?: LocationPathItem[] | null): string {
     return path.map((p) => p.name).join(" > ");
 }
 
+type DeleteImpact = {
+    game_id: number;
+    can_delete_files: boolean;
+    file_count: number;
+    total_bytes: number;
+    has_cover: boolean;
+    other_copies: { id: number; name: string }[];
+};
+
+function fmtBytes(n: number): string {
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+    if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(n / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
 /* ------------ confirm modal ------------ */
 function ConfirmDeleteModal({
                                 open,
@@ -82,6 +98,9 @@ function ConfirmDeleteModal({
                                 onConfirm,
                                 busy,
                                 error,
+                                impact,
+                                deleteFiles,
+                                onToggleDeleteFiles,
                             }: {
     open: boolean;
     details?: GameDetails | null;
@@ -89,6 +108,9 @@ function ConfirmDeleteModal({
     onConfirm: () => void;
     busy: boolean;
     error: string | null;
+    impact: DeleteImpact | null;
+    deleteFiles: boolean;
+    onToggleDeleteFiles: (v: boolean) => void;
 }) {
     if (!open) return null;
 
@@ -161,6 +183,38 @@ function ConfirmDeleteModal({
                     </div>
                 </div>
 
+                {impact && impact.can_delete_files && (impact.file_count > 0 || impact.has_cover) ? (
+                    <div style={{ marginTop: 14, padding: 10, borderRadius: 8, border: `1px solid ${deleteFiles ? "#7f1d1d" : "var(--gc-border)"}`, background: deleteFiles ? "#1f0b0b" : "transparent" }}>
+                        <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: busy ? "not-allowed" : "pointer" }}>
+                            <input
+                                type="checkbox"
+                                checked={deleteFiles}
+                                disabled={busy}
+                                onChange={(e) => onToggleDeleteFiles(e.target.checked)}
+                                style={{ marginTop: 3 }}
+                            />
+                            <span>
+                                <strong>Also delete all files</strong>{" "}
+                                <span style={{ opacity: 0.85 }}>(files will be deleted for all existing copies)</span>
+                            </span>
+                        </label>
+                        <div style={{ fontSize: 12, opacity: 0.85, marginTop: 6, lineHeight: 1.5 }}>
+                            {impact.file_count > 0
+                                ? `${impact.file_count} file${impact.file_count === 1 ? "" : "s"} (${fmtBytes(impact.total_bytes)})`
+                                : "No registered files"}
+                            {impact.has_cover ? " and the stored cover image" : ""} would be removed from storage.
+                            {impact.other_copies.length > 0 ? (
+                                <span style={{ color: deleteFiles ? "#fca5a5" : undefined }}>
+                                    {" "}They are shared with {impact.other_copies.length} other cop{impact.other_copies.length === 1 ? "y" : "ies"} that
+                                    would lose them too: {impact.other_copies.slice(0, 5).map((c) => c.name).join(", ")}
+                                    {impact.other_copies.length > 5 ? `, +${impact.other_copies.length - 5} more` : ""}.
+                                </span>
+                            ) : " No other copy uses them."}
+                            {" "}Leave this unchecked to keep the files.
+                        </div>
+                    </div>
+                ) : null}
+
                 {error ? <div style={{ color: "#fca5a5", marginTop: 10 }}>{error}</div> : null}
 
                 <div style={{ display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end" }}>
@@ -168,7 +222,7 @@ function ConfirmDeleteModal({
                         No, keep it
                     </button>
                     <button type="button" style={dangerBtn} onClick={onConfirm} disabled={busy}>
-                        {busy ? "Deleting…" : "Yes, delete"}
+                        {busy ? "Deleting…" : deleteFiles ? "Yes, delete game and files" : "Yes, delete"}
                     </button>
                 </div>
             </div>
@@ -198,6 +252,8 @@ export default function SearchAndDeleteGame({ initialPlatforms }: { initialPlatf
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [confirmBusy, setConfirmBusy] = useState(false);
     const [confirmErr, setConfirmErr] = useState<string | null>(null);
+    const [impact, setImpact] = useState<DeleteImpact | null>(null);
+    const [deleteFiles, setDeleteFiles] = useState(false); // always starts unchecked: files are kept by default
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [selectedDetails, setSelectedDetails] = useState<GameDetails | null>(null);
     const [selectedName, setSelectedName] = useState<string>(""); // for nicer banner
@@ -344,7 +400,18 @@ export default function SearchAndDeleteGame({ initialPlatforms }: { initialPlatf
         setSelectedId(id);
         setSelectedName(fallback.name); // banner fallback
         setConfirmBusy(false);
+        setImpact(null);
+        setDeleteFiles(false);
         setConfirmOpen(true);
+
+        // What would "also delete files" remove? (shared with other copies of the game)
+        fetch(`/api/admin/games/${id}/delete-impact`, { cache: "no-store" })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d: DeleteImpact | null) => {
+                // Ignore a late answer for a game the admin has already moved on from.
+                if (d && d.game_id === id) setImpact(d);
+            })
+            .catch(() => setImpact(null));
 
         // Fetch details to display location/order/condition (and nicer name if available)
         try {
@@ -380,6 +447,8 @@ export default function SearchAndDeleteGame({ initialPlatforms }: { initialPlatf
         setConfirmErr(null);
         setSelectedId(null);
         setSelectedDetails(null);
+        setImpact(null);
+        setDeleteFiles(false);
     }
 
     async function confirmDelete() {
@@ -387,7 +456,7 @@ export default function SearchAndDeleteGame({ initialPlatforms }: { initialPlatf
         setConfirmBusy(true);
         setConfirmErr(null);
         try {
-            const res = await fetch(`/api/admin/games/${selectedId}`, {
+            const res = await fetch(`/api/admin/games/${selectedId}${deleteFiles ? "?delete_files=true" : ""}`, {
                 method: "DELETE",
                 headers: { Accept: "application/json" },
             });
@@ -398,7 +467,7 @@ export default function SearchAndDeleteGame({ initialPlatforms }: { initialPlatf
 
             // Remove from the list locally and show a helpful banner with the game's name.
             setResults((prev) => (Array.isArray(prev) ? prev.filter((g) => g.id !== selectedId) : prev));
-            setBanner(`Deleted “${selectedName}”.`);
+            setBanner(deleteFiles ? `Deleted “${selectedName}” and its files.` : `Deleted “${selectedName}”. Its files were kept.`);
             closeConfirm();
         } catch (e: any) {
             setConfirmErr(e?.message ?? "Failed to delete");
@@ -559,6 +628,9 @@ export default function SearchAndDeleteGame({ initialPlatforms }: { initialPlatf
                 onConfirm={confirmDelete}
                 busy={confirmBusy}
                 error={confirmErr}
+                impact={impact}
+                deleteFiles={deleteFiles}
+                onToggleDeleteFiles={setDeleteFiles}
             />
         </div>
     );

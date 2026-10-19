@@ -46,12 +46,22 @@ export async function GET(req: NextRequest) {
             if (configRes.ok && listRes?.ok) {
                 const entries = await configRes.json() as Array<{ key?: string; value?: string }>;
                 const backend = entries.find((entry) => entry.key === "backup_storage_backend")?.value || "local";
-                const data = await listRes.json() as { files?: Array<{ source?: string }> };
+                const data = await listRes.json() as {
+                    files?: Array<{ source?: string }>;
+                    warnings?: string[];
+                    last_backup?: unknown;
+                };
                 const files = Array.isArray(data.files)
                     ? data.files.filter((file) => (file.source || "local") === backend)
                     : [];
                 return NextResponse.json(
-                    { ok: true, storage: backend, files },
+                    {
+                        ok: true,
+                        storage: backend,
+                        files,
+                        warnings: Array.isArray(data.warnings) ? data.warnings : [],
+                        last_backup: data.last_backup ?? null,
+                    },
                     { status: 200, headers: { "Cache-Control": "no-store" } }
                 );
             }
