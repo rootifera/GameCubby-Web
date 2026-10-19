@@ -1,4 +1,5 @@
-FROM node:25-trixie-slim AS builder
+# Node 24 is an LTS line (25 was a short-lived "Current" release without long-term support).
+FROM node:24-trixie-slim AS builder
 
 WORKDIR /app
 
@@ -10,7 +11,7 @@ COPY . .
 
 RUN npm run build
 
-FROM node:25-trixie-slim AS production
+FROM node:24-trixie-slim AS production
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends postgresql-client ca-certificates tzdata tini && \
@@ -37,10 +38,20 @@ COPY --from=builder /app/next.config.mjs ./
 COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/src/web-version.json ./src/web-version.json
 
-RUN mkdir -p /storage/backups/logs /storage/backups/prerestore
+RUN mkdir -p /storage/backups/logs /storage/backups/prerestore \
+    && mkdir -p /app/.next/cache && chown -R node:node /app/.next/cache
+
+# Starts as root only to fix /storage ownership, then runs as a non-root user.
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 3000
 
-ENTRYPOINT ["/usr/bin/tini", "--"]
+# /api/health answers 200 even when the GameCubby API is offline, so this reports
+# the web server's own liveness. Node ships fetch, so no curl is needed.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
 
 CMD ["npm", "run", "start", "--", "--hostname", "0.0.0.0"]

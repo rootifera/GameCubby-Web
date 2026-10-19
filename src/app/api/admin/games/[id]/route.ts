@@ -71,8 +71,10 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
 
 /* ---------------- NEW: DELETE ---------------- */
 // DELETE /api/admin/games/:id  — forwards to  DELETE {API_BASE_URL}/games/:id[/]  with Bearer
-export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
     const params = await props.params;
+    // Opt-in only: files are kept unless the admin explicitly asked to delete them too.
+    const deleteFiles = new URL(req.url).searchParams.get("delete_files") === "true";
     const token = await readToken();
     if (!token) {
         return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
@@ -84,8 +86,9 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
     };
 
     // Try both URL shapes; return first non-405 response
-    for (const url of urlVariants(params.id)) {
-        const res = await passthrough(url, { method: "DELETE", headers });
+    for (const base of urlVariants(params.id)) {
+        const url = deleteFiles ? `${base}?delete_files=true` : base;
+        const res = await passthrough(url, { method: "DELETE", headers }, deleteFiles ? 120_000 : 15_000);
         if (res.status !== 405) return res;
     }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { API_BASE_URL } from "@/lib/env";
+import { fetchStream } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -9,17 +10,17 @@ async function readToken() {
     return cookieStore.get("__gcub_a")?.value || cookieStore.get("gc_at")?.value || "";
 }
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
     const token = await readToken();
     if (!token) return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
 
     let upstream: Response;
     try {
-        upstream = await fetch(`${API_BASE_URL}/export/games/excel`, {
+        upstream = await fetchStream(`${API_BASE_URL}/export/games/excel`, {
             method: "GET",
             headers: { Authorization: `Bearer ${token}` },
             cache: "no-store",
-        });
+        }, 120_000, req.signal);
     } catch {
         return NextResponse.json({ detail: "Failed to reach API export/excel" }, { status: 502 });
     }

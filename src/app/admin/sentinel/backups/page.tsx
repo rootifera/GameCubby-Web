@@ -27,6 +27,15 @@ type StatusResp = {
     };
 };
 
+type LastBackup = {
+    ok: boolean;
+    at: string;
+    uri?: string | null;
+    error?: string | null;
+    consecutive_failures?: number;
+    last_success_at?: string | null;
+};
+
 export default function BackupsPage() {
     const [backups, setBackups] = React.useState<BackupFile[]>([]);
     const [loading, setLoading] = React.useState(false);
@@ -43,6 +52,8 @@ export default function BackupsPage() {
     const [logOffset, setLogOffset] = React.useState(0);
 
     const [error, setError] = React.useState<string | null>(null);
+    const [listWarnings, setListWarnings] = React.useState<string[]>([]);
+    const [lastBackup, setLastBackup] = React.useState<LastBackup | null>(null);
 
     const fmtBytes = (n: number) => {
         if (n < 1024) return `${n} B`;
@@ -60,6 +71,8 @@ export default function BackupsPage() {
             const j = await res.json();
             const files: BackupFile[] = Array.isArray(j.files) ? j.files : [];
             setBackups(files);
+            setListWarnings(Array.isArray(j.warnings) ? j.warnings : []);
+            setLastBackup(j.last_backup ?? null);
         } catch (e: any) {
             setError(e?.message || "Failed to load backups");
         } finally {
@@ -343,6 +356,19 @@ export default function BackupsPage() {
             {loading ? "Loading…" : `${backups.length} file${backups.length === 1 ? "" : "s"}`}
           </span>
                 </div>
+
+                {listWarnings.map((w) => (
+                    <p key={w} style={{ color: "#ff8a80", margin: "0 0 8px" }}>⚠ {w}</p>
+                ))}
+                {lastBackup && !lastBackup.ok && (
+                    <p style={{ color: "#ff8a80", margin: "0 0 8px" }}>
+                        ⚠ The last backup failed {fmtDate(lastBackup.at)}
+                        {lastBackup.consecutive_failures && lastBackup.consecutive_failures > 1
+                            ? ` (${lastBackup.consecutive_failures} failures in a row)`
+                            : ""}
+                        : {lastBackup.error || "unknown error"}. Last success: {fmtDate(lastBackup.last_success_at)}.
+                    </p>
+                )}
 
                 {!backups.length ? (
                     <p style={{ opacity: 0.8 }}>No backups found locally or in configured S3 backup storage.</p>

@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readToken } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/env";
+import { fetchStream } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
     const token = await readToken();
     if (!token) return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
 
     let upstream: Response;
     try {
-        upstream = await fetch(`${API_BASE_URL}/backup/`, {
+        // The API runs pg_dump to completion before it sends response headers, so the
+        // header deadline has to cover the whole dump.
+        upstream = await fetchStream(`${API_BASE_URL}/backup/`, {
             method: "GET",
             headers: { Authorization: `Bearer ${token}` },
             cache: "no-store",
-        });
+        }, 15 * 60_000, req.signal);
     } catch {
         return NextResponse.json({ detail: "Failed to reach API /backup/" }, { status: 502 });
     }

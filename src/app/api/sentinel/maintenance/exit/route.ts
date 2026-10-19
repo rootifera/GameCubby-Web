@@ -3,6 +3,7 @@ import { NextResponse, NextRequest } from "next/server";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { hasActiveTokenFromRequest, shouldUseSecureCookies } from "@/lib/auth";
+import { invalidateMaintenanceCache } from "@/lib/maintenance";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -57,6 +58,8 @@ export async function POST(req: NextRequest) {
         }
     }
 
+    invalidateMaintenanceCache();
+
     const ok = apiOk && fileCleared;
 
     const res = NextResponse.json(
@@ -69,7 +72,7 @@ export async function POST(req: NextRequest) {
         { status: ok ? 200 : 207, headers: { "Cache-Control": "no-store" } }
     );
 
-    // Clear the maintenance cookie so middleware stops blocking pages immediately
+    // Older versions set a 12h maintenance cookie; clear any leftover (it is no longer read).
     const shouldBeSecure = shouldUseSecureCookies(req);
     res.cookies.set(MAINT_COOKIE, "", {
         path: "/",

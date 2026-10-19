@@ -9,7 +9,8 @@ import {
     getJob,
     setJob,
     updateJob,
-    isBusy,
+    clearJob,
+    tryStartJob,
     type CurrentJob,
 } from "../../_state";
 
@@ -41,21 +42,10 @@ export async function POST(req: NextRequest) {
     }
 
     // ----- Prevent parallel jobs -----
-    if (isBusy()) {
-        const j = getJob();
-        return NextResponse.json(
-            { ok: false, error: "busy", job_id: j?.id, kind: j?.kind, status: j?.status },
-            { status: 409 }
-        );
-    }
-
+    // Claim the slot synchronously (before any await) so two quick requests can't
+    // both pass the check.
     const stamp = new Date().toISOString().replace(/[:-]/g, "").replace(/\..+$/, "").replace("T", "_");
     const logFile = path.join(LOGS_DIR, `backup_${stamp}.log`);
-
-    await ensureDirs();
-    await fs.writeFile(logFile, `# Backup started ${nowIso()}\n`, "utf8");
-
-    // ----- Initialize job -----
     const jobId = crypto.randomUUID();
     const job: CurrentJob = {
         id: jobId,
@@ -66,7 +56,22 @@ export async function POST(req: NextRequest) {
         log_file: logFile,
         backup_file: undefined,
     };
-    setJob(job);
+    if (!tryStartJob(job)) {
+        const j = getJob();
+        return NextResponse.json(
+            { ok: false, error: "busy", job_id: j?.id, kind: j?.kind, status: j?.status },
+            { status: 409 }
+        );
+    }
+
+    try {
+        await ensureDirs();
+        await fs.writeFile(logFile, `# Backup started ${nowIso()}\n`, "utf8");
+    } catch (err) {
+        // Don't leave the slot stuck as "running" if we never got started.
+        clearJob();
+        throw err;
+    }
     const token = readTokenFromRequest(req);
 
     // ----- Fire-and-forget background backup job -----

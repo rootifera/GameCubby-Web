@@ -2,14 +2,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { hasActiveTokenFromRequest, readTokenFromRequest, shouldUseSecureCookies } from "@/lib/auth";
+import { hasActiveTokenFromRequest, readTokenFromRequest } from "@/lib/auth";
+import { invalidateMaintenanceCache } from "@/lib/maintenance";
 import type { S3BackupConfig } from "@/lib/s3Backup";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
-
-const MAINT_COOKIE = "__gc_maint";
 
 // Maintenance flag file (shared via ./storage:/storage)
 const DEFAULT_MAINT_PATH = "/storage/maintenance.json";
@@ -116,6 +115,7 @@ export async function POST(req: NextRequest) {
         if (status === 401) {
             res.cookies.delete("__gcub_a");
             res.cookies.delete("gc_at");
+            res.cookies.delete("__gcub_s");
         }
         return res;
     }
@@ -130,10 +130,14 @@ export async function POST(req: NextRequest) {
     };
 
     // ---- Write maintenance flag ----
-    await fs.writeFile(MAINT_FILE, JSON.stringify(payload, null, 2), "utf8");
-    await fs.chmod(MAINT_FILE, 0o600);
+    // The file can hold S3 credentials, so it is created 0600 from the start (not chmod-ed
+    // afterwards), and written via rename so a reader never sees a half-written file
+    // (an unparsable file would be read as "not in maintenance").
+    const tmpFile = `${MAINT_FILE}.${process.pid}.tmp`;
+    await fs.writeFile(tmpFile, JSON.stringify(payload, null, 2), { encoding: "utf8", mode: 0o600 });
+    await fs.rename(tmpFile, MAINT_FILE);
 
-    // ---- Respond + set cookie so middleware blocks immediately ----
+    // ---- Respond; proxy.ts picks the new state up from the file ----
     const res = NextResponse.json(
         {
             ok: true,
@@ -147,16 +151,9 @@ export async function POST(req: NextRequest) {
         { status: 200, headers: { "Cache-Control": "no-store" } }
     );
 
-    // Determine if cookies should be secure based on PROXY setting
-    const shouldBeSecure = shouldUseSecureCookies(req);
-    res.cookies.set(MAINT_COOKIE, "1", {
-        path: "/",
-        httpOnly: true,
-        sameSite: "lax",
-        secure: shouldBeSecure,
-        // keep it around for a while; server-side status still the source of truth
-        maxAge: 60 * 60 * 12, // 12h
-    });
+    // No maintenance cookie any more: proxy.ts reads the flag file directly, so the
+    // state can't outlive maintenance in a browser that missed the exit.
+    invalidateMaintenanceCache();
 
     return res;
 }

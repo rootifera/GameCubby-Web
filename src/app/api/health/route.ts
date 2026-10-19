@@ -1,6 +1,6 @@
 // src/app/api/health/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { readToken, isJwtActive } from "@/lib/auth";
+import { hasValidSession } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
@@ -50,8 +50,7 @@ export async function GET(request: NextRequest) {
     // 2) Auth status from HttpOnly cookie __gcub_a
     let authed = false;
     try {
-        const token = await readToken();
-        authed = token ? isJwtActive(token) : false;
+        authed = await hasValidSession();
     } catch (error) {
         if (process.env.NODE_ENV === 'development') {
             console.warn("Auth check failed:", error);

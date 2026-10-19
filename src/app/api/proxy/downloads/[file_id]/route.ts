@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readToken } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/env";
+import { fetchStream, safeRedirectTarget } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +20,12 @@ function errorHtml(title: string, message: string) {
 </html>`;
 }
 
+// Waiting for the API to start answering (it may have to look the file up / presign it).
+// Once headers arrive the transfer itself can take as long as it needs.
+const DOWNLOAD_HEADERS_TIMEOUT_MS = 30_000;
+
 export async function GET(
-    _req: NextRequest,
+    req: NextRequest,
     ctx: { params: Promise<{ file_id: string }> }
 ) {
     const fileId = ((await ctx.params).file_id || "").trim();
@@ -43,14 +48,20 @@ export async function GET(
     const token = await readToken();
     const headers: Record<string, string> = {};
     if (token) headers["Authorization"] = `Bearer ${token}`;
+    // Let download managers / browsers resume and seek large files.
+    for (const name of ["range", "if-range"]) {
+        const value = req.headers.get(name);
+        if (value) headers[name] = value;
+    }
 
     let upstream: Response;
     try {
-        upstream = await fetch(`${API_BASE_URL}/downloads/${encodeURIComponent(fileId)}`, {
+        // req.signal: stop pulling the file from the API as soon as the visitor disconnects.
+        upstream = await fetchStream(`${API_BASE_URL}/downloads/${encodeURIComponent(fileId)}`, {
             cache: "no-store",
             headers,
             redirect: "manual",
-        });
+        }, DOWNLOAD_HEADERS_TIMEOUT_MS, req.signal);
     } catch {
         return new NextResponse(
             errorHtml("Download failed", "We couldn't reach the download server. Please try again."),
@@ -62,10 +73,14 @@ export async function GET(
     }
 
     if (upstream.status >= 300 && upstream.status < 400) {
-        const location = upstream.headers.get("location");
-        if (location) {
-            return NextResponse.redirect(location, upstream.status);
+        const target = safeRedirectTarget(upstream.headers.get("location") ?? "", API_BASE_URL);
+        if (target) {
+            return NextResponse.redirect(target, upstream.status);
         }
+        return new NextResponse(
+            errorHtml("Unable to download", "The download server returned an invalid redirect."),
+            { status: 502, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } }
+        );
     }
 
     // 403: public downloads disabled / unauthorized
@@ -100,6 +115,15 @@ export async function GET(
         );
     }
 
+    // 416: the requested byte range doesn't fit the file -- pass it through as-is.
+    if (upstream.status === 416) {
+        const h = new Headers();
+        const range = upstream.headers.get("content-range");
+        if (range) h.set("content-range", range);
+        h.set("Cache-Control", "no-store");
+        return new NextResponse(null, { status: 416, headers: h });
+    }
+
     // Other non-OK errors: bubble up real status
     if (!upstream.ok || !upstream.body) {
         return new NextResponse(
@@ -122,11 +146,16 @@ export async function GET(
 
     headersOut.set("content-type", ct);
     headersOut.set("content-disposition", cd);
-    if (cl) headersOut.set("content-length", cl);
+    if (cl && !upstream.headers.get("content-encoding")) headersOut.set("content-length", cl);
+    // Range support: pass the partial-content headers through so resumes/seeks work.
+    for (const name of ["content-range", "accept-ranges", "etag", "last-modified"]) {
+        const value = upstream.headers.get(name);
+        if (value) headersOut.set(name, value);
+    }
     headersOut.set("Cache-Control", "no-store");
 
     return new NextResponse(upstream.body, {
-        status: 200,
+        status: upstream.status === 206 ? 206 : 200,
         headers: headersOut,
     });
 }

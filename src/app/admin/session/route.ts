@@ -1,6 +1,6 @@
 // src/app/admin/session/route.ts
 import { NextResponse } from "next/server";
-import { readToken, isJwtActive } from "@/lib/auth";
+import { readToken, hasValidSession } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,7 +36,7 @@ export async function GET() {
     }
 
     const payload = decodeJwtPayload(token);
-    const authenticated = Boolean(payload && isJwtActive(token));
+    const authenticated = Boolean(payload && (await hasValidSession()));
 
     return NextResponse.json(
         {
