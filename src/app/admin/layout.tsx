@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import Sidebar from "./Sidebar";
 import styles from "./admin.module.css";
 import { bootstrapOnce } from "../sentinel/bootstrapOnStart";
+import SessionGuard from "@/components/SessionGuard";
 
 export const metadata = {
     title: "Admin • GameCubby",
@@ -72,6 +73,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             }}
         >
             <Suspense fallback={null}><MaintenanceBootstrap /></Suspense>
+            <SessionGuard />
             {/* Sidebar (client) */}
             <aside style={{ ...panelStyle, position: "sticky", top: 16, alignSelf: "start" }}>
                 <Sidebar />

@@ -66,3 +66,22 @@ export function safeNextPath(value: string | null | undefined, fallback = "/admi
     if (/[\\\u0000-\u001f\u007f]/.test(v)) return fallback;
     return v;
 }
+
+/**
+ * The visitor's real IP, for the API's login rate limit. Without this the API only ever sees this
+ * web server's address, so three bad guesses from anyone (a scanner, an attacker) locked the real
+ * admin out too.
+ *
+ * Only trusted when PROXY=true (the app sits behind a reverse proxy that sets X-Forwarded-For): a
+ * client talking to the web port directly could otherwise forge the header to dodge the limit.
+ * TRUSTED_PROXY_HOPS (default 1) is how many proxies append to X-Forwarded-For; the entry that many
+ * from the right is the client as seen by the first trusted proxy.
+ */
+export function trustedClientIp(req: NextRequest): string | null {
+    if (!PROXY) return null;
+    const chain = (req.headers.get("x-forwarded-for") || "").split(",").map((s) => s.trim()).filter(Boolean);
+    if (chain.length === 0) return null;
+    const hops = Math.max(1, Number(process.env.TRUSTED_PROXY_HOPS || 1) || 1);
+    const candidate = chain[Math.max(0, chain.length - hops)];
+    return /^[0-9a-fA-F:.]{3,45}$/.test(candidate) ? candidate : null;
+}

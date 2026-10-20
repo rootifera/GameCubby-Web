@@ -16,6 +16,14 @@ export async function GET(req: NextRequest) {
         return new NextResponse('OK', { status: 200 });
     }
 
+    // Logging out is a state change done with GET (it's a plain link in the nav). Without this, any
+    // other website could log you out just by embedding the URL. Browsers label where a request
+    // came from: only same-origin navigations (and typed/bookmarked URLs, "none") are honoured.
+    const site = req.headers.get("sec-fetch-site");
+    if (site === "cross-site" || site === "same-site") {
+        return new NextResponse(null, { status: 303, headers: { Location: "/admin", "Cache-Control": "no-store" } });
+    }
+
     // Determine if cookies should be secure based on PROXY setting
     const shouldBeSecure = shouldUseSecureCookies(req);
 

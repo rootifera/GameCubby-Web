@@ -1,7 +1,7 @@
 // src/app/admin/login/submit/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { API_BASE_URL } from "@/lib/env";
-import { safeNextPath, shouldUseSecureCookies } from "@/lib/auth";
+import { safeNextPath, shouldUseSecureCookies, trustedClientIp } from "@/lib/auth";
 import { SESSION_PROOF_COOKIE, signSessionProof } from "@/lib/session";
 
 const NEW_COOKIE = "__gcub_a";
@@ -22,9 +22,11 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+        const clientIp = trustedClientIp(req);
         const upstream = await fetch(`${API_BASE_URL}/auth/login`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            // X-Real-IP lets the API rate-limit per visitor instead of per web server.
+            headers: { "Content-Type": "application/json", ...(clientIp ? { "X-Real-IP": clientIp } : {}) },
             cache: "no-store",
             body: JSON.stringify({ username, password }),
         });

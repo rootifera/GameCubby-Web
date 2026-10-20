@@ -57,10 +57,13 @@ export default function ChangePasswordForm() {
                 throw new Error(raw || `Change failed (${res.status})`);
             }
 
-            setNotice("Password updated successfully.");
             setCurrentPwd("");
             setNewPwd("");
             setConfirmPwd("");
+            // Changing the password ends every session, including this one: send the admin to the
+            // login page, which also proves the new password works.
+            setNotice("Password updated. Signing you out so you can log in with the new password…");
+            setTimeout(() => { window.location.href = "/admin/logout"; }, 1500);
         } catch (e: any) {
             setErr(e?.message ?? "Change password failed");
         } finally {
