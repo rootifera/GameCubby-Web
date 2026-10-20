@@ -16,6 +16,21 @@ type OrderTie = { order: number; games: { game_id: number; name: string; new: nu
 type OrderLocationPlan = { location_id: number; path: string[]; games: number; changed: number; changes: OrderChange[]; ties: OrderTie[] };
 type GapsPlan = { applied: boolean; fingerprint: string; locations: OrderLocationPlan[]; total_games: number; total_changed: number };
 
+type OrderGameRef = { game_id: number; name: string; order: number };
+type OrderGap = { start: number; end: number; count: number; after: OrderGameRef | null; before: OrderGameRef | null };
+type OrderDup = { order: number; games: OrderGameRef[] };
+type OrderProblem = {
+    location_id: number; path: string[]; games: number; starts_at: number | null;
+    gaps: OrderGap[]; duplicates: OrderDup[]; fixable_changes: number;
+};
+type OrderReport = {
+    locations_checked: number; games_checked: number; locations_ok: number;
+    with_gaps: number; with_duplicates: number; not_starting_at_1: number; problem_locations: OrderProblem[];
+};
+
+const gapText = (g: OrderGap) => (g.count === 1 ? `#${g.start}` : `#${g.start}–#${g.end} (${g.count} numbers)`);
+const gameText = (r: OrderGameRef | null) => (r ? `${r.name} (#${r.order})` : "—");
+
 function csvCell(v: string | number): string {
     const t = String(v);
     return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
@@ -56,6 +71,11 @@ export default function LocationManager() {
     const [includeKids, setIncludeKids] = useState(false);
     const [gapsPlan, setGapsPlan] = useState<GapsPlan | null>(null);
     const [gapsBusy, setGapsBusy] = useState(false);
+
+    // find gaps: a read-only report over ALL locations
+    const [report, setReport] = useState<OrderReport | null>(null);
+    const [reportBusy, setReportBusy] = useState(false);
+    const [justSelected, setJustSelected] = useState<number | null>(null);
 
     // a preview belongs to one location + one scope: drop it as soon as either changes
     useEffect(() => {
@@ -264,6 +284,46 @@ export default function LocationManager() {
         } finally {
             setGapsBusy(false);
         }
+    }
+
+    async function runFindGaps() {
+        setReportBusy(true);
+        setErr(null);
+        setNotice(null);
+        setJustSelected(null);
+        try {
+            setReport(await fetchJSON<OrderReport>("/api/admin/locations/order-report"));
+        } catch (e: any) {
+            setErr(e?.message ?? "Find gaps failed");
+            setReport(null);
+        } finally {
+            setReportBusy(false);
+        }
+    }
+
+    /** Jump to a problem location in the tree so it can be previewed/fixed with the buttons above. */
+    function selectProblemLocation(id: number) {
+        setSelectedId(id);
+        setTreeKey((k) => k + 1);
+        setJustSelected(id);
+    }
+
+    function downloadReportCsv() {
+        if (!report) return;
+        const rows = [["location", "location_id", "issue", "detail", "games"]];
+        for (const p of report.problem_locations) {
+            const where = p.path.join(" > ");
+            if (p.starts_at) rows.push([where, String(p.location_id), "does not start at 1", `first game is #${p.starts_at}`, ""]);
+            for (const g of p.gaps) rows.push([where, String(p.location_id), "gap", `missing ${gapText(g)}`, `${gameText(g.after)} | ${gameText(g.before)}`]);
+            for (const d of p.duplicates) rows.push([where, String(p.location_id), "duplicate", `#${d.order} used by ${d.games.length} games`, d.games.map(gameText).join(" | ")]);
+        }
+        const blob = new Blob([rows.map((r) => r.map(csvCell).join(",")).join("\n")], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "order-gaps-report.csv";
+        a.click();
+        URL.revokeObjectURL(url);
     }
 
     function downloadGapsCsv() {
@@ -537,7 +597,79 @@ export default function LocationManager() {
                         >
                             {gapsBusy && !gapsPlan ? "Checking…" : "Preview"}
                         </button>
+                        <button
+                            type="button"
+                            style={btn}
+                            onClick={() => void runFindGaps()}
+                            disabled={reportBusy}
+                            title="Read-only: lists the gaps, duplicates and shelves not starting at 1 in ALL locations"
+                        >
+                            {reportBusy ? "Searching…" : "Find gaps (all locations)"}
+                        </button>
                     </div>
+
+                    {report && (
+                        <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+                                <div style={{ fontWeight: 700 }}>Gap report — all locations</div>
+                                <button type="button" style={{ ...btn, padding: "4px 8px", fontSize: 12 }} onClick={() => setReport(null)}>
+                                    Close report
+                                </button>
+                            </div>
+                            {report.problem_locations.length === 0 ? (
+                                <div style={{ background: "#102418", border: "1px solid #214d2c", padding: 10, borderRadius: 8 }}>
+                                    No gaps, duplicates or wrong starting numbers: all {report.locations_checked} locations ({report.games_checked} games) are numbered 1…N.
+                                </div>
+                            ) : (
+                                <>
+                                    <div style={{ fontSize: 14, lineHeight: "1.5" }}>
+                                        Checked <strong>{report.locations_checked}</strong> locations ({report.games_checked} games):{" "}
+                                        <strong>{report.problem_locations.length}</strong> need attention —{" "}
+                                        {report.with_gaps} with gaps, {report.with_duplicates} with duplicate numbers, {report.not_starting_at_1} not
+                                        starting at 1. The other {report.locations_ok} are fine.
+                                    </div>
+                                    <div style={{ display: "grid", gap: 6, maxHeight: 420, overflow: "auto" }}>
+                                        {report.problem_locations.map((p) => (
+                                            <div key={p.location_id} style={{ background: "var(--gc-field)", border: "1px solid var(--gc-border)", borderRadius: 8, padding: "8px 10px" }}>
+                                                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                                                    <div style={{ fontSize: 14 }}>
+                                                        <strong>{p.path.join(" › ")}</strong>{" "}
+                                                        <span style={{ opacity: 0.7 }}>({p.games} games)</span>
+                                                    </div>
+                                                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                                        {justSelected === p.location_id && (
+                                                            <span style={{ fontSize: 12, color: "#9ae6b4" }}>selected — click Preview above</span>
+                                                        )}
+                                                        <button type="button" style={{ ...btn, padding: "4px 8px", fontSize: 12 }} onClick={() => selectProblemLocation(p.location_id)}>
+                                                            Select in tree
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <ul style={{ margin: "6px 0 0 18px", padding: 0, fontSize: 13, lineHeight: "1.55" }}>
+                                                    {p.starts_at != null && <li>Doesn&apos;t start at 1: the first game is <strong>#{p.starts_at}</strong>.</li>}
+                                                    {p.gaps.map((g) => (
+                                                        <li key={`g${g.start}`}>
+                                                            Missing <strong>{gapText(g)}</strong> — between {gameText(g.after)} and {gameText(g.before)}
+                                                        </li>
+                                                    ))}
+                                                    {p.duplicates.map((d) => (
+                                                        <li key={`d${d.order}`}>
+                                                            <strong>#{d.order}</strong> is used by {d.games.map((x) => x.name).join(" and ")}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div>
+                                        <button type="button" style={btn} onClick={downloadReportCsv}>
+                                            Download report (CSV)
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
 
                     {gapsPlan && (
                         <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
