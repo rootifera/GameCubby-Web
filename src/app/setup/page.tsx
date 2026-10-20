@@ -1,3 +1,4 @@
+import SetupS3Toggle from "./SetupS3Toggle";
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/env";
 
@@ -279,25 +280,7 @@ export default async function SetupPage(
                                 </label>
                             </div>
                         </fieldset>
-                        <script
-                            dangerouslySetInnerHTML={{
-                                __html: `
-(() => {
-  const fileSelect = document.getElementById("file-storage-backend");
-  const backupSelect = document.getElementById("backup-storage-backend");
-  const credentials = document.getElementById("s3-credentials");
-  function updateS3Fields() {
-    if (!credentials) return;
-    const needsS3 = fileSelect?.value === "s3" || backupSelect?.value === "s3";
-    credentials.style.display = needsS3 ? "block" : "none";
-  }
-  fileSelect?.addEventListener("change", updateS3Fields);
-  backupSelect?.addEventListener("change", updateS3Fields);
-  updateS3Fields();
-})();
-`,
-                            }}
-                        />
+                        <SetupS3Toggle />
 
                         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                             <button type="submit" style={buttonStyle}>

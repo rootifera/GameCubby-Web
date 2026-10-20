@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { SESSION_PROOF_COOKIE, isSessionActive } from "@/lib/session";
 import { readMaintenance } from "@/lib/maintenance";
+import { buildCsp, cspHeaderName, cspMode, isCrossSiteWrite, newNonce } from "@/lib/security";
 
 const ADMIN_COOKIE = "__gcub_a";
 const LEGACY_ADMIN_COOKIE = "gc_at";
@@ -25,7 +26,7 @@ function isAllowed(pathname: string, extra: string[] = []): boolean {
     return allow.some((p) => pathname.startsWith(p));
 }
 
-function maintenanceHtml(reason?: string | null) {
+function maintenanceHtml(reason: string | null | undefined, nonce: string) {
     const msg = reason ? `Maintenance in progress: ${escapeHtml(reason)}` : "We’re performing maintenance.";
     return `<!doctype html>
 <html lang="en">
@@ -33,7 +34,7 @@ function maintenanceHtml(reason?: string | null) {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Maintenance • GameCubby</title>
-<style>
+<style nonce="${nonce}">
   body{margin:0;background:#0f0f0f;color:#eaeaea;
        font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji';}
   .wrap{max-width:720px;margin:12vh auto;padding:24px}
@@ -84,6 +85,32 @@ function externalUrl(req: NextRequest, pathname: string): URL {
 export default async function proxy(req: NextRequest) {
     const { pathname, search } = req.nextUrl;
 
+    // Per-request Content-Security-Policy. The nonce goes to Next.js via the request headers (it
+    // stamps it on its own scripts) and the policy goes out on every response.
+    const mode = cspMode();
+    const nonce = newNonce();
+    const csp = buildCsp(nonce);
+    const cspName = cspHeaderName(mode);
+    const requestHeaders = new Headers(req.headers);
+    if (mode !== "off") {
+        requestHeaders.set("x-nonce", nonce);
+        requestHeaders.set(cspName, csp);
+    }
+    const secure = <T extends NextResponse>(res: T): T => {
+        if (mode !== "off") res.headers.set(cspName, csp);
+        return res;
+    };
+    const next = () => secure(NextResponse.next({ request: { headers: requestHeaders } }));
+
+    // CSRF: a state-changing request must not come from another site (see lib/security.ts).
+    if (isCrossSiteWrite(req)) {
+        console.warn(`[security] blocked cross-site ${req.method} ${pathname} (origin: ${req.headers.get("origin") ?? "none"})`);
+        return secure(new NextResponse(JSON.stringify({ detail: "Cross-site request blocked" }), {
+            status: 403,
+            headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+        }));
+    }
+
     // --- Skip static assets quickly (handled by matcher too) ---
     if (
         pathname.startsWith("/_next/") ||
@@ -91,14 +118,14 @@ export default async function proxy(req: NextRequest) {
         pathname === "/robots.txt" ||
         pathname === "/sitemap.xml"
     ) {
-        return NextResponse.next();
+        return next();
     }
 
     // --- Maintenance check (cookie OR internal API) ---
     // Avoid infinite loop: allow sentinel maintenance status without fetching
     const maintenanceStatusPath = "/api/sentinel/maintenance/status";
     if (pathname === maintenanceStatusPath) {
-        return NextResponse.next();
+        return next();
     }
 
     // The flag file is the source of truth (read directly; no cookie, no HTTP self-call).
@@ -112,23 +139,23 @@ export default async function proxy(req: NextRequest) {
         if (!isAllowed(pathname, maintAllowExtra)) {
             // Block: return a friendly 503 for pages, JSON for API
             if (pathname.startsWith("/api/")) {
-                return new NextResponse(JSON.stringify({ ok: false, maintenance: true }), {
+                return secure(new NextResponse(JSON.stringify({ ok: false, maintenance: true }), {
                     status: 503,
                     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
-                });
+                }));
             }
 
             // Admin pages (except the restore console) → redirect to restore
             if (pathname.startsWith("/admin") && pathname !== "/admin/sentinel/restore") {
                 const restoreUrl = externalUrl(req, "/admin/sentinel/restore");
-                return NextResponse.redirect(restoreUrl, 302);
+                return secure(NextResponse.redirect(restoreUrl, 302));
             }
 
             // Public pages -> friendly maintenance page
-            return new NextResponse(maintenanceHtml(maintReason || undefined), {
+            return secure(new NextResponse(maintenanceHtml(maintReason, nonce), {
                 status: 503,
                 headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
-            });
+            }));
         }
     }
 
@@ -148,11 +175,11 @@ export default async function proxy(req: NextRequest) {
             res.cookies.delete(ADMIN_COOKIE);
             res.cookies.delete(LEGACY_ADMIN_COOKIE);
             res.cookies.delete(SESSION_PROOF_COOKIE);
-            return res;
+            return secure(res);
         }
     }
 
-    return NextResponse.next();
+    return next();
 }
 
 export const config = {

@@ -3,6 +3,7 @@ import Link from "next/link";
 import NavBar from "@/components/NavBar";
 import ApiStatus from "@/components/ApiStatus";
 import AuthActions from "@/components/AuthActions";
+import NumberInputWheelGuard from "@/components/NumberInputWheelGuard";
 
 export const metadata = {
     title: "GameCubby",
@@ -19,38 +20,6 @@ export default function RootLayout({
         <html lang="en">
         <head>
 
-            <script dangerouslySetInnerHTML={{
-                __html: `
-                    // Disable mouse wheel on number inputs
-                    document.addEventListener('DOMContentLoaded', function() {
-                        function disableWheelOnNumberInputs() {
-                            const numberInputs = document.querySelectorAll('input[type="number"]');
-                            numberInputs.forEach(function(input) {
-                                input.addEventListener('wheel', function(e) {
-                                    e.preventDefault();
-                                }, { passive: false });
-                            });
-                        }
-                        
-                        // Run on initial load
-                        disableWheelOnNumberInputs();
-                        
-                        // Also handle dynamically added inputs (for React components)
-                        const observer = new MutationObserver(function(mutations) {
-                            mutations.forEach(function(mutation) {
-                                if (mutation.addedNodes.length > 0) {
-                                    disableWheelOnNumberInputs();
-                                }
-                            });
-                        });
-                        
-                        observer.observe(document.body, {
-                            childList: true,
-                            subtree: true
-                        });
-                    });
-                `
-            }} />
             <link rel="icon" href="/favicon.ico" type="image/x-icon" />
         </head>
         <body
@@ -64,6 +33,7 @@ export default function RootLayout({
                 flexDirection: "column",
             }}
         >
+        <NumberInputWheelGuard />
         {/* Top navigation */}
         <header
             className="gc-header"
